@@ -24,11 +24,29 @@ interface RatingEntry {
   score: number;
 }
 
+interface ScheduledSessionView {
+  id: string;
+  date: string;
+  status: "SCHEDULED" | "COMPLETED" | "MISSED" | "SKIPPED";
+  currentDistanceKm: number;
+  originalDistanceKm: number;
+  targetPaceMinKmLow: number | null;
+  targetPaceMinKmHigh: number | null;
+  targetHrZone: number | null;
+  isAdjusted: boolean;
+  triggerReason: string | null;
+  activity: { avgPaceSecKm: number; avgHeartRate: number | null } | null;
+  rating: { score: number; paceScore: number; hrScore: number; executionScore: number } | null;
+}
+
+export const dynamic = "force-dynamic";
+
 export default function ProgramPage() {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [ratingsMap, setRatingsMap] = useState<Map<string, number>>(new Map());
   const [startInput, setStartInput] = useState("");
+  const [sessions, setSessions] = useState<ScheduledSessionView[]>([]);
   const [saving, setSaving] = useState(false);
   const [isPending, startTransition] = useTransition();
 
@@ -37,7 +55,8 @@ export default function ProgramPage() {
       fetch("/api/settings").then((r) => r.json()),
       fetch("/api/activities?all=1").then((r) => r.json()),
       fetch("/api/ratings").then((r) => r.json()).catch(() => []),
-    ]).then(([s, a, ratings]) => {
+      fetch("/api/program/sessions").then((r) => r.json()).catch(() => []),
+    ]).then(([s, a, ratings, scheduled]) => {
       setSettings(s);
       setActivities(Array.isArray(a) ? a : []);
       if (s.planStartDate) {
@@ -51,6 +70,7 @@ export default function ProgramPage() {
         }
       }
       setRatingsMap(map);
+      setSessions(Array.isArray(scheduled) ? scheduled : []);
     });
   }, []);
 
@@ -233,6 +253,7 @@ export default function ProgramPage() {
           planStartDate={planStartDate}
           completedDays={completedDays}
           ratings={ratingsMap}
+          scheduledSessions={sessions}
         />
       </div>
     </div>
