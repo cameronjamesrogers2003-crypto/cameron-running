@@ -37,6 +37,9 @@ export interface RatingResult {
   conditions: number;
 }
 
+// Keep fallback scoring aligned with DEFAULT_SETTINGS for surfaces that cannot pass settings.
+const DEFAULT_MAX_HR = 192;
+
 // Default target distance by run type (km) -- overridden by distTargetKmOverride
 const TARGET_DIST: Record<RunType, number> = {
   easy: 7,
@@ -64,7 +67,7 @@ export function calculateRunRating(input: RatingInput): RatingResult {
   const {
     distanceKm, avgPaceSecKm, avgHeartRate,
     temperatureC, humidityPct, runType,
-    personalBestPaceSecKm, athleteAgeYears,
+    personalBestPaceSecKm,
     maxHROverride, distTargetKmOverride, targetPaceSecKmOverride,
   } = input;
 
@@ -82,8 +85,7 @@ export function calculateRunRating(input: RatingInput): RatingResult {
   // -- Effort / HR (2.5 pts) ------------------------------------------------
   let effort = 1.25;
   if (avgHeartRate) {
-    const age   = athleteAgeYears ?? 23;
-    const maxHR = maxHROverride ?? (220 - age);
+    const maxHR = maxHROverride ?? DEFAULT_MAX_HR;
     const hrFrac = avgHeartRate / maxHR;
     const [zLow, zHigh] = HR_ZONE[runType];
     const zMid  = (zLow + zHigh) / 2;
