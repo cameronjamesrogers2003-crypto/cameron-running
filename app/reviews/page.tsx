@@ -1,7 +1,6 @@
 import { format } from "date-fns";
 import prisma from "@/lib/db";
 import ScorePill from "@/components/ScorePill";
-import { backfillRunRatings } from "@/lib/ratingsBackfill";
 
 export const dynamic = "force-dynamic";
 
@@ -27,22 +26,10 @@ function SubScoreBar({ label, value }: { label: string; value: number }) {
 }
 
 export default async function ReviewsPage() {
-  let ratings = await prisma.runRating.findMany({
+  const ratings = await prisma.runRating.findMany({
     orderBy: { activity: { date: "desc" } },
     include: { activity: true, scheduled: true },
   });
-
-  let autoBackfillSummary: { rated: number; total: number; failed: number } | null = null;
-  if (ratings.length === 0) {
-    const summary = await backfillRunRatings();
-    autoBackfillSummary = { rated: summary.rated, total: summary.total, failed: summary.failed };
-    if (summary.rated > 0) {
-      ratings = await prisma.runRating.findMany({
-        orderBy: { activity: { date: "desc" } },
-        include: { activity: true, scheduled: true },
-      });
-    }
-  }
 
   return (
     <div className="space-y-5">
@@ -52,16 +39,9 @@ export default async function ReviewsPage() {
       </div>
 
       {ratings.length === 0 ? (
-        <div className="space-y-3">
         <div className="rounded-xl p-4 text-sm" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text-muted)" }}>
           No run ratings yet.
         </div>
-        {autoBackfillSummary && (
-          <div className="rounded-xl p-4 text-xs" style={{ background: "#1f2937", border: "1px solid #374151", color: "#cbd5e1" }}>
-            Backfill attempted automatically: rated {autoBackfillSummary.rated} of {autoBackfillSummary.total} unrated run activities ({autoBackfillSummary.failed} failed).
-          </div>
-        )}
-      </div>
       ) : (
         <div className="space-y-4">
           {ratings.map((rating) => {
