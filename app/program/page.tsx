@@ -24,19 +24,10 @@ interface RatingEntry {
   score: number;
 }
 
-interface ScheduledSessionView {
-  id: string;
-  date: string;
-  status: "SCHEDULED" | "COMPLETED" | "MISSED" | "SKIPPED";
-  currentDistanceKm: number;
-  originalDistanceKm: number;
-  targetPaceMinKmLow: number | null;
-  targetPaceMinKmHigh: number | null;
-  targetHrZone: number | null;
-  isAdjusted: boolean;
-  triggerReason: string | null;
-  activity: { avgPaceSecKm: number; avgHeartRate: number | null } | null;
-  rating: { score: number; paceScore: number; hrScore: number; executionScore: number } | null;
+interface ProgramContext {
+  rftpSecPerKm: number | null;
+  recentRatings: Array<{ score: number; avgHeartRate: number | null; distanceKm: number }>;
+  weatherByDate: Record<string, { tempC: number; dewPointC: number; humidity: number } | null>;
 }
 
 export const dynamic = "force-dynamic";
@@ -49,14 +40,15 @@ export default function ProgramPage() {
   const [sessions, setSessions] = useState<ScheduledSessionView[]>([]);
   const [saving, setSaving] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const [programContext, setProgramContext] = useState<ProgramContext | null>(null);
 
   useEffect(() => {
     Promise.all([
       fetch("/api/settings").then((r) => r.json()),
       fetch("/api/activities?all=1").then((r) => r.json()),
       fetch("/api/ratings").then((r) => r.json()).catch(() => []),
-      fetch("/api/program/sessions").then((r) => r.json()).catch(() => []),
-    ]).then(([s, a, ratings, scheduled]) => {
+      fetch("/api/program-context").then((r) => r.json()).catch(() => null),
+    ]).then(([s, a, ratings, context]) => {
       setSettings(s);
       setActivities(Array.isArray(a) ? a : []);
       if (s.planStartDate) {
@@ -70,7 +62,7 @@ export default function ProgramPage() {
         }
       }
       setRatingsMap(map);
-      setSessions(Array.isArray(scheduled) ? scheduled : []);
+      setProgramContext(context);
     });
   }, []);
 
@@ -253,7 +245,9 @@ export default function ProgramPage() {
           planStartDate={planStartDate}
           completedDays={completedDays}
           ratings={ratingsMap}
-          scheduledSessions={sessions}
+          rftpSecPerKm={programContext?.rftpSecPerKm ?? null}
+          recentRatings={programContext?.recentRatings ?? []}
+          weatherByDate={programContext?.weatherByDate ?? {}}
         />
       </div>
     </div>
