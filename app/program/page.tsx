@@ -24,12 +24,6 @@ interface RatingEntry {
   score: number;
 }
 
-interface ProgramContext {
-  rftpSecPerKm: number | null;
-  recentRatings: Array<{ score: number; avgHeartRate: number | null; distanceKm: number }>;
-  weatherByDate: Record<string, { tempC: number; dewPointC: number; humidity: number } | null>;
-}
-
 export const dynamic = "force-dynamic";
 
 export default function ProgramPage() {
