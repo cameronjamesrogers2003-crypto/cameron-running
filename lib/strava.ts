@@ -1,4 +1,5 @@
 import prisma from "./db";
+import { fetchHistoricalWeather, BRISBANE_LAT, BRISBANE_LON } from "./weather";
 
 const STRAVA_AUTH_URL = "https://www.strava.com/oauth/authorize";
 const STRAVA_TOKEN_URL = "https://www.strava.com/oauth/token";
@@ -107,6 +108,7 @@ async function getValidToken(): Promise<string | null> {
 
 interface StravaActivity {
   id: number;
+  name?: string;
   start_date: string;
   distance: number;
   moving_time: number;
@@ -209,19 +211,41 @@ export async function syncActivities(): Promise<{ synced: number; errors: number
         ? Math.round(act.kilojoules * 0.239)
         : null;
 
+      const actDate  = new Date(act.start_date);
+      const startLat = act.start_latlng?.[0] ?? null;
+      const startLon = act.start_latlng?.[1] ?? null;
+
       await prisma.activity.create({
         data: {
           id,
-          date: new Date(act.start_date),
-          distanceKm: act.distance / 1000,
-          durationSecs: act.moving_time,
+          name:           act.name ?? null,
+          date:           actDate,
+          distanceKm:     act.distance / 1000,
+          durationSecs:   act.moving_time,
           avgPaceSecKm,
-          avgHeartRate: act.average_heartrate ? Math.round(act.average_heartrate) : null,
-          maxHeartRate: act.max_heartrate ? Math.round(act.max_heartrate) : null,
+          avgHeartRate:   act.average_heartrate ? Math.round(act.average_heartrate) : null,
+          maxHeartRate:   act.max_heartrate     ? Math.round(act.max_heartrate)     : null,
           calories,
-          activityType: sportTypeToLabel(act.sport_type || act.type),
+          activityType:   sportTypeToLabel(act.sport_type || act.type),
+          elevationGainM: act.total_elevation_gain ?? null,
+          startLat,
+          startLon,
         },
       });
+
+      // Fetch and store historical weather inline
+      const weather = await fetchHistoricalWeather(
+        startLat ?? BRISBANE_LAT,
+        startLon ?? BRISBANE_LON,
+        actDate
+      );
+      if (weather) {
+        await prisma.activity.update({
+          where: { id },
+          data:  { temperatureC: weather.temperatureC, humidityPct: weather.humidityPct },
+        });
+      }
+
       synced++;
     } catch {
       errors++;
