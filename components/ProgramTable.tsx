@@ -18,7 +18,7 @@ interface SessionView {
   activity: { avgPaceSecKm: number; avgHeartRate: number | null } | null;
   rating: { score: number; paceScore: number; hrScore: number; executionScore: number } | null;
 }
-interface ProgramTableProps { plan: WeekPlan[]; currentWeek: number; planStartDate: Date | null; completedDays: Set<string>; ratings?: Map<string, number>; scheduledSessions?: SessionView[]; }
+interface ProgramTableProps { plan: WeekPlan[]; currentWeek: number; planStartDate: Date | null; completedDays: Set<string>; ratings?: Map<string, number>; scheduledSessions?: SessionView[]; rftpSecPerKm: number | null; recentRatings: Array<{ score: number; avgHeartRate: number | null; distanceKm: number }>; weatherByDate: Record<string, { tempC: number; dewPointC: number; humidity: number } | null>; }
 
 const z = (zone: number) => [95, 110, 125, 145, 165, 185][Math.max(0, Math.min(5, zone - 1))];
 const coachingNote = (reason?: string | null) => {
@@ -93,7 +93,7 @@ function TrainingCell({ workout, isToday, done, date, rating, session }: { worko
 
 function RestCell({ isToday }: { isToday: boolean }) { return <td className="p-1" style={{ width: 36 }}><div className="flex items-center justify-center rounded text-xs" style={{ height: 60, background: isToday ? "rgba(249,115,22,0.05)" : "transparent", border: isToday ? "1px solid rgba(249,115,22,0.3)" : "1px solid transparent", color: "var(--border)" }}>—</div></td>; }
 
-export default function ProgramTable({ plan, currentWeek, planStartDate, completedDays, ratings, scheduledSessions = [] }: ProgramTableProps) {
+export default function ProgramTable({ plan, currentWeek, planStartDate, completedDays, ratings, scheduledSessions = [], rftpSecPerKm, recentRatings, weatherByDate }: ProgramTableProps) {
   const byDate = new Map(scheduledSessions.map((s) => [new Date(s.date).toISOString().split("T")[0], s]));
   function getDate(weekIdx: number, dayIdx: number): Date | undefined { if (!planStartDate) return undefined; return addDays(planStartDate, weekIdx * 7 + dayIdx); }
   const today = new Date(); today.setHours(0, 0, 0, 0);
