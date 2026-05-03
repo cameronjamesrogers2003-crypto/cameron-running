@@ -1,3 +1,6 @@
+import { getVdotPaces } from "@/lib/vdot";
+import type { UserSettings } from "@/lib/settings";
+
 export type RunType = 'easy' | 'tempo' | 'interval' | 'long'
 export type Day = 'wed' | 'sat' | 'sun'
 export type Phase = 'Base' | 'Half Marathon Build' | 'Marathon Build'
@@ -177,3 +180,23 @@ export const trainingPlan: TrainingWeek[] = [
     ]
   },
 ]
+
+export function buildTrainingPlan(settings: UserSettings): TrainingWeek[] {
+  const paces = getVdotPaces(settings.currentVdot);
+  const easyPace     = paces.easyMaxSecKm  / 60;
+  const tempoPace    = paces.tempoSecKm    / 60;
+  const intervalPace = paces.intervalSecKm / 60;
+
+  return trainingPlan.map(week => ({
+    ...week,
+    sessions: week.sessions.map(session => ({
+      ...session,
+      targetPaceMinPerKm:
+        session.type === 'easy'     ? easyPace :
+        session.type === 'long'     ? easyPace :
+        session.type === 'tempo'    ? tempoPace :
+        session.type === 'interval' ? intervalPace :
+        session.targetPaceMinPerKm,
+    })),
+  }));
+}

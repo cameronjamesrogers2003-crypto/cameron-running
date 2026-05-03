@@ -39,3 +39,22 @@ model Profile {
   stravaRefresh     String?
   stravaTokenExpiry DateTime?
 }
+
+model UserSettings {
+  id                    Int       @id @default(1)
+  planStartDate         DateTime?
+  currentWeekOverride   Int?
+  phaseOverride         String?
+  maxHR                 Int       @default(192)
+  startingTempoPaceSec  Int       @default(390)
+  currentVdot           Int       @default(33)
+  targetHMTimeSec       Int       @default(6900)
+  raceName              String?
+  raceDate              DateTime?
+  distTargetEasyM       Int       @default(7000)
+  distTargetTempoM      Int       @default(10000)
+  distTargetIntervalM   Int       @default(8000)
+  distTargetLongM       Int       @default(18000)
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+}

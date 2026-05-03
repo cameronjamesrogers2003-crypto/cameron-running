@@ -56,6 +56,22 @@ export function inferRunType(
   return "easy";
 }
 
+/** Returns true when `date` falls on a planned session AEST calendar day. */
+export function isPlannedRun(date: Date, plan: TrainingWeek[]): boolean {
+  const weekNum = getPlanWeekForDate(date);
+  if (weekNum <= 0 || weekNum > plan.length) return false;
+  const planWeek = plan[weekNum - 1];
+  const da = toAEST(date);
+  return planWeek.sessions.some(s => {
+    const sd = toAEST(getSessionDate(weekNum, s.day));
+    return (
+      da.getUTCFullYear() === sd.getUTCFullYear() &&
+      da.getUTCMonth()    === sd.getUTCMonth()    &&
+      da.getUTCDate()     === sd.getUTCDate()
+    );
+  });
+}
+
 /** Returns the label and start week of the next phase, or null if on the last phase. */
 export function getNextPhaseInfo(
   phase: Phase

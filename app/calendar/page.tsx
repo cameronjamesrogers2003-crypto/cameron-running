@@ -2,12 +2,15 @@ import prisma from "@/lib/db";
 import { trainingPlan } from "@/data/trainingPlan";
 import {
   calculateRunRating,
+  resolveRunType,
+} from "@/lib/rating";
+import {
   calculateRunnerRating,
   calculateHMReadiness,
-  resolveRunType,
   type RunnerRatingResult,
   type HMReadinessResult,
-} from "@/lib/rating";
+} from "@/lib/readiness";
+import { dbSettingsToUserSettings, DEFAULT_SETTINGS } from "@/lib/settings";
 import { getPlanWeekForDate, getSessionDate } from "@/lib/planUtils";
 import { formatAEST, toAEST } from "@/lib/dateUtils";
 import type { CalendarRun, CalendarData } from "./types";
@@ -123,8 +126,9 @@ export default async function CalendarPage({
   // Stats always use the last 90 days regardless of displayed year
   const statsStart = new Date(today.getTime() - 90 * 24 * 60 * 60 * 1000);
 
-  const [profile, yearActivities, statsActivities, bestPaceRow] = await Promise.all([
+  const [profile, userSettingsRow, yearActivities, statsActivities, bestPaceRow] = await Promise.all([
     prisma.profile.findUnique({ where: { id: 1 } }),
+    prisma.userSettings.findUnique({ where: { id: 1 } }),
     prisma.activity.findMany({
       where: {
         activityType: { in: ["running", "trail_running"] },
@@ -145,14 +149,15 @@ export default async function CalendarPage({
     }),
   ]);
 
+  const settings    = userSettingsRow ? dbSettingsToUserSettings(userSettingsRow) : DEFAULT_SETTINGS;
   const athleteAge  = profile?.dateOfBirth
     ? Math.floor((Date.now() - new Date(profile.dateOfBirth).getTime()) / (365.25 * 86400000))
     : 23;
   const pbPaceSecKm = bestPaceRow?.avgPaceSecKm ?? null;
 
   // ── Compute top-strip stats ──────────────────────────────────────────────
-  const runnerRating = calculateRunnerRating(statsActivities, trainingPlan, pbPaceSecKm, athleteAge);
-  const hmReadiness  = calculateHMReadiness(statsActivities, trainingPlan);
+  const runnerRating = calculateRunnerRating(statsActivities, trainingPlan, settings, pbPaceSecKm);
+  const hmReadiness  = calculateHMReadiness(statsActivities, trainingPlan, settings);
 
   // Derive stats strip values
   const todayMidnight = new Date(
