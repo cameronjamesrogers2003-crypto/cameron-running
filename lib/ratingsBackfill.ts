@@ -11,13 +11,23 @@ export interface BackfillSummary {
 }
 
 export async function backfillRunRatings(): Promise<BackfillSummary> {
+  const [activityCount, runRatingCount, activityTypes] = await Promise.all([
+    prisma.activity.count(),
+    prisma.runRating.count(),
+    prisma.activity.groupBy({ by: ["activityType"], _count: { _all: true } }),
+  ]);
+
+  console.info("[ratings-backfill] starting", {
+    activityCount,
+    runRatingCount,
+    activityTypes: activityTypes
+      .map((row) => ({ activityType: row.activityType, count: row._count._all }))
+      .sort((a, b) => b.count - a.count),
+  });
+
   const activities = await prisma.activity.findMany({
     where: {
       rating: null,
-      OR: [
-        { activityType: { in: ["running", "trail_running"] } },
-        { activityType: { contains: "run", mode: "insensitive" } },
-      ],
     },
     orderBy: { date: "asc" },
   });
@@ -34,6 +44,13 @@ export async function backfillRunRatings(): Promise<BackfillSummary> {
 
   for (const activity of activities) {
     try {
+      console.info("[ratings-backfill] processing-activity", {
+        activityId: activity.id,
+        activityType: activity.activityType,
+        date: activity.date.toISOString(),
+        distanceKm: activity.distanceKm,
+      });
+
       const scheduled = await prisma.scheduledSession.findFirst({
         where: {
           date: {
@@ -80,6 +97,14 @@ export async function backfillRunRatings(): Promise<BackfillSummary> {
       };
 
       const result = computeRunRating(input);
+      console.info("[ratings-backfill] computed-rating", {
+        activityId: activity.id,
+        scheduledId: scheduled?.id ?? null,
+        sessionType: input.sessionType,
+        plannedKm: input.plannedKm,
+        actualKm: input.actualKm,
+        score: Number(result.score),
+      });
 
       const created = await prisma.runRating.create({
         data: {
@@ -105,6 +130,10 @@ export async function backfillRunRatings(): Promise<BackfillSummary> {
       rated += 1;
     } catch (error) {
       failed += 1;
+      console.error("[ratings-backfill] activity-failed", {
+        activityId: activity.id,
+        message: error instanceof Error ? error.message : "unknown_error",
+      });
       if (errors.length < 20) {
         errors.push(`${activity.id}: ${error instanceof Error ? error.message : "unknown_error"}`);
       }
@@ -126,6 +155,15 @@ export async function backfillRunRatings(): Promise<BackfillSummary> {
       });
     }
   })();
+
+  const finalRunRatingCount = await prisma.runRating.count();
+  console.info("[ratings-backfill] finished", {
+    totalActivitiesToRate: activities.length,
+    rated,
+    failed,
+    runRatingCountBefore: runRatingCount,
+    runRatingCountAfter: finalRunRatingCount,
+  });
 
   return { total: activities.length, rated, failed, errors };
 }
