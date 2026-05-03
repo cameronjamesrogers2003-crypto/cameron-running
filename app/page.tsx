@@ -17,6 +17,7 @@ import WeeklyKmChart from "@/components/charts/WeeklyKmChart";
 import AvgPaceTrendChart from "@/components/charts/AvgPaceTrendChart";
 import TrainingLoadChart from "@/components/charts/TrainingLoadChart";
 import SyncButton from "@/components/SyncButton";
+import Logo from "@/components/Logo";
 
 export const dynamic = "force-dynamic";
 
@@ -325,7 +326,9 @@ export default async function Dashboard({
           </div>
         )}
 
-        {/* Phase header */}
+        {/* Logo icon + phase header */}
+        <Logo size="md" showWordmark={false} />
+
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <span className="text-xl font-bold text-white">Dashboard</span>

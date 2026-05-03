@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import Logo from "@/components/Logo";
 
 const mainLinks = [
   { href: "/",         label: "Dashboard" },
@@ -19,14 +20,7 @@ export default function Nav() {
       style={{ background: "var(--surface)", borderColor: "var(--border)" }}
     >
       <div className="max-w-6xl mx-auto px-4 sm:px-6 flex items-center justify-between h-14">
-        <div className="flex items-center gap-2">
-          <span className="text-xl font-bold" style={{ color: "var(--accent)" }}>
-            &#9675;
-          </span>
-          <span className="font-semibold text-white text-sm tracking-wide">
-            Cameron&apos;s Running
-          </span>
-        </div>
+        <Logo size="sm" showWordmark={true} />
         <nav className="flex items-center gap-1">
           {mainLinks.map((link) => {
             const active = pathname === link.href;
