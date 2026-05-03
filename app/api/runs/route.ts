@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
-import { trainingPlan } from "@/data/trainingPlan";
-import { calculateRunRating, resolveRunType } from "@/lib/rating";
+import { buildTrainingPlan } from "@/data/trainingPlan";
+import { calculateRunRating, resolveRunType, resolveTargetPaceSecKm } from "@/lib/rating";
 import { dbSettingsToUserSettings, DEFAULT_SETTINGS } from "@/lib/settings";
 import { toAEST } from "@/lib/dateUtils";
 
@@ -52,6 +52,7 @@ export async function GET(req: NextRequest) {
   ]);
 
   const settings    = settingsRow ? dbSettingsToUserSettings(settingsRow) : DEFAULT_SETTINGS;
+  const ratingPlan  = buildTrainingPlan(settings);
   const athleteAge  = profileRow?.dateOfBirth
     ? Math.floor((Date.now() - new Date(profileRow.dateOfBirth).getTime()) / (365.25 * 86400000))
     : 23;
@@ -65,7 +66,7 @@ export async function GET(req: NextRequest) {
   };
 
   const rows = activities.map(act => {
-    const runType = resolveRunType(act, trainingPlan);
+    const runType = resolveRunType(act, ratingPlan);
     const hasRating = act.avgPaceSecKm > 0 && act.avgHeartRate != null;
     const rating = hasRating
       ? calculateRunRating({
@@ -75,6 +76,7 @@ export async function GET(req: NextRequest) {
           personalBestPaceSecKm: pbPaceSecKm, athleteAgeYears: athleteAge,
           maxHROverride: settings.maxHR,
           distTargetKmOverride: distTargets[runType],
+          targetPaceSecKmOverride: resolveTargetPaceSecKm(act, ratingPlan),
         })
       : null;
 
