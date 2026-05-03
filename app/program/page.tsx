@@ -24,6 +24,8 @@ interface RatingEntry {
   score: number;
 }
 
+export const dynamic = "force-dynamic";
+
 export default function ProgramPage() {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [activities, setActivities] = useState<Activity[]>([]);
