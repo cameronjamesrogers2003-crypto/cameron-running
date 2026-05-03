@@ -31,7 +31,6 @@ export default function ProgramPage() {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [ratingsMap, setRatingsMap] = useState<Map<string, number>>(new Map());
   const [startInput, setStartInput] = useState("");
-  const [sessions, setSessions] = useState<ScheduledSessionView[]>([]);
   const [saving, setSaving] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [programContext, setProgramContext] = useState<ProgramContext | null>(null);
