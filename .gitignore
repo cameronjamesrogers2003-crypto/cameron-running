@@ -36,6 +36,9 @@ yarn-error.log*
 # vercel
 .vercel
 
+# claude code local settings
+.claude/
+
 # database
 prisma/dev.db
 prisma/dev.db-journal
