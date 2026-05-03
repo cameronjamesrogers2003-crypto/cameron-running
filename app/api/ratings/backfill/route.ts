@@ -8,7 +8,13 @@ export const dynamic = "force-dynamic";
 
 export async function POST() {
   const activities = await prisma.activity.findMany({
-    where: { activityType: { in: ["running", "trail_running"] }, rating: null },
+    where: {
+      rating: null,
+      OR: [
+        { activityType: { in: ["running", "trail_running"] } },
+        { activityType: { contains: "run", mode: "insensitive" } },
+      ],
+    },
     orderBy: { date: "asc" },
   });
 
@@ -29,6 +35,7 @@ export async function POST() {
             gte: new Date(activity.date.getTime() - 24 * 60 * 60 * 1000),
             lte: new Date(activity.date.getTime() + 24 * 60 * 60 * 1000),
           },
+          rating: null,
         },
         orderBy: { date: "asc" },
       });
