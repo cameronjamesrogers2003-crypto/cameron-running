@@ -34,10 +34,14 @@ export async function POST(req: NextRequest) {
 
   // Only process new run activities
   if (body.object_type === "activity" && body.aspect_type === "create" && body.object_id) {
-    await inngest.send({
-      name: "strava/activity.created",
-      data: { activityId: String(body.object_id) },
-    });
+    try {
+      await inngest.send({
+        name: "strava/activity.created",
+        data: { activityId: String(body.object_id) },
+      });
+    } catch (err) {
+      console.error("[strava webhook] inngest.send failed:", err);
+    }
   }
 
   // Always return 200 immediately — Strava requires < 2s response
