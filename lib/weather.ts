@@ -14,7 +14,9 @@ export async function getBrisbaneWeather(): Promise<WeatherData | null> {
       "&current=temperature_2m,weathercode,windspeed_10m" +
       "&hourly=temperature_2m" +
       "&forecast_days=1" +
-      "&timezone=Australia%2FBrisbane";
+      "&timezone=Australia%2FBrisbane" +
+      "&temperature_unit=celsius" +
+      "&wind_speed_unit=kmh";
 
     const res = await fetch(url, { next: { revalidate: 1800 } });
     if (!res.ok) return null;

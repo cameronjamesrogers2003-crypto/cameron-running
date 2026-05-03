@@ -1,5 +1,5 @@
 import { formatPace, formatDuration } from "@/lib/strava";
-import { format } from "date-fns";
+import { formatAEST } from "@/lib/dateUtils";
 
 interface Run {
   id: string;
@@ -68,7 +68,7 @@ export default function RecentRunsFeed({ runs }: { runs: Run[] }) {
                   </span>
                 </div>
                 <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
-                  {format(new Date(run.date), "EEE d MMM")}
+                  {formatAEST(run.date, "EEE d MMM")}
                 </p>
               </div>
               <div className="flex gap-4 text-right text-xs flex-shrink-0">

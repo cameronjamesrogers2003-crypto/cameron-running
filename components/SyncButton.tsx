@@ -4,7 +4,7 @@ import { useState } from "react";
 import { format } from "date-fns";
 
 interface SyncButtonProps {
-  lastSynced?: Date | null;
+  lastSynced?: string | null;
   stravaConnected: boolean;
 }
 
@@ -53,7 +53,7 @@ export default function SyncButton({ lastSynced, stravaConnected }: SyncButtonPr
         {result ? (
           <span className="text-green-400">{result}</span>
         ) : lastSynced ? (
-          <span>Last synced: {format(new Date(lastSynced), "d MMM, h:mm a")}</span>
+          <span>Last synced: {format(new Date(lastSynced), "d MMM HH:mm")}</span>
         ) : (
           <span>{stravaConnected ? "Never synced" : "Not connected"}</span>
         )}
