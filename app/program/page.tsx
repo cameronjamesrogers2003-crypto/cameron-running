@@ -6,6 +6,8 @@ import { getSeasonalTip } from "@/lib/weather";
 import ProgramTable from "@/components/ProgramTable";
 import { format } from "date-fns";
 
+export const dynamic = "force-dynamic";
+
 interface Settings {
   activePlan?: string;
   planStartDate?: string | null;
@@ -24,7 +26,11 @@ interface RatingEntry {
   score: number;
 }
 
-export const dynamic = "force-dynamic";
+interface ProgramContext {
+  rftpSecPerKm: number | null;
+  recentRatings: Array<{ score: number; avgHeartRate: number | null; distanceKm: number }>;
+  weatherByDate: Record<string, { tempC: number; dewPointC: number; humidity: number } | null>;
+}
 
 export default function ProgramPage() {
   const [settings, setSettings] = useState<Settings | null>(null);
