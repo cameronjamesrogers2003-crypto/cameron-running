@@ -16,6 +16,50 @@ async function getWeatherByDate(): Promise<WeatherByDate> {
   return Object.fromEntries(pairs);
 }
 
+function getSessionName(sessionType: string, weekNumber: number) {
+  const easyEarly = ["Aerobic Base Builder", "Foundation Miles", "Easy Endurance Run", "Keep It Conversational Today"];
+  const easyMid = ["Building Blocks Run", "Steady Aerobic Run", "Comfortable Miler", "Endurance Maintenance"];
+  const easyPeak = ["Peak Phase Easy", "Active Recovery Run", "Tune-Up Easy"];
+  const longEarly = ["Long Slow Distance", "Foundation Long Run", "Build Your Engine"];
+  const longMid = ["Progressive Long Run", "The Big One", "Endurance Builder"];
+  const longPeak = ["Peak Long Run", "Race Simulation Long Run"];
+  const pick = (names: string[]) => names[(weekNumber - 1) % names.length];
+  if (sessionType === "RACE_5K") return "Race Day — 5K Time Trial";
+  if (sessionType === "RACE_10K") return "Race Day — 10K";
+  if (sessionType === "RACE_HALF") return "Race Day — Half Marathon";
+  if (sessionType === "LONG") return weekNumber <= 4 ? pick(longEarly) : weekNumber <= 8 ? pick(longMid) : pick(longPeak);
+  if (sessionType === "EASY") return weekNumber <= 4 ? pick(easyEarly) : weekNumber <= 8 ? pick(easyMid) : pick(easyPeak);
+  return `Session · ${sessionType.replaceAll("_", " ")}`;
+}
+
+function getSessionDescription(sessionType: string) {
+  if (sessionType === "LONG") return "Develops endurance, mental toughness and fat-burning efficiency.";
+  if (sessionType === "RACE_5K") return "Test your current fitness — run at full effort.";
+  if (sessionType === "RACE_10K") return "A strong race effort to gauge your progress.";
+  if (sessionType === "RACE_HALF") return "Your goal race — everything has led to this.";
+  return "Builds aerobic base and teaches your body to run efficiently at low intensity.";
+}
+
+function getCoachingTips(sessionType: string, recentRatings: RecentRating[]) {
+  const tips = ["Run at a pace where you can hold a full conversation — if you can't, slow down"];
+  const lastThree = recentRatings.slice(0, 3);
+  const hrValues = lastThree.map((r) => r.avgHeartRate).filter((v): v is number => v !== null);
+  const avgHr = hrValues.length ? hrValues.reduce((sum, val) => sum + val, 0) / hrValues.length : null;
+  if (avgHr !== null && avgHr > 168) {
+    tips.push("Your HR has been running high lately — slow down to 8:00–9:00/km even if it feels too easy");
+  }
+  if (lastThree[0] && lastThree[0].score < 6) {
+    tips.push("Last run was tough — today focus on completion not performance");
+  }
+  if (lastThree[0] && lastThree[0].distanceScore < 0.7) {
+    tips.push("You've been cutting runs short — aim to hit the full distance today");
+  }
+  if (sessionType === "LONG") {
+    tips.push("The long run should feel almost embarrassingly slow — that's correct");
+  }
+  return tips.slice(0, 4);
+}
+
 export default async function ProgramPage() {
   const [profile, sessions, ratings, adjustments, weatherByDate] = await Promise.all([
     prisma.profile.findUnique({ where: { id: 1 }, select: { hrMax: true, hrRest: true, rftpSecPerKm: true, dateOfBirth: true } }),
@@ -30,7 +74,7 @@ export default async function ProgramPage() {
     prisma.runRating.findMany({
       take: 3,
       orderBy: { createdAt: "desc" },
-      include: { activity: { select: { avgHeartRate: true, distanceKm: true } } },
+      select: { score: true, distanceScore: true, activity: { select: { avgHeartRate: true, distanceKm: true } } },
     }),
     prisma.planAdjustment.findMany({ orderBy: { triggeredAt: "desc" } }),
     getWeatherByDate(),
@@ -42,6 +86,13 @@ export default async function ProgramPage() {
     const id = patch?.scheduledSessionId ?? patch?.scheduledId;
     if (id && !latestReasonBySession.has(id)) latestReasonBySession.set(id, a.triggerReason);
   }
+
+  const recentRatings: RecentRating[] = ratings.map((r) => ({
+    score: Number(r.score),
+    distanceScore: Number(r.distanceScore),
+    avgHeartRate: r.activity.avgHeartRate,
+    distanceKm: r.activity.distanceKm,
+  }));
 
   const programSessions: ProgramSession[] = sessions.map((s) => ({
     id: s.id,
@@ -57,6 +108,9 @@ export default async function ProgramPage() {
     targetHrZone: s.targetHrZone,
     isAdjusted: s.isAdjusted,
     triggerReason: latestReasonBySession.get(s.id) ?? null,
+    sessionName: getSessionName(s.sessionType, s.planned.weekNumber),
+    sessionDescription: getSessionDescription(s.sessionType),
+    coachingTips: getCoachingTips(s.sessionType, recentRatings),
     activity: s.activity,
     rating: s.rating
       ? {
@@ -67,12 +121,6 @@ export default async function ProgramPage() {
           distanceScore: Number(s.rating.distanceScore),
         }
       : null,
-  }));
-
-  const recentRatings: RecentRating[] = ratings.map((r) => ({
-    score: Number(r.score),
-    avgHeartRate: r.activity.avgHeartRate,
-    distanceKm: r.activity.distanceKm,
   }));
 
   return (
