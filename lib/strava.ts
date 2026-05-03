@@ -110,6 +110,7 @@ interface StravaActivity {
   start_date: string;
   distance: number;
   moving_time: number;
+  elapsed_time: number;
   average_speed: number;
   average_heartrate?: number;
   max_heartrate?: number;
@@ -117,6 +118,39 @@ interface StravaActivity {
   kilojoules?: number;
   sport_type: string;
   type: string;
+  total_elevation_gain?: number;
+  start_latlng?: [number, number];
+  manual?: boolean;
+}
+
+export interface StravaSplit {
+  distance: number;
+  moving_time: number;
+  average_speed: number;
+  average_grade_adjusted_speed?: number;
+  average_heartrate?: number;
+}
+
+export interface StravaFullActivity extends StravaActivity {
+  elapsed_time: number;
+  splits_metric?: StravaSplit[];
+}
+
+export async function fetchFullActivity(activityId: string): Promise<StravaFullActivity | null> {
+  const token = await getValidToken();
+  if (!token) return null;
+
+  const res = await fetch(
+    `${STRAVA_API}/activities/${activityId}`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+
+  if (!res.ok) {
+    console.error("[strava] fetchFullActivity failed:", res.status);
+    return null;
+  }
+
+  return res.json();
 }
 
 function sportTypeToLabel(sportType: string): string {

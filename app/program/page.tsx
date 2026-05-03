@@ -19,9 +19,15 @@ interface Activity {
   activityType: string;
 }
 
+interface RatingEntry {
+  date: string;
+  score: number;
+}
+
 export default function ProgramPage() {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [activities, setActivities] = useState<Activity[]>([]);
+  const [ratingsMap, setRatingsMap] = useState<Map<string, number>>(new Map());
   const [startInput, setStartInput] = useState("");
   const [saving, setSaving] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -30,12 +36,21 @@ export default function ProgramPage() {
     Promise.all([
       fetch("/api/settings").then((r) => r.json()),
       fetch("/api/activities?all=1").then((r) => r.json()),
-    ]).then(([s, a]) => {
+      fetch("/api/ratings").then((r) => r.json()).catch(() => []),
+    ]).then(([s, a, ratings]) => {
       setSettings(s);
       setActivities(Array.isArray(a) ? a : []);
       if (s.planStartDate) {
         setStartInput(format(new Date(s.planStartDate), "yyyy-MM-dd"));
       }
+      const map = new Map<string, number>();
+      if (Array.isArray(ratings)) {
+        for (const r of ratings as RatingEntry[]) {
+          const dateStr = new Date(r.date).toISOString().split("T")[0];
+          map.set(dateStr, r.score);
+        }
+      }
+      setRatingsMap(map);
     });
   }, []);
 
@@ -217,6 +232,7 @@ export default function ProgramPage() {
           currentWeek={currentWeek}
           planStartDate={planStartDate}
           completedDays={completedDays}
+          ratings={ratingsMap}
         />
       </div>
     </div>

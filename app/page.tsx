@@ -8,6 +8,7 @@ import RecentRunsFeed from "@/components/RecentRunsFeed";
 import TodayWorkout from "@/components/TodayWorkout";
 import WeatherWidget from "@/components/WeatherWidget";
 import SyncButton from "@/components/SyncButton";
+import RatingSparkline from "@/components/RatingSparkline";
 
 function getGreeting(): string {
   const hour = new Date().getHours();
@@ -51,13 +52,19 @@ export default async function Dashboard({
   const params = await searchParams;
   const oauthError = params.error;
   const oauthDetail = params.detail;
-  const [profile, settings, recentActivities, allActivities, weather] = await Promise.all([
-    prisma.profile.findUnique({ where: { id: 1 } }),
-    prisma.settings.findUnique({ where: { id: 1 } }),
-    prisma.activity.findMany({ orderBy: { date: "desc" }, take: 10 }),
-    prisma.activity.findMany({ where: { activityType: { in: ["running", "trail_running"] } } }),
-    getBrisbaneWeather(),
-  ]);
+  const [profile, settings, recentActivities, allActivities, weather, recentRatings] =
+    await Promise.all([
+      prisma.profile.findUnique({ where: { id: 1 } }),
+      prisma.settings.findUnique({ where: { id: 1 } }),
+      prisma.activity.findMany({ orderBy: { date: "desc" }, take: 10 }),
+      prisma.activity.findMany({ where: { activityType: { in: ["running", "trail_running"] } } }),
+      getBrisbaneWeather(),
+      prisma.runRating.findMany({
+        orderBy: { createdAt: "desc" },
+        take: 28,
+        include: { activity: { select: { date: true, distanceKm: true } } },
+      }),
+    ]);
 
   const planId: PlanId = (settings?.activePlan as PlanId) ?? "half";
   const plan = plans[planId];
@@ -133,6 +140,27 @@ export default async function Dashboard({
 
   const lastActivity = recentActivities[0];
 
+  // Ratings sparkline data
+  const sparklineRatings = recentRatings
+    .map(r => ({ date: r.activity.date.toISOString().split("T")[0], score: Number(r.score) }))
+    .reverse();
+
+  const weekAgo = new Date(today);
+  weekAgo.setDate(today.getDate() - 7);
+  const thisWeekRatings = recentRatings.filter(r => new Date(r.activity.date) >= weekAgo);
+  const bestThisWeek = thisWeekRatings.length > 0
+    ? thisWeekRatings.reduce((best, r) =>
+        Number(r.score) > Number(best.score) ? r : best
+      )
+    : null;
+
+  const avg4wkRatings = recentRatings.slice(0, 28);
+  const avg4wk = avg4wkRatings.length > 0
+    ? Math.round(
+        avg4wkRatings.reduce((s, r) => s + Number(r.score), 0) / avg4wkRatings.length * 10
+      ) / 10
+    : null;
+
   return (
     <div className="space-y-5">
       {/* OAuth error banner — shows the exact Strava error in the browser */}
@@ -194,6 +222,22 @@ export default async function Dashboard({
           </div>
         </div>
       </div>
+
+      {/* Run ratings sparkline */}
+      {sparklineRatings.length > 0 && (
+        <RatingSparkline
+          ratings={sparklineRatings}
+          avg4wk={avg4wk}
+          bestThisWeek={
+            bestThisWeek
+              ? {
+                  score: Number(bestThisWeek.score),
+                  distanceKm: bestThisWeek.activity.distanceKm,
+                }
+              : null
+          }
+        />
+      )}
 
       {/* Weekly chart */}
       <WeeklyChart data={chartData} />

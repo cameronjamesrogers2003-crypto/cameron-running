@@ -7,28 +7,73 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ── Enums ────────────────────────────────────────────────────────────────────
+
+enum PlanStatus {
+  ACTIVE
+  COMPLETED
+  PAUSED
+  ABANDONED
+}
+
+enum SessionStatus {
+  SCHEDULED
+  COMPLETED
+  MISSED
+  SKIPPED
+}
+
+enum SessionType {
+  EASY
+  LONG
+  SORTA_LONG
+  PACE
+  TEMPO
+  INTERVALS
+  REST
+  CROSS
+  RACE_5K
+  RACE_10K
+  RACE_HALF
+  RACE_MARATHON
+}
+
+// ── Existing models (extended) ───────────────────────────────────────────────
+
 model Activity {
-  id           String   @id
-  date         DateTime
-  distanceKm   Float
-  durationSecs Int
-  avgPaceSecKm Int
-  avgHeartRate Int?
-  maxHeartRate Int?
-  calories     Int?
-  activityType String
-  syncedAt     DateTime @default(now())
+  id               String            @id
+  date             DateTime
+  distanceKm       Float
+  durationSecs     Int
+  avgPaceSecKm     Int
+  avgHeartRate     Int?
+  maxHeartRate     Int?
+  calories         Int?
+  activityType     String
+  syncedAt         DateTime          @default(now())
+  elapsedTimeSecs  Int?
+  elevationGainM   Float?
+  startLat         Float?
+  startLon         Float?
+  manual           Boolean           @default(false)
+  splits           Json?
+  rating           RunRating?
+  scheduledSession ScheduledSession?
 }
 
 model Profile {
-  id               Int       @id @default(1)
-  name             String    @default("Cameron")
-  dateOfBirth      DateTime
-  heightCm         Int       @default(174)
-  stravaConnected  Boolean   @default(false)
-  stravaToken      String?
-  stravaRefresh    String?
+  id                Int            @id @default(1)
+  name              String         @default("Cameron")
+  dateOfBirth       DateTime
+  heightCm          Int            @default(174)
+  stravaConnected   Boolean        @default(false)
+  stravaToken       String?
+  stravaRefresh     String?
   stravaTokenExpiry DateTime?
+  hrMax             Int?
+  hrRest            Int?
+  rftpSecPerKm      Int?
+  trainingPlans     TrainingPlan[]
 }
 
 model WeightEntry {
@@ -45,4 +90,113 @@ model Settings {
   halfCompletedAt   DateTime?
   goal5kTimeSecs    Int?
   comfortableDistKm Float     @default(5.0)
+  lastACWR          Float?
+  lastATL           Float?
+  lastCTL           Float?
+  lastMetricsDate   DateTime?
+}
+
+// ── Training plan models ──────────────────────────────────────────────────────
+
+model TrainingPlan {
+  id                  String             @id @default(cuid())
+  profileId           Int                @default(1)
+  profile             Profile            @relation(fields: [profileId], references: [id])
+  templateKey         String
+  startDate           DateTime
+  raceDate            DateTime
+  currentRFTPSecPerKm Int?
+  hrMax               Int?
+  hrRest              Int?
+  status              PlanStatus         @default(ACTIVE)
+  plannedSessions     PlannedSession[]
+  sessions            ScheduledSession[]
+  adjustments         PlanAdjustment[]
+  createdAt           DateTime           @default(now())
+}
+
+// Immutable Higdon baseline — seeded once, never written again
+model PlannedSession {
+  id          String            @id @default(cuid())
+  planId      String
+  plan        TrainingPlan      @relation(fields: [planId], references: [id])
+  weekNumber  Int
+  dayOfWeek   Int
+  sessionType SessionType
+  distanceKm  Decimal           @db.Decimal(5, 2)
+  notes       String?
+  scheduled   ScheduledSession?
+}
+
+// Mutable — what the athlete sees; adjusted by the rule engine
+model ScheduledSession {
+  id                  String         @id @default(cuid())
+  planId              String
+  plan                TrainingPlan   @relation(fields: [planId], references: [id])
+  plannedSessionId    String         @unique
+  planned             PlannedSession @relation(fields: [plannedSessionId], references: [id])
+  date                DateTime
+  sessionType         SessionType
+  currentDistanceKm   Decimal        @db.Decimal(5, 2)
+  originalDistanceKm  Decimal        @db.Decimal(5, 2)
+  targetPaceMinKmLow  Decimal?       @db.Decimal(4, 2)
+  targetPaceMinKmHigh Decimal?       @db.Decimal(4, 2)
+  targetHrZone        Int?
+  notes               String?
+  isAdjusted          Boolean        @default(false)
+  status              SessionStatus  @default(SCHEDULED)
+  activityId          String?        @unique
+  activity            Activity?      @relation(fields: [activityId], references: [id])
+  rating              RunRating?
+
+  @@index([planId, date])
+}
+
+// ── Rating ────────────────────────────────────────────────────────────────────
+
+model RunRating {
+  id               String            @id @default(cuid())
+  activityId       String            @unique
+  activity         Activity          @relation(fields: [activityId], references: [id])
+  scheduledId      String?           @unique
+  scheduled        ScheduledSession? @relation(fields: [scheduledId], references: [id])
+  score            Decimal           @db.Decimal(3, 1)
+  distanceScore    Decimal           @db.Decimal(4, 3)
+  paceScore        Decimal           @db.Decimal(4, 3)
+  hrScore          Decimal           @db.Decimal(4, 3)
+  executionScore   Decimal           @db.Decimal(4, 3)
+  rTSS             Decimal?          @db.Decimal(6, 1)
+  intensityFactor  Decimal?          @db.Decimal(4, 3)
+  decouplingPct    Decimal?          @db.Decimal(5, 2)
+  gapMinKm         Decimal?          @db.Decimal(5, 2)
+  weatherTempC     Decimal?          @db.Decimal(4, 1)
+  weatherDewPointC Decimal?          @db.Decimal(4, 1)
+  heatAdjusted     Boolean           @default(false)
+  llmHeadline      String?
+  llmExplanation   String?           @db.Text
+  llmConfidence    String?
+  llmModel         String?
+  algorithmVersion String
+
+  createdAt DateTime @default(now())
+
+  @@index([scheduledId])
+  @@index([createdAt])
+}
+
+// Append-only audit log of every plan change
+model PlanAdjustment {
+  id            String       @id @default(cuid())
+  planId        String
+  plan          TrainingPlan @relation(fields: [planId], references: [id])
+  triggeredAt   DateTime     @default(now())
+  triggerTier   Int
+  triggerReason String
+  source        String
+  llmReasoning  String?      @db.Text
+  llmConfidence String?
+  patch         Json
+  applied       Boolean      @default(false)
+  appliedAt     DateTime?
+  reverted      Boolean      @default(false)
 }

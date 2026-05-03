@@ -2,12 +2,14 @@
 
 import { WORKOUT_COLOURS, TRAINING_DAYS, type WeekPlan, type DayKey, DAY_KEYS, DAY_LABELS } from "@/lib/plans";
 import { format, addDays } from "date-fns";
+import ScorePill from "@/components/ScorePill";
 
 interface ProgramTableProps {
   plan: WeekPlan[];
   currentWeek: number;
   planStartDate: Date | null;
   completedDays: Set<string>;
+  ratings?: Map<string, number>;
 }
 
 function TrainingCell({
@@ -15,11 +17,13 @@ function TrainingCell({
   isToday,
   done,
   date,
+  rating,
 }: {
   workout: import("@/lib/plans").DayWorkout;
   isToday: boolean;
   done: boolean;
   date?: Date;
+  rating?: number;
 }) {
   return (
     <td className="p-1.5" style={{ width: 120 }}>
@@ -61,7 +65,13 @@ function TrainingCell({
           </div>
         )}
 
-        {done && (
+        {done && rating !== undefined && (
+          <div className="mt-1">
+            <ScorePill score={rating} size="xs" />
+          </div>
+        )}
+
+        {done && rating === undefined && (
           <span
             className="absolute top-1 right-1.5 text-xs font-bold"
             style={{ color: "var(--accent)" }}
@@ -105,6 +115,7 @@ export default function ProgramTable({
   currentWeek,
   planStartDate,
   completedDays,
+  ratings,
 }: ProgramTableProps) {
   function getDate(weekIdx: number, dayIdx: number): Date | undefined {
     if (!planStartDate) return undefined;
@@ -197,6 +208,11 @@ export default function ProgramTable({
                     return <RestCell key={dayKey} isToday={isToday} />;
                   }
 
+                  const dateStr = date
+                    ? new Date(date).toISOString().split("T")[0]
+                    : undefined;
+                  const rating = dateStr ? ratings?.get(dateStr) : undefined;
+
                   return (
                     <TrainingCell
                       key={dayKey}
@@ -204,6 +220,7 @@ export default function ProgramTable({
                       isToday={isToday}
                       done={done}
                       date={date}
+                      rating={rating}
                     />
                   );
                 })}

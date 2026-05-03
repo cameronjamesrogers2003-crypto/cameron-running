@@ -16,8 +16,10 @@
     "seed": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.92.0",
     "@prisma/client": "^5.22.0",
     "date-fns": "^4.1.0",
+    "inngest": "^4.2.6",
     "lucide-react": "^1.14.0",
     "next": "16.2.4",
     "prisma": "^5.22.0",
