@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { inngest } from "@/lib/inngest";
+import { syncActivities } from "@/lib/strava";
 
 const VERIFY_TOKEN = process.env.STRAVA_WEBHOOK_VERIFY_TOKEN ?? "cameron-running-verify";
 
@@ -32,16 +32,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "bad_request" }, { status: 400 });
   }
 
-  // Only process new run activities
+  // Fire sync in background for new activity events
   if (body.object_type === "activity" && body.aspect_type === "create" && body.object_id) {
-    try {
-      await inngest.send({
-        name: "strava/activity.created",
-        data: { activityId: String(body.object_id) },
-      });
-    } catch (err) {
-      console.error("[strava webhook] inngest.send failed:", err);
-    }
+    syncActivities().catch((err) =>
+      console.error("[strava webhook] sync failed:", err)
+    );
   }
 
   // Always return 200 immediately — Strava requires < 2s response
