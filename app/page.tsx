@@ -42,6 +42,7 @@ function phaseStyle(phase: Phase): { background: string; color: string } {
     case "Base":                return { background: "#1e3a5f", color: "#93c5fd" };
     case "Half Marathon Build": return { background: "#14532d", color: "#86efac" };
     case "Marathon Build":      return { background: "#3b0764", color: "#d8b4fe" };
+    case "Recovery":            return { background: "#1a1133", color: "#a78bfa" };
   }
 }
 

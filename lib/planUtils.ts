@@ -80,5 +80,6 @@ export function getNextPhaseInfo(
     case "Base":                return { label: "Half Marathon Build", week: 7  };
     case "Half Marathon Build": return { label: "Marathon Build",       week: 15 };
     case "Marathon Build":      return null;
+    case "Recovery":            return null;
   }
 }

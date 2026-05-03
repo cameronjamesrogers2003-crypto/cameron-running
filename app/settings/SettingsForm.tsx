@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useSettings } from "@/context/SettingsContext";
 import { formatPace, parsePace, formatDuration, parseDuration } from "@/lib/settings";
 import { getVdotPaces } from "@/lib/vdot";
+import InterruptionsForm from "./InterruptionsForm";
 
 type SaveStatus = "idle" | "saving" | "saved" | "error";
 
@@ -265,6 +266,9 @@ export default function SettingsForm() {
           />
         </div>
       </Panel>
+
+      {/* Plan Interruptions */}
+      <InterruptionsForm />
     </div>
   );
 }

@@ -3,7 +3,7 @@ import type { UserSettings } from "@/lib/settings";
 
 export type RunType = 'easy' | 'tempo' | 'interval' | 'long'
 export type Day = 'wed' | 'sat' | 'sun'
-export type Phase = 'Base' | 'Half Marathon Build' | 'Marathon Build'
+export type Phase = 'Base' | 'Half Marathon Build' | 'Marathon Build' | 'Recovery'
 
 export interface Session {
   day: Day
@@ -17,6 +17,8 @@ export interface TrainingWeek {
   week: number
   phase: Phase
   isCutback: boolean
+  isRecovery?: boolean
+  originalWeek?: number
   sessions: Session[]
 }
 

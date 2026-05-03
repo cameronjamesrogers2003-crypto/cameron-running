@@ -1,6 +1,6 @@
 import prisma from "@/lib/db";
 import { formatPace as fmtPaceSec } from "@/lib/settings";
-import { trainingPlan, type Phase, type RunType } from "@/data/trainingPlan";
+import { buildTrainingPlan, type Phase, type RunType, type TrainingWeek } from "@/data/trainingPlan";
 import {
   PLAN_START_DATE,
   getPlanWeekForDate,
@@ -10,8 +10,11 @@ import {
 import { calculateRunRating } from "@/lib/rating";
 import { sameDayAEST, startOfDayAEST } from "@/lib/dateUtils";
 import { dbSettingsToUserSettings, DEFAULT_SETTINGS } from "@/lib/settings";
+import { reconfigurePlan, type PlanInterruption, type InterruptionType } from "@/lib/interruptions";
 import PhaseOverview from "./PhaseOverview";
 import ProgramSidePanel from "./ProgramSidePanel";
+import PlanAdjustments from "./PlanAdjustments";
+import RaceFlagBanner from "./RaceFlagBanner";
 
 export const dynamic = "force-dynamic";
 
@@ -59,6 +62,8 @@ const PHASE_OVERVIEW: Record<Phase, string> = {
     "This phase shifts focus to half marathon-specific fitness. Long runs push toward 21 km, tempo runs get longer, and intervals increase in volume and intensity. Your body is under significant load in weeks 9–11 and 13–14 — sleep and nutrition matter more than ever here. The cutback weeks in weeks 8 and 12 are essential.",
   "Marathon Build":
     "The peak phase maintains the fitness you've built and prepares you to race. Week 18 is a taper — volume drops sharply but intensity stays. This is normal and intentional. Resist the urge to add extra runs during taper week. Trust the plan.",
+  "Recovery":
+    "These weeks are designed to safely return you to training after a break. Volume is deliberately low and every session is at easy effort. Do not rush or substitute harder runs — connective tissue heals slower than cardiovascular fitness, and starting too hard here leads to re-injury.",
 };
 
 // ── HR zone bounds per run type ───────────────────────────────────────────────
@@ -83,14 +88,14 @@ function getZoneBadge(
   return                               { label: "↓ Zone", color: "#85B7EB" };
 }
 
-// ── Volume change vs previous week ───────────────────────────────────────────
+// ── Volume change vs previous week in the plan ───────────────────────────────
 
-function getVolumeChange(weekNum: number): number | null {
-  if (weekNum <= 1) return null;
-  const prev = trainingPlan[weekNum - 2];
-  if (!prev) return null;
+function getVolumeChange(planWeek: TrainingWeek, plan: TrainingWeek[]): number | null {
+  const idx = plan.indexOf(planWeek);
+  if (idx <= 0) return null;
+  const prev = plan[idx - 1];
   const prevKm = getWeeklyTargetKm(prev);
-  const currKm = getWeeklyTargetKm(trainingPlan[weekNum - 1]);
+  const currKm = getWeeklyTargetKm(planWeek);
   if (prevKm === 0) return null;
   return Math.round(((currKm - prevKm) / prevKm) * 100);
 }
@@ -125,7 +130,37 @@ function phaseChipStyle(phase: Phase): { background: string; color: string } {
     case "Base":                return { background: "#1e3a5f", color: "#93c5fd" };
     case "Half Marathon Build": return { background: "#14532d", color: "#86efac" };
     case "Marathon Build":      return { background: "#3b0764", color: "#d8b4fe" };
+    case "Recovery":            return { background: "#1a1133", color: "#a78bfa" };
   }
+}
+
+// ── Plan section grouping ─────────────────────────────────────────────────────
+
+interface PlanSection {
+  phase: Phase;
+  weeks: TrainingWeek[];
+  isRecovery: boolean;
+  sectionIdx: number;
+}
+
+function groupIntoSections(plan: TrainingWeek[]): PlanSection[] {
+  return plan.reduce<PlanSection[]>((acc, week) => {
+    if (!acc.length || acc[acc.length - 1].phase !== week.phase) {
+      acc.push({ phase: week.phase, weeks: [week], isRecovery: week.isRecovery ?? false, sectionIdx: acc.length });
+    } else {
+      acc[acc.length - 1].weeks.push(week);
+    }
+    return acc;
+  }, []);
+}
+
+// ── Date formatter ────────────────────────────────────────────────────────────
+
+function fmtWeekStartDate(weekNumber: number): string {
+  const d = new Date(PLAN_START_DATE.getTime() + (weekNumber - 1) * 7 * 24 * 60 * 60 * 1000);
+  // shift to AEST (+10h) to get local date
+  const aest = new Date(d.getTime() + 10 * 60 * 60 * 1000);
+  return aest.toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 }
 
 // ── Page ──────────────────────────────────────────────────────────────────────
@@ -134,34 +169,69 @@ export default async function ProgramPage() {
   const today        = new Date();
   const todayMidnight = startOfDayAEST(today);
   const rawWeek      = getPlanWeekForDate(today);
-  const currentWeek  = rawWeek > 0 ? Math.min(trainingPlan.length, rawWeek) : 1;
-  const currentPlanWeek = trainingPlan[currentWeek - 1];
 
-  const planEnd = new Date(PLAN_START_DATE.getTime() + 18 * 7 * 24 * 60 * 60 * 1000);
-
-  const [profile, userSettingsRow, activities, bestPaceRow] = await Promise.all([
+  const [profile, userSettingsRow, activities, bestPaceRow, interruptionRows] = await Promise.all([
     prisma.profile.findUnique({ where: { id: 1 } }),
     prisma.userSettings.findUnique({ where: { id: 1 } }),
     prisma.activity.findMany({
-      where: {
-        activityType: { in: ["running", "trail_running"] },
-        date:         { gte: PLAN_START_DATE, lt: planEnd },
-      },
+      where: { activityType: { in: ["running", "trail_running"] } },
     }),
     prisma.activity.findFirst({
       where:   { activityType: { in: ["running", "trail_running"] } },
       orderBy: { avgPaceSecKm: "asc" },
     }),
+    prisma.planInterruption.findMany({ orderBy: { startDate: "asc" } }),
   ]);
 
-  const settings    = userSettingsRow ? dbSettingsToUserSettings(userSettingsRow) : DEFAULT_SETTINGS;
-  const athleteAge  = profile?.dateOfBirth
+  const settings   = userSettingsRow ? dbSettingsToUserSettings(userSettingsRow) : DEFAULT_SETTINGS;
+  const athleteAge = profile?.dateOfBirth
     ? Math.floor((Date.now() - new Date(profile.dateOfBirth).getTime()) / (365.25 * 86400000))
     : 23;
   const pbPaceSecKm = bestPaceRow?.avgPaceSecKm ?? null;
   const maxHR       = settings.maxHR;
 
-  const phases: Phase[] = ["Base", "Half Marathon Build", "Marathon Build"];
+  // Build VDOT-adjusted base plan
+  const basePlan = buildTrainingPlan(settings);
+
+  // Compute normal weekly km from base plan
+  const normalWeeklyKm =
+    basePlan.reduce((sum, w) => sum + getWeeklyTargetKm(w), 0) / basePlan.length;
+
+  // Map DB rows to PlanInterruption
+  const interruptions: PlanInterruption[] = interruptionRows.map(row => ({
+    id:               row.id,
+    reason:           row.reason,
+    type:             row.type as InterruptionType,
+    startDate:        new Date(row.startDate),
+    endDate:          row.endDate ? new Date(row.endDate) : null,
+    weeklyKmEstimate: row.weeklyKmEstimate ?? null,
+    notes:            row.notes ?? null,
+    weeksAffected:    row.weeksAffected ?? null,
+  }));
+
+  const { plan: planToRender, totalWeeksAdded, adjustmentSummary, extendsPastRace } =
+    reconfigurePlan(basePlan, interruptions, {
+      isBeginnerCurve: true,
+      raceDate: settings.raceDate ? new Date(settings.raceDate) : null,
+      normalWeeklyKm,
+    });
+
+  const currentWeek = rawWeek > 0 ? Math.min(planToRender[planToRender.length - 1]?.week ?? 18, rawWeek) : 1;
+  const currentPlanEntry = planToRender.find(w => w.week === currentWeek) ?? planToRender[0];
+
+  const sections = groupIntoSections(planToRender);
+
+  // Race date warning info
+  const lastPlanWeek = planToRender[planToRender.length - 1];
+  const planEndDateStr = lastPlanWeek ? fmtWeekStartDate(lastPlanWeek.week + 1) : "";
+  const raceDateStr = settings.raceDate ? settings.raceDate.slice(0, 10) : "";
+  const weeksOver = extendsPastRace && settings.raceDate && lastPlanWeek
+    ? Math.ceil(
+        (PLAN_START_DATE.getTime() + lastPlanWeek.week * 7 * 24 * 60 * 60 * 1000 -
+          new Date(settings.raceDate).getTime()) /
+          (7 * 24 * 60 * 60 * 1000)
+      )
+    : 0;
 
   return (
     <div className="flex items-start gap-0">
@@ -174,85 +244,134 @@ export default async function ProgramPage() {
           <h1 className="text-xl font-bold text-white">Training Program</h1>
           <span
             className="text-xs font-semibold px-2.5 py-1 rounded-full"
-            style={phaseChipStyle(currentPlanWeek.phase)}
+            style={phaseChipStyle(currentPlanEntry?.phase ?? "Base")}
           >
-            {currentPlanWeek.phase}
+            {currentPlanEntry?.phase ?? "Base"}
           </span>
           <span className="text-sm" style={{ color: "var(--text-muted)" }}>
-            Week {currentWeek} of {trainingPlan.length}
+            Week {currentWeek} of {planToRender.length}
           </span>
         </div>
 
-        {/* Phases */}
-        {phases.map((phase) => {
-          const phaseWeeks  = trainingPlan.filter((w) => w.phase === phase);
-          const phaseStart  = phaseWeeks[0].week;
-          const phaseEnd    = phaseWeeks[phaseWeeks.length - 1].week;
-          const phaseTotal  = phaseWeeks.length;
+        {/* Race flag banner (only when plan extends past race date) */}
+        {extendsPastRace && settings.raceDate && (
+          <RaceFlagBanner
+            planEndDate={planEndDateStr}
+            raceDate={raceDateStr}
+            weeksOver={weeksOver}
+          />
+        )}
+
+        {/* Plan adjustments panel */}
+        {adjustmentSummary.length > 0 && (
+          <PlanAdjustments
+            adjustmentSummary={adjustmentSummary}
+            totalWeeksAdded={totalWeeksAdded}
+            newPlanEndDate={planEndDateStr}
+          />
+        )}
+
+        {/* Plan sections */}
+        {sections.map((section) => {
+          const phaseStart  = section.weeks[0].week;
+          const phaseEnd    = section.weeks[section.weeks.length - 1].week;
+          const phaseTotal  = section.weeks.length;
           const avgKm       =
             Math.round(
-              (phaseWeeks.reduce((s, w) => s + getWeeklyTargetKm(w), 0) / phaseTotal) * 10
+              (section.weeks.reduce((s, w) => s + getWeeklyTargetKm(w), 0) / phaseTotal) * 10
             ) / 10;
-          const chip        = phaseChipStyle(phase);
+          const chip        = phaseChipStyle(section.phase);
           const progressPct = Math.max(
             0,
             Math.min(100, Math.round(((currentWeek - phaseStart) / phaseTotal) * 100))
           );
 
           return (
-            <section key={phase} className="space-y-1.5">
+            <section key={`${section.phase}-${section.sectionIdx}`} className="space-y-1.5">
 
               {/* Phase header */}
-              <div
-                className="rounded-xl px-4 py-3"
-                style={{ background: "#181818", border: "1px solid rgba(255,255,255,0.08)" }}
-              >
-                <div className="flex items-center justify-between gap-4 mb-2 flex-wrap">
+              {section.isRecovery ? (
+                // Simplified recovery header
+                <div
+                  className="rounded-xl px-4 py-3"
+                  style={{
+                    background: "#181818",
+                    border: "1px solid rgba(167,139,250,0.15)",
+                  }}
+                >
                   <div className="flex items-center gap-3 flex-wrap">
                     <span className="text-xs font-semibold px-2.5 py-1 rounded-full" style={chip}>
-                      {phase}
+                      Return to Training
                     </span>
                     <span className="text-xs font-medium text-white">
-                      Weeks {phaseStart}–{phaseEnd}
+                      Week{phaseTotal > 1 ? "s" : ""} {phaseStart}{phaseTotal > 1 ? `–${phaseEnd}` : ""}
                     </span>
                     <span className="text-xs" style={{ color: "var(--text-muted)" }}>
-                      ~{avgKm} km/week avg
+                      ~{avgKm} km/week · easy effort only
                     </span>
                   </div>
-                  <span className="text-xs" style={{ color: "var(--text-muted)" }}>
-                    {progressPct}% complete
-                  </span>
                 </div>
-                <div className="h-1 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.08)" }}>
-                  <div className="h-full rounded-full" style={{ width: `${progressPct}%`, background: chip.color }} />
+              ) : (
+                // Full phase header
+                <div
+                  className="rounded-xl px-4 py-3"
+                  style={{ background: "#181818", border: "1px solid rgba(255,255,255,0.08)" }}
+                >
+                  <div className="flex items-center justify-between gap-4 mb-2 flex-wrap">
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <span className="text-xs font-semibold px-2.5 py-1 rounded-full" style={chip}>
+                        {section.phase}
+                      </span>
+                      <span className="text-xs font-medium text-white">
+                        Weeks {phaseStart}–{phaseEnd}
+                      </span>
+                      <span className="text-xs" style={{ color: "var(--text-muted)" }}>
+                        ~{avgKm} km/week avg
+                      </span>
+                    </div>
+                    <span className="text-xs" style={{ color: "var(--text-muted)" }}>
+                      {progressPct}% complete
+                    </span>
+                  </div>
+                  <div className="h-1 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.08)" }}>
+                    <div className="h-full rounded-full" style={{ width: `${progressPct}%`, background: chip.color }} />
+                  </div>
                 </div>
-              </div>
+              )}
 
-              {/* Phase overview card (collapsible client component) */}
-              <PhaseOverview description={PHASE_OVERVIEW[phase]} />
+              {/* Phase overview card — only for non-recovery sections */}
+              {!section.isRecovery && (
+                <PhaseOverview description={PHASE_OVERVIEW[section.phase]} />
+              )}
 
               {/* Week rows */}
-              {phaseWeeks.map((planWeek) => {
+              {section.weeks.map((planWeek) => {
                 const isCurrentWeek = planWeek.week === currentWeek;
                 const weekTotalKm   = getWeeklyTargetKm(planWeek);
-                const volumeChange  = getVolumeChange(planWeek.week);
+                const volumeChange  = getVolumeChange(planWeek, planToRender);
+                const focusLabel    = WEEK_FOCUS[planWeek.originalWeek ?? planWeek.week];
 
                 return (
                   <div
                     key={planWeek.week}
                     className="rounded-xl px-3 py-2.5"
                     style={{
-                      background: isCurrentWeek ? "#1f1f1f" : "#181818",
-                      border: "1px solid rgba(255,255,255,0.08)",
+                      background:  isCurrentWeek ? "#1f1f1f" : "#181818",
+                      border:      "1px solid rgba(255,255,255,0.08)",
+                      borderLeft:  planWeek.isRecovery
+                        ? "2px solid rgba(167,139,250,0.4)"
+                        : undefined,
                     }}
                   >
                     {/* Weekly focus label */}
-                    <p
-                      className="text-[11px] mb-1.5 pl-[87px]"
-                      style={{ color: "rgba(232,230,224,0.3)" }}
-                    >
-                      {WEEK_FOCUS[planWeek.week]}
-                    </p>
+                    {focusLabel && (
+                      <p
+                        className="text-[11px] mb-1.5 pl-[87px]"
+                        style={{ color: "rgba(232,230,224,0.3)" }}
+                      >
+                        {focusLabel}
+                      </p>
+                    )}
 
                     <div className="flex items-start gap-3">
                       {/* Week label */}
@@ -261,6 +380,9 @@ export default async function ProgramPage() {
                           Week {planWeek.week}
                           {planWeek.isCutback && (
                             <span style={{ color: "#fbbf24" }}> · Cutback</span>
+                          )}
+                          {planWeek.isRecovery && (
+                            <span style={{ color: "#a78bfa" }}> · Return</span>
                           )}
                         </p>
                         {isCurrentWeek && (
