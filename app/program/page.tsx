@@ -24,6 +24,14 @@ interface RatingEntry {
   score: number;
 }
 
+interface ProgramContext {
+  rftpSecPerKm: number | null;
+  recentRatings: Array<{ score: number; avgHeartRate: number | null; distanceKm: number }>;
+  weatherByDate: Record<string, { tempC: number; dewPointC: number; humidity: number } | null>;
+}
+
+export const dynamic = "force-dynamic";
+
 export default function ProgramPage() {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [activities, setActivities] = useState<Activity[]>([]);
@@ -31,13 +39,15 @@ export default function ProgramPage() {
   const [startInput, setStartInput] = useState("");
   const [saving, setSaving] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const [programContext, setProgramContext] = useState<ProgramContext | null>(null);
 
   useEffect(() => {
     Promise.all([
       fetch("/api/settings").then((r) => r.json()),
       fetch("/api/activities?all=1").then((r) => r.json()),
       fetch("/api/ratings").then((r) => r.json()).catch(() => []),
-    ]).then(([s, a, ratings]) => {
+      fetch("/api/program-context").then((r) => r.json()).catch(() => null),
+    ]).then(([s, a, ratings, context]) => {
       setSettings(s);
       setActivities(Array.isArray(a) ? a : []);
       if (s.planStartDate) {
@@ -51,6 +61,7 @@ export default function ProgramPage() {
         }
       }
       setRatingsMap(map);
+      setProgramContext(context);
     });
   }, []);
 
@@ -233,6 +244,9 @@ export default function ProgramPage() {
           planStartDate={planStartDate}
           completedDays={completedDays}
           ratings={ratingsMap}
+          rftpSecPerKm={programContext?.rftpSecPerKm ?? null}
+          recentRatings={programContext?.recentRatings ?? []}
+          weatherByDate={programContext?.weatherByDate ?? {}}
         />
       </div>
     </div>
