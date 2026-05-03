@@ -1,0 +1,48 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Activity {
+  id           String   @id
+  date         DateTime
+  distanceKm   Float
+  durationSecs Int
+  avgPaceSecKm Int
+  avgHeartRate Int?
+  maxHeartRate Int?
+  calories     Int?
+  activityType String
+  syncedAt     DateTime @default(now())
+}
+
+model Profile {
+  id               Int       @id @default(1)
+  name             String    @default("Cameron")
+  dateOfBirth      DateTime
+  heightCm         Int       @default(174)
+  stravaConnected  Boolean   @default(false)
+  stravaToken      String?
+  stravaRefresh    String?
+  stravaTokenExpiry DateTime?
+}
+
+model WeightEntry {
+  id       Int      @id @default(autoincrement())
+  weightKg Float
+  loggedAt DateTime @default(now())
+}
+
+model Settings {
+  id                Int       @id @default(1)
+  activePlan        String    @default("half")
+  planStartDate     DateTime?
+  halfCompleted     Boolean   @default(false)
+  halfCompletedAt   DateTime?
+  goal5kTimeSecs    Int?
+  comfortableDistKm Float     @default(5.0)
+}
