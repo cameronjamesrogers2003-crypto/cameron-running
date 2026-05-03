@@ -6,16 +6,17 @@ import { generateCommentary } from "@/lib/llm/commentary";
 
 export const dynamic = "force-dynamic";
 
-function isRunType(activityType: string): boolean {
-  const normalized = activityType.toLowerCase();
-  return normalized.includes("run");
-}
-
 export async function POST() {
-  const activities = (await prisma.activity.findMany({
-    where: { rating: null },
+  const activities = await prisma.activity.findMany({
+    where: {
+      rating: null,
+      OR: [
+        { activityType: { in: ["running", "trail_running"] } },
+        { activityType: { contains: "run", mode: "insensitive" } },
+      ],
+    },
     orderBy: { date: "asc" },
-  })).filter((a) => isRunType(a.activityType));
+  });
 
   const profile = await prisma.profile.findUnique({ where: { id: 1 } });
   const ageYears = profile?.dateOfBirth
@@ -36,7 +37,7 @@ export async function POST() {
           },
           rating: null,
         },
-        orderBy: [{ date: "asc" }],
+        orderBy: { date: "asc" },
       });
 
       const weather = activity.startLat && activity.startLon
