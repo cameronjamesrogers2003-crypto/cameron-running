@@ -1,6 +1,7 @@
 "use client";
 
-import { WORKOUT_COLOURS, TRAINING_DAYS, type WeekPlan, type DayKey, DAY_KEYS, DAY_LABELS } from "@/lib/plans";
+import { useState } from "react";
+import { TRAINING_DAYS, type WeekPlan, type DayKey, DAY_KEYS, DAY_LABELS } from "@/lib/plans";
 import { format, addDays } from "date-fns";
 import ScorePill from "@/components/ScorePill";
 
@@ -10,225 +11,81 @@ interface ProgramTableProps {
   planStartDate: Date | null;
   completedDays: Set<string>;
   ratings?: Map<string, number>;
+  rftpSecPerKm: number | null;
+  recentRatings: Array<{ score: number; avgHeartRate: number | null; distanceKm: number }>;
+  weatherByDate: Record<string, { tempC: number; dewPointC: number; humidity: number } | null>;
 }
 
-function TrainingCell({
-  workout,
-  isToday,
-  done,
-  date,
-  rating,
-}: {
-  workout: import("@/lib/plans").DayWorkout;
-  isToday: boolean;
-  done: boolean;
-  date?: Date;
-  rating?: number;
-}) {
-  return (
-    <td className="p-1.5" style={{ width: 120 }}>
-      <div
-        className="rounded-lg p-2 text-xs relative"
-        style={{
-          background: done ? "rgba(249,115,22,0.1)" : "var(--surface-2)",
-          border: isToday ? "2px solid var(--accent)" : "1px solid var(--border)",
-          minHeight: 60,
-        }}
-      >
-        {date && (
-          <p style={{ color: "var(--text-muted)", fontSize: "0.6rem" }} className="mb-1">
-            {format(date, "d MMM")}
-          </p>
-        )}
+const fmtPace = (sec: number) => `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, "0")} /km`;
+const zoneForType = (type: string) => {
+  if (type.includes("tempo") || type.includes("pace")) return "Zone 3 · 149–168 bpm";
+  if (type.includes("interval")) return "Zone 4 · 168–182 bpm";
+  if (type.includes("race")) return "Zone 5 · 182–198 bpm";
+  return "Zone 2 · 119–149 bpm";
+};
 
-        {workout.type === "rest" ? (
-          <p className="font-medium" style={{ color: "var(--text-muted)" }}>Rest</p>
-        ) : workout.type === "cross" ? (
-          <div>
-            <div className="w-1.5 h-1.5 rounded-full mb-1" style={{ background: "#3b82f6" }} />
-            <p className="font-semibold" style={{ color: "#3b82f6" }}>
-              {workout.durationMins}min cross
-            </p>
-          </div>
-        ) : (
-          <div>
-            <div
-              className="w-1.5 h-1.5 rounded-full mb-1"
-              style={{ background: WORKOUT_COLOURS[workout.type] }}
-            />
-            <p className="font-semibold text-white leading-tight">
-              {workout.distanceKm ? `${workout.distanceKm.toFixed(1)} km` : workout.label}
-            </p>
-            <p className="mt-0.5 capitalize" style={{ color: "var(--text-muted)", fontSize: "0.6rem" }}>
-              {workout.type === "sorta_long" ? "sorta long" : workout.type.replace("race_", "")}
-            </p>
-          </div>
-        )}
-
-        {done && rating !== undefined && (
-          <div className="mt-1">
-            <ScorePill score={rating} size="xs" />
-          </div>
-        )}
-
-        {done && rating === undefined && (
-          <span
-            className="absolute top-1 right-1.5 text-xs font-bold"
-            style={{ color: "var(--accent)" }}
-          >
-            ✓
-          </span>
-        )}
-        {isToday && !done && workout.type !== "rest" && (
-          <span
-            className="absolute top-1 right-1.5 text-xs font-bold"
-            style={{ color: "var(--accent)", fontSize: "0.55rem" }}
-          >
-            TODAY
-          </span>
-        )}
-      </div>
-    </td>
-  );
+function details(type: string, week: number) {
+  const late = week > 8;
+  if (type.includes("long")) return late ? ["Foundation Long Run", "Builds endurance and mental durability."] : ["Aerobic Base Builder", "Builds aerobic durability with low-intensity volume."];
+  if (type.includes("race")) return ["Race Simulation Day", "Sharpens race pacing and confidence under effort."];
+  if (type.includes("sorta")) return ["Steady Progress Run", "Builds sustainable strength at manageable effort."];
+  return late ? ["Keep It Conversational Today", "Reinforces recovery while holding consistent form."] : ["Easy Engine Session", "Builds your aerobic base and efficient fat burning."];
 }
 
-function RestCell({ isToday }: { isToday: boolean }) {
-  return (
-    <td className="p-1" style={{ width: 36 }}>
-      <div
-        className="flex items-center justify-center rounded text-xs"
-        style={{
-          height: 60,
-          background: isToday ? "rgba(249,115,22,0.05)" : "transparent",
-          border: isToday ? "1px solid rgba(249,115,22,0.3)" : "1px solid transparent",
-          color: "var(--border)",
-        }}
-      >
-        —
-      </div>
-    </td>
-  );
-}
+export default function ProgramTable({ plan, currentWeek, planStartDate, completedDays, ratings, rftpSecPerKm, recentRatings, weatherByDate }: ProgramTableProps) {
+  const [openWeeks, setOpenWeeks] = useState<Set<number>>(new Set([currentWeek]));
+  const rftp = rftpSecPerKm ?? 395;
 
-export default function ProgramTable({
-  plan,
-  currentWeek,
-  planStartDate,
-  completedDays,
-  ratings,
-}: ProgramTableProps) {
-  function getDate(weekIdx: number, dayIdx: number): Date | undefined {
-    if (!planStartDate) return undefined;
-    return addDays(planStartDate, weekIdx * 7 + dayIdx);
+  const avgHr = recentRatings.length ? recentRatings.reduce((s, r) => s + (r.avgHeartRate ?? 0), 0) / recentRatings.length : null;
+  const lowScore = recentRatings.some((r) => r.score < 6);
+
+  function tips(workoutDistance?: number, dateKey?: string) {
+    const t = ["Run at a pace where you can hold a full conversation"];
+    if (avgHr && avgHr > 168) t.push("Your HR has been running high lately — keep this one controlled and slower than ego pace");
+    if (lowScore) t.push("Last run looked tough — today is recovery execution, not performance");
+    if (workoutDistance && recentRatings.length && recentRatings[0].distanceKm < workoutDistance * 0.8) t.push("You’ve been cutting runs short — prioritize full distance today, even if slower");
+    const wx = dateKey ? weatherByDate[dateKey] : null;
+    if (wx?.tempC && wx?.dewPointC && wx.tempC > 35) t.push("Extreme heat — consider running before 7am or moving this session indoors");
+    else if (wx?.tempC && wx?.dewPointC && wx.tempC > 30 && wx.dewPointC > 20) t.push("Hot and humid today — widen your pace target by ~8% and prioritise HR over pace");
+    return t.slice(0, 3);
   }
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  return <div className="space-y-3 p-3">{plan.map((week, weekIdx) => {
+    const isCurrent = week.week === currentWeek;
+    const isPast = currentWeek > week.week;
+    const isFuture = week.week > currentWeek;
+    const expanded = isCurrent || openWeeks.has(week.week);
+    return <div key={week.week} className="rounded-xl" style={{ background: "var(--surface)", border: `1px solid ${isCurrent ? "rgba(249,115,22,0.4)" : "var(--border)"}`, opacity: isPast ? 0.65 : 1 }}>
+      <button className="w-full px-4 py-3 flex items-center justify-between text-left" onClick={() => isFuture && setOpenWeeks((prev) => new Set(prev.has(week.week) ? [...prev].filter((w) => w !== week.week) : [...prev, week.week]))}>
+        <div><p className="text-sm font-semibold text-white">Week {week.week} {isCurrent ? "• Current" : isPast ? "• Completed" : ""}</p></div>
+      </button>
+      {expanded && <div className="px-4 pb-4 space-y-3">{(DAY_KEYS as DayKey[]).filter((d) => TRAINING_DAYS.has(d)).map((day, dayIdx) => {
+        const workout = week[day];
+        const date = planStartDate ? addDays(planStartDate, weekIdx * 7 + dayIdx) : null;
+        const dateKey = date ? date.toISOString().split("T")[0] : "";
+        const done = dateKey ? completedDays.has(dateKey) : false;
+        const [name, desc] = details(workout.type, week.week);
+        const low = workout.type === "long" ? rftp + 75 : workout.type.includes("tempo") || workout.type.includes("pace") ? rftp + 15 : rftp + 60;
+        const high = workout.type === "long" ? rftp + 120 : workout.type.includes("tempo") || workout.type.includes("pace") ? rftp + 30 : rftp + 90;
+        const zoneName = high > rftp + 120 ? "Recovery Jog" : high >= rftp + 60 ? "Easy Zone" : high >= rftp + 30 ? "Comfortable" : high >= rftp ? "Moderate Push" : "Threshold +";
+        const wx = dateKey ? weatherByDate[dateKey] : null;
+        const heatBadge = wx?.tempC && wx.dewPointC && wx.tempC > 35 ? "Extreme Heat" : wx?.tempC && wx.dewPointC && wx.tempC > 30 && wx.dewPointC > 20 ? "Heat Advisory" : null;
 
-  return (
-    <div className="overflow-x-auto">
-      <table className="border-collapse" style={{ minWidth: 560 }}>
-        <thead>
-          <tr>
-            {/* Week col */}
-            <th
-              className="text-left px-3 py-2 text-xs font-semibold uppercase tracking-wider"
-              style={{ color: "var(--text-muted)", width: 56 }}
-            >
-              Week
-            </th>
-
-            {DAY_KEYS.map((day) => {
-              const isTraining = TRAINING_DAYS.has(day);
-              return (
-                <th
-                  key={day}
-                  className="py-2 text-xs font-semibold uppercase tracking-wider text-center"
-                  style={{
-                    color: isTraining ? "var(--text-muted)" : "var(--border)",
-                    width: isTraining ? 120 : 36,
-                    paddingLeft: isTraining ? 6 : 0,
-                    paddingRight: isTraining ? 6 : 0,
-                  }}
-                >
-                  {DAY_LABELS[day]}
-                </th>
-              );
-            })}
-          </tr>
-        </thead>
-        <tbody>
-          {plan.map((week, weekIdx) => {
-            const isCurrentWeek = week.week === currentWeek;
-            return (
-              <tr
-                key={week.week}
-                style={{
-                  background: isCurrentWeek ? "rgba(249,115,22,0.04)" : "transparent",
-                }}
-              >
-                {/* Week number */}
-                <td className="px-3 py-1">
-                  <div className="flex items-center gap-1.5">
-                    <span
-                      className="text-sm font-bold"
-                      style={{ color: isCurrentWeek ? "var(--accent)" : "var(--text-muted)" }}
-                    >
-                      {week.week}
-                    </span>
-                    {isCurrentWeek && (
-                      <span
-                        className="rounded-full font-semibold"
-                        style={{
-                          background: "var(--accent)",
-                          color: "#fff",
-                          fontSize: "0.55rem",
-                          padding: "2px 5px",
-                        }}
-                      >
-                        NOW
-                      </span>
-                    )}
-                  </div>
-                </td>
-
-                {(DAY_KEYS as DayKey[]).map((dayKey, dayIdx) => {
-                  const date = getDate(weekIdx, dayIdx);
-                  let isToday = false;
-                  let done = false;
-
-                  if (date) {
-                    const d = new Date(date);
-                    d.setHours(0, 0, 0, 0);
-                    isToday = d.getTime() === today.getTime();
-                    done = completedDays.has(d.toISOString().split("T")[0]);
-                  }
-
-                  if (!TRAINING_DAYS.has(dayKey)) {
-                    return <RestCell key={dayKey} isToday={isToday} />;
-                  }
-
-                  const dateStr = date
-                    ? new Date(date).toISOString().split("T")[0]
-                    : undefined;
-                  const rating = dateStr ? ratings?.get(dateStr) : undefined;
-
-                  return (
-                    <TrainingCell
-                      key={dayKey}
-                      workout={week[dayKey]}
-                      isToday={isToday}
-                      done={done}
-                      date={date}
-                      rating={rating}
-                    />
-                  );
-                })}
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
-  );
+        return <div key={day} className="rounded-lg p-3" style={{ background: "var(--surface-2)", border: "1px solid var(--border)" }}>
+          <div className="flex justify-between"><p className="text-xs" style={{ color: "var(--text-muted)" }}>{DAY_LABELS[day]} {date ? format(date, "d MMM") : ""}</p>{heatBadge && <span className="text-xs px-2 py-0.5 rounded" style={{ background: heatBadge === "Extreme Heat" ? "rgba(239,68,68,0.2)" : "rgba(245,158,11,0.2)", color: heatBadge === "Extreme Heat" ? "#f87171" : "#f59e0b" }}>{heatBadge}</span>}</div>
+          <p className="text-sm font-semibold text-white">{workout.distanceKm?.toFixed(1)} km · {name}</p>
+          <p className="text-xs" style={{ color: "var(--text-muted)" }}>{desc}</p>
+          <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>Target HR: {zoneForType(workout.type)} · Pace: {zoneName} · {fmtPace(low)}–{fmtPace(high)}</p>
+          <ul className="mt-1 list-disc pl-4">{tips(workout.distanceKm, dateKey).map((tip) => <li key={tip} className="text-xs" style={{ color: "var(--text-muted)" }}>{tip}</li>)}</ul>
+          {done && <div className="mt-1">{ratings?.get(dateKey) !== undefined ? <ScorePill score={ratings.get(dateKey)!} size="xs" /> : <span style={{ color: "var(--accent)" }}>✓ Completed</span>}</div>}
+        </div>;
+      })}</div>}
+      {!expanded && isFuture && <div className="px-4 pb-3 space-y-1">{(["wed", "sat", "sun"] as DayKey[]).map((d, i) => {
+        const w = week[d];
+        const [name] = details(w.type, week.week);
+        const date = planStartDate ? addDays(planStartDate, weekIdx * 7 + i + 2) : null;
+        return <p key={d} className="text-xs" style={{ color: "var(--text-muted)" }}>{date ? format(date, "d MMM") : DAY_LABELS[d]} · {w.distanceKm?.toFixed(1)} km · {name}</p>;
+      })}</div>}
+    </div>;
+  })}</div>;
 }
