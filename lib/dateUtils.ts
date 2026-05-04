@@ -1,4 +1,4 @@
-import { format as dateFnsFormat } from "date-fns";
+import { format as dateFnsFormat, formatDistanceToNow } from "date-fns";
 
 // Brisbane is always UTC+10 — no daylight saving observed
 export const AEST_OFFSET_MS = 10 * 60 * 60 * 1000;
@@ -14,6 +14,19 @@ export function toAEST(date: Date): Date {
 /** date-fns format() wrapper that displays dates in AEST. */
 export function formatAEST(date: Date | string, fmt: string): string {
   return dateFnsFormat(toAEST(new Date(date)), fmt);
+}
+
+/**
+ * Relative time (e.g. "3 hours ago", "yesterday") using the same AEST wall-clock
+ * basis as formatAEST, for consistent copy on a UTC server.
+ */
+export function formatDistanceToNowAEST(
+  date: Date | string,
+  options?: { addSuffix?: boolean }
+): string {
+  const d = toAEST(new Date(date));
+  const baseDate = toAEST(new Date());
+  return formatDistanceToNow(d, { ...options, baseDate });
 }
 
 /**

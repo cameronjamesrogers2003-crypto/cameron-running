@@ -1,4 +1,3 @@
-import { formatDistanceToNow } from "date-fns";
 import prisma from "@/lib/db";
 import { formatPace } from "@/lib/strava";
 import { trainingPlan, buildTrainingPlan, type Phase, type RunType } from "@/data/trainingPlan";
@@ -11,7 +10,7 @@ import {
   inferRunType,
   getNextPhaseInfo,
 } from "@/lib/planUtils";
-import { formatAEST, sameDayAEST, startOfDayAEST } from "@/lib/dateUtils";
+import { formatAEST, formatDistanceToNowAEST, sameDayAEST, startOfDayAEST } from "@/lib/dateUtils";
 import { calculateRunRating, resolveRunType, resolveTargetPaceSecKm } from "@/lib/rating";
 import { dbSettingsToUserSettings, DEFAULT_SETTINGS } from "@/lib/settings";
 import WeeklyKmChart from "@/components/charts/WeeklyKmChart";
@@ -313,11 +312,14 @@ export default async function Dashboard({
   );
   const nextPhase = getNextPhaseInfo(currentPhase);
 
-  // ── Sync timestamp ────────────────────────────────────────────────────────
+  // ── Sync timestamps (Strava) ──────────────────────────────────────────────
   const lastSyncedAt = lastSyncRow?.syncedAt?.toISOString() ?? null;
-  const syncLabel = lastSyncRow?.syncedAt
-    ? `Synced via Strava · ${formatDistanceToNow(new Date(lastSyncRow.syncedAt), { addSuffix: true })}`
-    : "Not synced yet";
+  const lastRunImportedLabel = lastSyncRow?.syncedAt
+    ? formatDistanceToNowAEST(lastSyncRow.syncedAt, { addSuffix: true })
+    : "never";
+  const lastRefreshedLabel = profile?.lastRefreshedAt
+    ? formatDistanceToNowAEST(profile.lastRefreshedAt, { addSuffix: true })
+    : "Never refreshed";
 
   // ─────────────────────────────────────────────────────────────────────────
   return (
@@ -595,10 +597,21 @@ export default async function Dashboard({
         </Card>
 
         {/* ── Strava sync indicator ────────────────────────────────────────── */}
-        <div className="flex items-center justify-between px-1 pb-2 flex-wrap gap-3">
-          <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-            {syncLabel}
-          </p>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:flex-wrap px-1 pb-2">
+          <div
+            className="flex flex-col gap-0.5 text-xs sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-1"
+            style={{ color: "var(--text-muted)" }}
+          >
+            <span>Synced via Strava</span>
+            <span className="hidden sm:inline" aria-hidden>
+              ·
+            </span>
+            <span>Last run imported {lastRunImportedLabel}</span>
+            <span className="hidden sm:inline" aria-hidden>
+              ·
+            </span>
+            <span>Last refreshed {lastRefreshedLabel}</span>
+          </div>
           <SyncButton
             lastSynced={lastSyncedAt}
             stravaConnected={profile?.stravaConnected ?? false}

@@ -38,6 +38,7 @@ model Profile {
   stravaToken       String?
   stravaRefresh     String?
   stravaTokenExpiry DateTime?
+  lastRefreshedAt   DateTime?
 }
 
 model UserSettings {
