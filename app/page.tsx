@@ -197,6 +197,7 @@ export default async function Dashboard({
       maxHROverride: settings.maxHR,
       distTargetKmOverride: distTargets[type],
       targetPaceSecKmOverride: resolveTargetPaceSecKm(a, ratingPlan),
+      settings,
     }).total;
   });
   const avgWeekRating =
@@ -275,6 +276,7 @@ export default async function Dashboard({
       maxHROverride: settings.maxHR,
       distTargetKmOverride: distTargets[type],
       targetPaceSecKmOverride: resolveTargetPaceSecKm(a, ratingPlan),
+      settings,
     });
     return { ...a, runType: type, rating };
   });

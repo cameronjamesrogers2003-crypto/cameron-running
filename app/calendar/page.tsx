@@ -221,6 +221,7 @@ export default async function CalendarPage({
       avgHeartRate: r.avgHeartRate, temperatureC: r.temperatureC,
       humidityPct: r.humidityPct, runType: type,
       personalBestPaceSecKm: pbPaceSecKm, athleteAgeYears: athleteAge,
+      settings,
     }).total;
   });
   const avgRating28 = ratings28.length > 0
@@ -242,6 +243,7 @@ export default async function CalendarPage({
           avgHeartRate: act.avgHeartRate, temperatureC: act.temperatureC,
           humidityPct: act.humidityPct, runType,
           personalBestPaceSecKm: pbPaceSecKm, athleteAgeYears: athleteAge,
+          settings,
         })
       : null;
 

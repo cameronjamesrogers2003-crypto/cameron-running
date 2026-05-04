@@ -104,16 +104,16 @@ function buildClassificationChecks(
   const checks: ClassificationCheck[] = [];
 
   if (paceMinPerKm <= intThreshMin) {
-    checks.push({ text: `Pace ${pace} ≤ ${intT} interval threshold`, passed: false });
+    checks.push({ text: `Pace ${pace} ≤ ${intT} interval zone midpoint`, passed: false });
     return { checks, result: "interval" };
   }
-  checks.push({ text: `Pace ${pace} > ${intT} interval threshold → not Interval`, passed: true });
+  checks.push({ text: `Pace ${pace} > ${intT} interval zone midpoint → not Interval`, passed: true });
 
   if (paceMinPerKm <= tempoThreshMin) {
-    checks.push({ text: `Pace ${pace} ≤ ${temT} tempo threshold`, passed: false });
+    checks.push({ text: `Pace ${pace} ≤ ${temT} tempo zone midpoint`, passed: false });
     return { checks, result: "tempo" };
   }
-  checks.push({ text: `Pace ${pace} > ${temT} tempo threshold → not Tempo`, passed: true });
+  checks.push({ text: `Pace ${pace} > ${temT} tempo zone midpoint → not Tempo`, passed: true });
 
   if (distanceKm >= 15) {
     checks.push({ text: `Distance ${distanceKm.toFixed(2)} km ≥ 15 km`, passed: false });
@@ -444,6 +444,9 @@ export default function RunsClient({
                         ))}
                         <p className="text-xs font-semibold pt-0.5" style={{ color: TYPE_COLORS[result] }}>
                           → Classified as: {result.charAt(0).toUpperCase() + result.slice(1)}
+                        </p>
+                        <p className="text-[10px] pt-1" style={{ color: "rgba(156,163,175,0.4)" }}>
+                          Thresholds from your manual pace zones in Settings
                         </p>
                       </div>
                     );

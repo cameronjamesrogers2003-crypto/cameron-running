@@ -55,6 +55,14 @@ model UserSettings {
   distTargetTempoM      Int       @default(10000)
   distTargetIntervalM   Int       @default(8000)
   distTargetLongM       Int       @default(18000)
+  easyPaceMinSec        Int       @default(390)
+  easyPaceMaxSec        Int       @default(450)
+  tempoPaceMinSec       Int       @default(330)
+  tempoPaceMaxSec       Int       @default(390)
+  intervalPaceMinSec    Int       @default(300)
+  intervalPaceMaxSec    Int       @default(330)
+  longPaceMinSec        Int       @default(390)
+  longPaceMaxSec        Int       @default(450)
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
 }

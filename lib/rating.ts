@@ -1,7 +1,6 @@
 import type { RunType, Session, TrainingWeek } from "@/data/trainingPlan";
 import { getPlanWeekForDate, getSessionDate } from "@/lib/planUtils";
 import { toAEST } from "@/lib/dateUtils";
-import { getVdotPaces } from "@/lib/vdot";
 import { DEFAULT_SETTINGS, type UserSettings } from "@/lib/settings";
 
 export type { RunType };
@@ -29,6 +28,7 @@ export interface RatingInput {
   maxHROverride?: number | null;
   distTargetKmOverride?: number | null;
   targetPaceSecKmOverride?: number | null;
+  settings?: UserSettings | null;
 }
 
 export interface RatingResult {
@@ -71,7 +71,15 @@ export function calculateRunRating(input: RatingInput): RatingResult {
   } = input;
 
   // -- Pace (2.5 pts) -------------------------------------------------------
-  const targetPace = targetPaceSecKmOverride ?? TARGET_PACE[runType];
+  // Fallback: manual zone midpoints when settings present, else static defaults.
+  const s = input.settings;
+  const fallbackPace = s ? {
+    easy:     (s.easyPaceMinSec     + s.easyPaceMaxSec)     / 2,
+    tempo:    (s.tempoPaceMinSec    + s.tempoPaceMaxSec)    / 2,
+    interval: (s.intervalPaceMinSec + s.intervalPaceMaxSec) / 2,
+    long:     (s.longPaceMinSec     + s.longPaceMaxSec)     / 2,
+  } : TARGET_PACE;
+  const targetPace = targetPaceSecKmOverride ?? fallbackPace[runType];
   const pbPace     = personalBestPaceSecKm ?? targetPace;
 
   const diffTarget = avgPaceSecKm - targetPace;
@@ -135,13 +143,15 @@ function aestDateKey(date: Date): string {
 }
 
 export function inferRunType(run: StatActivity, settings: UserSettings = DEFAULT_SETTINGS): RunType {
-  const paceMinPerKm = run.avgPaceSecKm / 60;
-  const distKm       = run.distanceKm;
-  const vdotPaces    = getVdotPaces(settings.currentVdot);
+  const paceSecKm = run.avgPaceSecKm;
+  const distKm    = run.distanceKm;
 
-  if (paceMinPerKm <= vdotPaces.intervalSecKm / 60) return "interval";
-  if (paceMinPerKm <= vdotPaces.tempoSecKm    / 60) return "tempo";
-  if (distKm >= 15)                                  return "long";
+  const intervalMid = (settings.intervalPaceMinSec + settings.intervalPaceMaxSec) / 2;
+  const tempoMid    = (settings.tempoPaceMinSec    + settings.tempoPaceMaxSec)    / 2;
+
+  if (paceSecKm <= intervalMid) return "interval";
+  if (paceSecKm <= tempoMid)    return "tempo";
+  if (distKm    >= 15)          return "long";
   return "easy";
 }
 

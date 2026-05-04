@@ -17,6 +17,14 @@ export interface UserSettings {
   distTargetTempoM: number;
   distTargetIntervalM: number;
   distTargetLongM: number;
+  easyPaceMinSec: number;
+  easyPaceMaxSec: number;
+  tempoPaceMinSec: number;
+  tempoPaceMaxSec: number;
+  intervalPaceMinSec: number;
+  intervalPaceMaxSec: number;
+  longPaceMinSec: number;
+  longPaceMaxSec: number;
 }
 
 export const DEFAULT_SETTINGS: UserSettings = {
@@ -34,6 +42,14 @@ export const DEFAULT_SETTINGS: UserSettings = {
   distTargetTempoM: 10000,
   distTargetIntervalM: 8000,
   distTargetLongM: 18000,
+  easyPaceMinSec: 390,
+  easyPaceMaxSec: 450,
+  tempoPaceMinSec: 330,
+  tempoPaceMaxSec: 390,
+  intervalPaceMinSec: 300,
+  intervalPaceMaxSec: 330,
+  longPaceMinSec: 390,
+  longPaceMaxSec: 450,
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -53,6 +69,14 @@ export function dbSettingsToUserSettings(row: any): UserSettings {
     distTargetTempoM:     row.distTargetTempoM      ?? DEFAULT_SETTINGS.distTargetTempoM,
     distTargetIntervalM:  row.distTargetIntervalM   ?? DEFAULT_SETTINGS.distTargetIntervalM,
     distTargetLongM:      row.distTargetLongM       ?? DEFAULT_SETTINGS.distTargetLongM,
+    easyPaceMinSec:       row.easyPaceMinSec        ?? DEFAULT_SETTINGS.easyPaceMinSec,
+    easyPaceMaxSec:       row.easyPaceMaxSec        ?? DEFAULT_SETTINGS.easyPaceMaxSec,
+    tempoPaceMinSec:      row.tempoPaceMinSec       ?? DEFAULT_SETTINGS.tempoPaceMinSec,
+    tempoPaceMaxSec:      row.tempoPaceMaxSec       ?? DEFAULT_SETTINGS.tempoPaceMaxSec,
+    intervalPaceMinSec:   row.intervalPaceMinSec    ?? DEFAULT_SETTINGS.intervalPaceMinSec,
+    intervalPaceMaxSec:   row.intervalPaceMaxSec    ?? DEFAULT_SETTINGS.intervalPaceMaxSec,
+    longPaceMinSec:       row.longPaceMinSec        ?? DEFAULT_SETTINGS.longPaceMinSec,
+    longPaceMaxSec:       row.longPaceMaxSec        ?? DEFAULT_SETTINGS.longPaceMaxSec,
   };
 }
 

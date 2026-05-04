@@ -1,6 +1,5 @@
 import prisma from "@/lib/db";
 import { dbSettingsToUserSettings, DEFAULT_SETTINGS } from "@/lib/settings";
-import { getVdotPaces } from "@/lib/vdot";
 import RunsClient from "./RunsClient";
 import Logo from "@/components/Logo";
 
@@ -9,7 +8,9 @@ export const dynamic = "force-dynamic";
 export default async function RunsPage() {
   const settingsRow = await prisma.userSettings.findUnique({ where: { id: 1 } });
   const settings    = settingsRow ? dbSettingsToUserSettings(settingsRow) : DEFAULT_SETTINGS;
-  const vdotPaces   = getVdotPaces(settings.currentVdot);
+
+  const intervalThresholdSec = (settings.intervalPaceMinSec + settings.intervalPaceMaxSec) / 2;
+  const tempoThresholdSec    = (settings.tempoPaceMinSec    + settings.tempoPaceMaxSec)    / 2;
 
   return (
     <div className="space-y-5">
@@ -23,8 +24,8 @@ export default async function RunsPage() {
         </p>
       </div>
       <RunsClient
-        intervalThresholdSec={vdotPaces.intervalSecKm}
-        tempoThresholdSec={vdotPaces.tempoSecKm}
+        intervalThresholdSec={intervalThresholdSec}
+        tempoThresholdSec={tempoThresholdSec}
       />
     </div>
   );

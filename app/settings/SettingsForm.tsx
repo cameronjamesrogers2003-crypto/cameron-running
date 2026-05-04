@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSettings } from "@/context/SettingsContext";
 import { formatPace, parsePace, formatDuration, parseDuration } from "@/lib/settings";
 import { getVdotPaces } from "@/lib/vdot";
@@ -105,6 +105,27 @@ function NumberInput({ value, onChange, min, max }: { value: number | string; on
   );
 }
 
+function PaceInput({ value, onChange, placeholder = "0:00" }: { value: string; onChange: (v: string) => void; placeholder?: string }) {
+  return (
+    <input
+      type="text"
+      value={value}
+      onChange={e => onChange(e.target.value)}
+      placeholder={placeholder}
+      className="w-16 rounded-md px-2 py-1.5 text-sm text-white outline-none focus:ring-1 text-center"
+      style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}
+    />
+  );
+}
+
+type ZoneSuggestion = {
+  type: "easy" | "tempo" | "interval" | "long";
+  avgPace: number;
+  midpoint: number;
+  newMin: number;
+  newMax: number;
+};
+
 export default function SettingsForm() {
   const { settings, updateSettings } = useSettings();
 
@@ -133,6 +154,66 @@ export default function SettingsForm() {
     const perKm = secs / 21.0975;
     return formatPace(perKm);
   })();
+
+  // ── Pace zones group ─────────────────────────────────────────────────────
+  const [easyMin,     setEasyMin]     = useState(formatPace(settings.easyPaceMinSec));
+  const [easyMax,     setEasyMax]     = useState(formatPace(settings.easyPaceMaxSec));
+  const [tempoMin,    setTempoMin]    = useState(formatPace(settings.tempoPaceMinSec));
+  const [tempoMax,    setTempoMax]    = useState(formatPace(settings.tempoPaceMaxSec));
+  const [intervalMin, setIntervalMin] = useState(formatPace(settings.intervalPaceMinSec));
+  const [intervalMax, setIntervalMax] = useState(formatPace(settings.intervalPaceMaxSec));
+  const [longMin,     setLongMin]     = useState(formatPace(settings.longPaceMinSec));
+  const [longMax,     setLongMax]     = useState(formatPace(settings.longPaceMaxSec));
+  const zonesGroup = useSaveGroup();
+
+  const [suggestions, setSuggestions] = useState<ZoneSuggestion[]>([]);
+
+  useEffect(() => {
+    fetch("/api/runs?perPage=100&sort=date&order=desc")
+      .then(r => r.json())
+      .then((data: { data: Array<{ avgPaceSecKm: number; runType: string }> }) => {
+        const byType: Record<string, number[]> = { easy: [], tempo: [], interval: [], long: [] };
+        for (const run of data.data) {
+          if (run.avgPaceSecKm > 0 && run.runType in byType) {
+            byType[run.runType].push(run.avgPaceSecKm);
+          }
+        }
+        const zoneConfigs: Array<{
+          type: ZoneSuggestion["type"];
+          minSec: number;
+          maxSec: number;
+        }> = [
+          { type: "easy",     minSec: settings.easyPaceMinSec,     maxSec: settings.easyPaceMaxSec },
+          { type: "tempo",    minSec: settings.tempoPaceMinSec,    maxSec: settings.tempoPaceMaxSec },
+          { type: "interval", minSec: settings.intervalPaceMinSec, maxSec: settings.intervalPaceMaxSec },
+          { type: "long",     minSec: settings.longPaceMinSec,     maxSec: settings.longPaceMaxSec },
+        ];
+        const sug: ZoneSuggestion[] = [];
+        for (const zc of zoneConfigs) {
+          const paces = byType[zc.type].slice(0, 8);
+          if (!paces.length) continue;
+          const avgPace  = Math.round(paces.reduce((s, p) => s + p, 0) / paces.length);
+          const midpoint = (zc.minSec + zc.maxSec) / 2;
+          const width    = zc.maxSec - zc.minSec;
+          if (midpoint - avgPace > 15) {
+            const newMin = Math.round((avgPace - width / 2) / 5) * 5;
+            const newMax = Math.round((avgPace + width / 2) / 5) * 5;
+            sug.push({ type: zc.type, avgPace, midpoint, newMin, newMax });
+          }
+        }
+        setSuggestions(sug);
+      })
+      .catch(() => {});
+  }, [settings]);
+
+  function applySuggestion(sug: ZoneSuggestion) {
+    const mn = formatPace(sug.newMin);
+    const mx = formatPace(sug.newMax);
+    if (sug.type === "easy")     { setEasyMin(mn);     setEasyMax(mx); }
+    if (sug.type === "tempo")    { setTempoMin(mn);    setTempoMax(mx); }
+    if (sug.type === "interval") { setIntervalMin(mn); setIntervalMax(mx); }
+    if (sug.type === "long")     { setLongMin(mn);     setLongMax(mx); }
+  }
 
   // ── Distance targets group ────────────────────────────────────────────────
   const [distEasy,     setDistEasy]     = useState(settings.distTargetEasyM / 1000);
@@ -163,6 +244,114 @@ export default function SettingsForm() {
                 updateSettings({
                   planStartDate:       planStartDate || null,
                   currentWeekOverride: currentWeekOverride ? parseInt(currentWeekOverride, 10) : null,
+                })
+              )
+            }
+          />
+        </div>
+      </Panel>
+
+      {/* My Pace Zones */}
+      <Panel title="My Pace Zones">
+        <div className="space-y-4">
+          {([
+            {
+              label: "Easy",
+              min: easyMin, setMin: setEasyMin,
+              max: easyMax, setMax: setEasyMax,
+              hint: "Your comfortable conversational pace.",
+              vdotRef: `${formatPace(vdotPaces.easyMinSecKm)}–${formatPace(vdotPaces.easyMaxSecKm)}`,
+            },
+            {
+              label: "Tempo",
+              min: tempoMin, setMin: setTempoMin,
+              max: tempoMax, setMax: setTempoMax,
+              hint: "Controlled hard effort — comfortably uncomfortable.",
+              vdotRef: formatPace(vdotPaces.tempoSecKm),
+            },
+            {
+              label: "Interval",
+              min: intervalMin, setMin: setIntervalMin,
+              max: intervalMax, setMax: setIntervalMax,
+              hint: "Hard rep pace — 9/10 effort.",
+              vdotRef: formatPace(vdotPaces.intervalSecKm),
+            },
+            {
+              label: "Long",
+              min: longMin, setMin: setLongMin,
+              max: longMax, setMax: setLongMax,
+              hint: "Easy effort sustained over distance — same as easy pace.",
+              vdotRef: `${formatPace(vdotPaces.easyMinSecKm)}–${formatPace(vdotPaces.easyMaxSecKm)}`,
+            },
+          ] as Array<{
+            label: string;
+            min: string; setMin: (v: string) => void;
+            max: string; setMax: (v: string) => void;
+            hint: string;
+            vdotRef: string;
+          }>).map(({ label, min, setMin, max, setMax, hint, vdotRef }) => (
+            <div key={label}>
+              <div className="flex items-center gap-3 flex-wrap">
+                <span className="text-sm text-white w-16 shrink-0">{label}</span>
+                <div className="flex items-center gap-2">
+                  <PaceInput value={min} onChange={setMin} />
+                  <span className="text-xs" style={{ color: "var(--text-muted)" }}>to</span>
+                  <PaceInput value={max} onChange={setMax} />
+                  <span className="text-xs" style={{ color: "var(--text-muted)" }}>/km</span>
+                </div>
+                <span className="text-[11px]" style={{ color: "rgba(156,163,175,0.4)" }}>
+                  VDOT target: {vdotRef} /km
+                </span>
+              </div>
+              <p className="text-xs mt-1 ml-[76px]" style={{ color: "var(--text-muted)" }}>{hint}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Suggested updates */}
+        {suggestions.length > 0 && (
+          <div
+            className="rounded-[8px] p-4 space-y-3 mt-2"
+            style={{ background: "rgba(167,139,250,0.06)", border: "1px solid rgba(167,139,250,0.15)" }}
+          >
+            <p className="text-xs uppercase tracking-wider font-semibold" style={{ color: "#a78bfa" }}>
+              Suggested Updates
+            </p>
+            {suggestions.map(sug => (
+              <div key={sug.type} className="flex items-start justify-between gap-3">
+                <p className="text-xs flex-1" style={{ color: "var(--text-muted)" }}>
+                  Your recent <span className="text-white">{sug.type}</span> runs average{" "}
+                  <span className="text-white">{formatPace(sug.avgPace)}/km</span> — faster than your current{" "}
+                  {sug.type} zone midpoint of {formatPace(sug.midpoint)}/km.{" "}
+                  Consider updating to{" "}
+                  <span className="text-white">{formatPace(sug.newMin)}–{formatPace(sug.newMax)} /km</span>.
+                </p>
+                <button
+                  onClick={() => applySuggestion(sug)}
+                  className="shrink-0 px-3 py-1 rounded-md text-xs font-medium"
+                  style={{ background: "rgba(167,139,250,0.12)", color: "#a78bfa", border: "1px solid rgba(167,139,250,0.2)" }}
+                >
+                  Apply
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="flex justify-end pt-1">
+          <SaveButton
+            status={zonesGroup.status}
+            onClick={() =>
+              zonesGroup.save(() =>
+                updateSettings({
+                  easyPaceMinSec:      parsePace(easyMin)     ?? settings.easyPaceMinSec,
+                  easyPaceMaxSec:      parsePace(easyMax)     ?? settings.easyPaceMaxSec,
+                  tempoPaceMinSec:     parsePace(tempoMin)    ?? settings.tempoPaceMinSec,
+                  tempoPaceMaxSec:     parsePace(tempoMax)    ?? settings.tempoPaceMaxSec,
+                  intervalPaceMinSec:  parsePace(intervalMin) ?? settings.intervalPaceMinSec,
+                  intervalPaceMaxSec:  parsePace(intervalMax) ?? settings.intervalPaceMaxSec,
+                  longPaceMinSec:      parsePace(longMin)     ?? settings.longPaceMinSec,
+                  longPaceMaxSec:      parsePace(longMax)     ?? settings.longPaceMaxSec,
                 })
               )
             }

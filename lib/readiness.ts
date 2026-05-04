@@ -111,6 +111,7 @@ export function calculateRunnerRating(
         maxHROverride: settings.maxHR,
         distTargetKmOverride: distTargets[type],
         targetPaceSecKmOverride: resolveTargetPaceSecKm(r, ratingPlan),
+        settings,
       }).total;
     }, 0) / rs.length;
   }

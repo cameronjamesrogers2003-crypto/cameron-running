@@ -77,6 +77,7 @@ export async function GET(req: NextRequest) {
           maxHROverride: settings.maxHR,
           distTargetKmOverride: distTargets[runType],
           targetPaceSecKmOverride: resolveTargetPaceSecKm(act, ratingPlan),
+          settings,
         })
       : null;
 

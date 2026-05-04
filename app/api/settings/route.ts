@@ -16,6 +16,14 @@ export async function GET() {
       distTargetTempoM:     DEFAULT_SETTINGS.distTargetTempoM,
       distTargetIntervalM:  DEFAULT_SETTINGS.distTargetIntervalM,
       distTargetLongM:      DEFAULT_SETTINGS.distTargetLongM,
+      easyPaceMinSec:       DEFAULT_SETTINGS.easyPaceMinSec,
+      easyPaceMaxSec:       DEFAULT_SETTINGS.easyPaceMaxSec,
+      tempoPaceMinSec:      DEFAULT_SETTINGS.tempoPaceMinSec,
+      tempoPaceMaxSec:      DEFAULT_SETTINGS.tempoPaceMaxSec,
+      intervalPaceMinSec:   DEFAULT_SETTINGS.intervalPaceMinSec,
+      intervalPaceMaxSec:   DEFAULT_SETTINGS.intervalPaceMaxSec,
+      longPaceMinSec:       DEFAULT_SETTINGS.longPaceMinSec,
+      longPaceMaxSec:       DEFAULT_SETTINGS.longPaceMaxSec,
     },
   });
   return NextResponse.json(dbSettingsToUserSettings(row));
@@ -26,6 +34,10 @@ const ALLOWED_FIELDS = new Set([
   "maxHR", "startingTempoPaceSec", "currentVdot",
   "targetHMTimeSec", "raceName", "raceDate",
   "distTargetEasyM", "distTargetTempoM", "distTargetIntervalM", "distTargetLongM",
+  "easyPaceMinSec", "easyPaceMaxSec",
+  "tempoPaceMinSec", "tempoPaceMaxSec",
+  "intervalPaceMinSec", "intervalPaceMaxSec",
+  "longPaceMinSec", "longPaceMaxSec",
 ]);
 
 export async function PATCH(req: NextRequest) {
@@ -59,6 +71,14 @@ export async function PATCH(req: NextRequest) {
       distTargetTempoM:     DEFAULT_SETTINGS.distTargetTempoM,
       distTargetIntervalM:  DEFAULT_SETTINGS.distTargetIntervalM,
       distTargetLongM:      DEFAULT_SETTINGS.distTargetLongM,
+      easyPaceMinSec:       DEFAULT_SETTINGS.easyPaceMinSec,
+      easyPaceMaxSec:       DEFAULT_SETTINGS.easyPaceMaxSec,
+      tempoPaceMinSec:      DEFAULT_SETTINGS.tempoPaceMinSec,
+      tempoPaceMaxSec:      DEFAULT_SETTINGS.tempoPaceMaxSec,
+      intervalPaceMinSec:   DEFAULT_SETTINGS.intervalPaceMinSec,
+      intervalPaceMaxSec:   DEFAULT_SETTINGS.intervalPaceMaxSec,
+      longPaceMinSec:       DEFAULT_SETTINGS.longPaceMinSec,
+      longPaceMaxSec:       DEFAULT_SETTINGS.longPaceMaxSec,
       ...update,
     },
   });

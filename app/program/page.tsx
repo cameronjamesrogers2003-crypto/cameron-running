@@ -426,6 +426,7 @@ export default async function ProgramPage() {
                               maxHROverride:            maxHR,
                               distTargetKmOverride:     distTargets[session.type],
                               targetPaceSecKmOverride:  Math.round(session.targetPaceMinPerKm * 60),
+                              settings,
                             });
                           }
 
