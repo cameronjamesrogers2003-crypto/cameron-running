@@ -23,12 +23,14 @@ export function getWeekStartForPlanWeek(weekNumber: number): Date {
  * Week starts on Saturday (plan start date's weekday).
  *   sat → +0 days, sun → +1 day, wed → +4 days
  */
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
 export function getSessionDate(weekNumber: number, day: Day): Date {
   const weekStart = getWeekStartForPlanWeek(weekNumber);
   const offsets: Record<Day, number> = { sat: 0, sun: 1, wed: 4 };
-  const d = new Date(weekStart);
-  d.setDate(d.getDate() + offsets[day]);
-  return d;
+  // Whole-day offsets from week anchor (Brisbane week; no DST) — do not use setDate/getDate
+  // (those use the host timezone and shift session dates on UTC servers).
+  return new Date(weekStart.getTime() + offsets[day] * MS_PER_DAY);
 }
 
 /** Total planned km across all sessions in a week. */

@@ -2,7 +2,7 @@ import prisma from "@/lib/db";
 import { trainingPlan } from "@/data/trainingPlan";
 import {
   calculateRunRating,
-  resolveRunType,
+  inferRunType,
 } from "@/lib/rating";
 import {
   calculateRunnerRating,
@@ -12,7 +12,15 @@ import {
 } from "@/lib/readiness";
 import { dbSettingsToUserSettings, DEFAULT_SETTINGS } from "@/lib/settings";
 import { getPlanWeekForDate, getSessionDate } from "@/lib/planUtils";
-import { formatAEST, toAEST } from "@/lib/dateUtils";
+import {
+  brisbaneCalendarYearUtcRange,
+  formatAEST,
+  startOfBrisbaneMonthContaining,
+  startOfDayAEST,
+  startOfNextDayAEST,
+  toAEST,
+  toBrisbaneYmd,
+} from "@/lib/dateUtils";
 import type { CalendarRun, CalendarData } from "./types";
 import CalendarGrid from "./CalendarGrid";
 import Logo from "@/components/Logo";
@@ -115,14 +123,11 @@ export default async function CalendarPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const params       = await searchParams;
-  const today        = new Date();
-  const todayAEST    = toAEST(today);
-  const defaultYear  = todayAEST.getUTCFullYear();
+  const today       = new Date();
+  const defaultYear = parseInt(toBrisbaneYmd(today).slice(0, 4), 10);
   const year         = parseInt(params.year as string) || defaultYear;
 
-  // AEST midnight of Jan 1 and Jan 1 (next year) = UTC Dec 31 14:00
-  const yearStart = new Date(Date.UTC(year - 1, 11, 31, 14, 0, 0));
-  const yearEnd   = new Date(Date.UTC(year,     11, 31, 14, 0, 0));
+  const { start: yearStart, endExclusive: yearEnd } = brisbaneCalendarYearUtcRange(year);
 
   // Stats always use the last 90 days regardless of displayed year
   const statsStart = new Date(today.getTime() - 90 * 24 * 60 * 60 * 1000);
@@ -140,7 +145,7 @@ export default async function CalendarPage({
     prisma.activity.findMany({
       where: {
         activityType: { in: ["running", "trail_running"] },
-        date: { gte: statsStart, lt: today },
+        date: { gte: statsStart, lt: startOfNextDayAEST(today) },
       },
       orderBy: { date: "asc" },
     }),
@@ -160,29 +165,22 @@ export default async function CalendarPage({
   const runnerRating = calculateRunnerRating(statsActivities, trainingPlan, settings, pbPaceSecKm);
   const hmReadiness  = calculateHMReadiness(statsActivities, trainingPlan, settings);
 
-  // Derive stats strip values
-  const todayMidnight = new Date(
-    Date.UTC(todayAEST.getUTCFullYear(), todayAEST.getUTCMonth(), todayAEST.getUTCDate()) -
-      10 * 60 * 60 * 1000
-  );
-  const MS         = 24 * 60 * 60 * 1000;
-  const past28     = new Date(todayMidnight.getTime() - 28 * MS);
-  const past42     = new Date(todayMidnight.getTime() - 42 * MS);
-  const monthStart = new Date(
-    Date.UTC(todayAEST.getUTCFullYear(), todayAEST.getUTCMonth(), 1) - 10 * 60 * 60 * 1000
-  );
+  // Derive stats strip values (Brisbane calendar day bounds)
+  const todayMidnight = startOfDayAEST(today);
+  const todayEnd      = startOfNextDayAEST(today);
+  const MS            = 24 * 60 * 60 * 1000;
+  const past28        = new Date(todayMidnight.getTime() - 28 * MS);
+  const past42        = new Date(todayMidnight.getTime() - 42 * MS);
+  const monthStart = startOfBrisbaneMonthContaining(today);
 
-  function aestKey(d: Date): string {
-    const a = toAEST(d);
-    return `${a.getUTCFullYear()}-${String(a.getUTCMonth() + 1).padStart(2, "0")}-${String(a.getUTCDate()).padStart(2, "0")}`;
-  }
+  const aestKey = toBrisbaneYmd;
 
   const PLAN_DOW = new Set([0, 3, 6]); // Sun, Wed, Sat in AEST
 
   // Extra runs this month
   const extraRunsThisMonth = statsActivities.filter((r) => {
     const d = new Date(r.date);
-    if (d < monthStart || d >= todayMidnight) return false;
+    if (d < monthStart || d >= todayEnd) return false;
     return !PLAN_DOW.has(toAEST(d).getUTCDay());
   }).length;
 
@@ -195,7 +193,7 @@ export default async function CalendarPage({
     const ls = pw.sessions.find((s) => s.type === "long");
     if (!ls) continue;
     const sd = getSessionDate(pw.week, ls.day);
-    if (sd >= todayMidnight || sd < past42) continue;
+    if (sd >= todayEnd || sd < past42) continue;
     longPlanned++;
     if (statsKeys.has(aestKey(sd))) longDone++;
   }
@@ -206,16 +204,16 @@ export default async function CalendarPage({
   for (const pw of trainingPlan) {
     for (const sess of pw.sessions) {
       const sd = getSessionDate(pw.week, sess.day);
-      if (sd < monthStart || sd >= todayMidnight) continue;
+      if (sd < monthStart || sd >= todayEnd) continue;
       sessPlanned++;
       if (statsKeys.has(aestKey(sd))) sessDone++;
     }
   }
 
   // Avg rating last 4 weeks
-  const runsLast28 = statsActivities.filter((r) => new Date(r.date) >= past28 && new Date(r.date) < todayMidnight);
+  const runsLast28 = statsActivities.filter((r) => new Date(r.date) >= past28 && new Date(r.date) < todayEnd);
   const ratings28  = runsLast28.map((r) => {
-    const type = resolveRunType(r, trainingPlan, settings);
+    const type = inferRunType(r, settings);
     return calculateRunRating({
       distanceKm: r.distanceKm, avgPaceSecKm: r.avgPaceSecKm,
       avgHeartRate: r.avgHeartRate, temperatureC: r.temperatureC,
@@ -232,10 +230,10 @@ export default async function CalendarPage({
   const calendarData: CalendarData = {};
 
   for (const act of yearActivities) {
-    const dateKey = formatAEST(act.date, "yyyy-MM-dd");
+    const dateKey = toBrisbaneYmd(act.date);
     if (!calendarData[dateKey]) calendarData[dateKey] = [];
 
-    const runType  = resolveRunType(act, trainingPlan, settings);
+    const runType  = inferRunType(act, settings);
     const hasRating = act.avgPaceSecKm > 0 && act.avgHeartRate != null;
     const rating   = hasRating
       ? calculateRunRating({
@@ -272,7 +270,7 @@ export default async function CalendarPage({
   // ── Render ────────────────────────────────────────────────────────────────
   const rrColor  = ratingColor(runnerRating.total);
   const hmColor_ = hmColor(hmReadiness.total);
-  const todayKey = formatAEST(today, "yyyy-MM-dd");
+  const todayKey = toBrisbaneYmd(today);
 
   const COMPONENT_LABELS: Array<{ key: keyof RunnerRatingResult & string; label: string; max: number }> = [
     { key: "consistency", label: "Consistency", max: 20 },

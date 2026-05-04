@@ -1,6 +1,6 @@
 import { buildTrainingPlan, type TrainingWeek } from "@/data/trainingPlan";
 import { getSessionDate } from "@/lib/planUtils";
-import { startOfDayAEST, toAEST } from "@/lib/dateUtils";
+import { startOfDayAEST, startOfNextDayAEST, toAEST, toBrisbaneYmd } from "@/lib/dateUtils";
 import {
   calculateRunRating,
   resolveRunType,
@@ -36,11 +36,6 @@ function clamp(v: number, lo: number, hi: number): number {
   return Math.max(lo, Math.min(hi, v));
 }
 
-function aestDateKey(date: Date): string {
-  const a = toAEST(date);
-  return `${a.getUTCFullYear()}-${String(a.getUTCMonth() + 1).padStart(2, "0")}-${String(a.getUTCDate()).padStart(2, "0")}`;
-}
-
 export function calculateRunnerRating(
   runs: StatActivity[],
   plan: TrainingWeek[],
@@ -62,8 +57,8 @@ export function calculateRunnerRating(
   for (const planWeek of plan) {
     for (const session of planWeek.sessions) {
       const sd = getSessionDate(planWeek.week, session.day);
-      if (sd >= todayMidnight) continue;
-      const key = aestDateKey(sd);
+      if (toBrisbaneYmd(sd) > toBrisbaneYmd(today)) continue;
+      const key = toBrisbaneYmd(sd);
       if (sd >= past28) planDates4.add(key);
       if (sd >= past42) {
         planDates6.add(key);
@@ -72,9 +67,10 @@ export function calculateRunnerRating(
     }
   }
 
-  function runKey(r: StatActivity) { return aestDateKey(new Date(r.date)); }
+  function runKey(r: StatActivity) { return toBrisbaneYmd(new Date(r.date)); }
 
-  const pastRuns   = runs.filter(r => new Date(r.date) < todayMidnight);
+  const todayEnd = startOfNextDayAEST(today);
+  const pastRuns   = runs.filter(r => new Date(r.date) < todayEnd);
   const runsLast28 = pastRuns.filter(r => new Date(r.date) >= past28);
   const runsLast42 = pastRuns.filter(r => new Date(r.date) >= past42);
   const runKeys28  = new Set(runsLast28.map(runKey));
@@ -137,7 +133,7 @@ export function calculateRunnerRating(
       if (sd >= todayMidnight) continue;
       sessionList.push({
         weekNum: planWeek.week,
-        done: pastRuns.some(r => aestDateKey(new Date(r.date)) === aestDateKey(sd)),
+        done: pastRuns.some(r => toBrisbaneYmd(new Date(r.date)) === toBrisbaneYmd(sd)),
       });
     }
   }
@@ -188,9 +184,11 @@ export function calculateHMReadiness(
   const targetPace      = isFinite(targetPaceMinKm) ? targetPaceMinKm : TARGET_HM_PACE;
   const startPace       = startingPace > 0 ? startingPace : STARTING_TEMPO_PACE;
 
-  const todayMidnight = startOfDayAEST(new Date());
+  const today         = new Date();
+  const todayMidnight = startOfDayAEST(today);
+  const todayEnd      = startOfNextDayAEST(today);
   const past42        = new Date(todayMidnight.getTime() - 42 * 24 * 60 * 60 * 1000);
-  const pastRuns      = runs.filter(r => new Date(r.date) < todayMidnight && new Date(r.date) >= past42);
+  const pastRuns      = runs.filter(r => new Date(r.date) < todayEnd && new Date(r.date) >= past42);
 
   // -- Pace readiness -------------------------------------------------------
   const tempoRuns = pastRuns
@@ -209,13 +207,13 @@ export function calculateHMReadiness(
   for (const planWeek of plan) {
     for (const session of planWeek.sessions) {
       const sd = getSessionDate(planWeek.week, session.day);
-      if (sd < todayMidnight && sd >= past42) planDates6.add(aestDateKey(sd));
+      if (sd < todayEnd && sd >= past42) planDates6.add(toBrisbaneYmd(sd));
     }
   }
 
   let completed6 = 0;
   for (const k of planDates6) {
-    if (pastRuns.some(r => aestDateKey(new Date(r.date)) === k)) completed6++;
+    if (pastRuns.some(r => toBrisbaneYmd(new Date(r.date)) === k)) completed6++;
   }
   const consistencyReadiness = planDates6.size > 0 ? clamp(completed6 / planDates6.size, 0, 1) : 0;
 

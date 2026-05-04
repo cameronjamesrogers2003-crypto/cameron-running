@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { formatPace } from "@/lib/strava";
 import type { CalendarRun, CalendarData } from "./types";
 import { useMediaQuery } from "@/lib/useMediaQuery";
+import { formatAEST } from "@/lib/dateUtils";
 
 interface Props {
   year: number;
@@ -35,16 +36,7 @@ function typePillStyle(type: string): { background: string; color: string } {
 }
 
 function fmtDate(isoStr: string): string {
-  // Format as DD/MM/YYYY · Day
-  const d = new Date(isoStr);
-  // Shift to AEST for display
-  const a = new Date(d.getTime() + 10 * 60 * 60 * 1000);
-  const dd   = String(a.getUTCDate()).padStart(2, "0");
-  const mm   = String(a.getUTCMonth() + 1).padStart(2, "0");
-  const yyyy = a.getUTCFullYear();
-  const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-  const dow  = days[a.getUTCDay()];
-  return `${dd}/${mm}/${yyyy} · ${dow}`;
+  return formatAEST(isoStr, "dd/MM/yyyy · EEE");
 }
 
 function fmtPaceMin(secPerKm: number): string {
