@@ -1,8 +1,9 @@
 import prisma from "@/lib/db";
 import { formatPace } from "@/lib/strava";
-import { trainingPlan, type Phase, type RunType, type Day } from "@/data/trainingPlan";
+import { buildTrainingPlan, trainingPlan, type Phase, type RunType, type Day } from "@/data/trainingPlan";
 import {
   getEffectivePlanStart,
+  getPlanWeekForDate,
   getWeekStartForPlanWeek,
   getSessionDate,
   getWeeklyTargetKm,
@@ -12,7 +13,8 @@ import {
 } from "@/lib/planUtils";
 import { formatAEST, formatDistanceToNowAEST, sameDayAEST, startOfDayAEST } from "@/lib/dateUtils";
 import { inferRunType } from "@/lib/rating";
-import { dbSettingsToUserSettings, DEFAULT_SETTINGS, deriveCurrentWeek } from "@/lib/settings";
+import { dbSettingsToUserSettings, DEFAULT_SETTINGS } from "@/lib/settings";
+import { reconfigurePlan, type PlanInterruption, type InterruptionType } from "@/lib/interruptions";
 import WeeklyKmChart from "@/components/charts/WeeklyKmChart";
 import AvgPaceTrendChart from "@/components/charts/AvgPaceTrendChart";
 import TrainingLoadChart from "@/components/charts/TrainingLoadChart";
@@ -110,18 +112,42 @@ export default async function Dashboard({
   const today = new Date();
   const todayAESTMidnight = startOfDayAEST(today);
 
-  const [profile, userSettingsRow, lastSyncRow] = await Promise.all([
+  const [profile, userSettingsRow, lastSyncRow, interruptionRows] = await Promise.all([
     prisma.profile.findUnique({ where: { id: 1 } }),
     prisma.userSettings.findUnique({ where: { id: 1 } }),
     prisma.activity.findFirst({ orderBy: { syncedAt: "desc" } }),
+    prisma.planInterruption.findMany({ orderBy: { startDate: "asc" } }),
   ]);
 
   const settings = userSettingsRow ? dbSettingsToUserSettings(userSettingsRow) : DEFAULT_SETTINGS;
   const planStart = getEffectivePlanStart(settings.planStartDate);
 
-  const rawWeek = deriveCurrentWeek(settings);
-  const currentWeek = Math.max(1, Math.min(trainingPlan.length, rawWeek));
-  const currentPlanWeek = trainingPlan[currentWeek - 1];
+  // Same plan pipeline as app/program/page.tsx (VDOT base + interruptions)
+  const basePlan = buildTrainingPlan(settings);
+  const normalWeeklyKm =
+    basePlan.reduce((sum, w) => sum + getWeeklyTargetKm(w), 0) / basePlan.length;
+  const interruptions: PlanInterruption[] = interruptionRows.map((row) => ({
+    id:               row.id,
+    reason:           row.reason,
+    type:             row.type as InterruptionType,
+    startDate:        new Date(row.startDate),
+    endDate:          row.endDate ? new Date(row.endDate) : null,
+    weeklyKmEstimate: row.weeklyKmEstimate ?? null,
+    notes:            row.notes ?? null,
+    weeksAffected:    row.weeksAffected ?? null,
+  }));
+  const { plan: planToRender } = reconfigurePlan(basePlan, interruptions, {
+    isBeginnerCurve: true,
+    raceDate: settings.raceDate ? new Date(settings.raceDate) : null,
+    normalWeeklyKm,
+    planStart,
+  });
+
+  const lastPlanWeekNum = planToRender[planToRender.length - 1]?.week ?? trainingPlan.length;
+  const rawCalendarWeek = getPlanWeekForDate(today, planStart);
+  const currentWeek =
+    rawCalendarWeek > 0 ? Math.min(lastPlanWeekNum, rawCalendarWeek) : 1;
+  const currentPlanWeek = planToRender.find((w) => w.week === currentWeek) ?? planToRender[0];
   const currentPhase = currentPlanWeek?.phase ?? "Base";
 
   const weekStart = getWeekStartForPlanWeek(currentWeek, planStart);
@@ -178,7 +204,7 @@ export default async function Dashboard({
   const chartWeekNums = Array.from({ length: 4 }, (_, i) => chartStartWeek + i);
 
   const weeklyKmData = chartWeekNums.map((wn) => {
-    const planWeek = trainingPlan.find((w) => w.week === wn);
+    const planWeek = planToRender.find((w) => w.week === wn);
     const wStart = getWeekStartForPlanWeek(wn, planStart);
     const wEnd = new Date(wStart.getTime() + 7 * 24 * 60 * 60 * 1000);
     const actual = chartActivities
@@ -195,7 +221,7 @@ export default async function Dashboard({
   });
 
   const paceData = chartWeekNums.map((wn) => {
-    const planWeek = trainingPlan.find((w) => w.week === wn);
+    const planWeek = planToRender.find((w) => w.week === wn);
     const wStart = getWeekStartForPlanWeek(wn, planStart);
     const wEnd = new Date(wStart.getTime() + 7 * 24 * 60 * 60 * 1000);
     const easyRuns = chartActivities.filter((a) => {
@@ -220,7 +246,7 @@ export default async function Dashboard({
   });
 
   const loadData = chartWeekNums.map((wn) => {
-    const planWeek = trainingPlan.find((w) => w.week === wn);
+    const planWeek = planToRender.find((w) => w.week === wn);
     const wStart = getWeekStartForPlanWeek(wn, planStart);
     const wEnd = new Date(wStart.getTime() + 7 * 24 * 60 * 60 * 1000);
     const groups = { easy: 0, tempo: 0, interval: 0, long: 0 };
@@ -255,13 +281,13 @@ export default async function Dashboard({
 
   // ── Upcoming: next 5 Wed/Sat/Sun plan sessions (no completed days) ───────
   type UpcomingRow = {
-    session: (typeof trainingPlan)[0]["sessions"][0];
+    session: (typeof planToRender)[0]["sessions"][0];
     date: Date;
     week: number;
   };
   const upcomingCandidates: UpcomingRow[] = [];
-  for (let w = currentWeek; w <= trainingPlan.length; w++) {
-    const pw = trainingPlan[w - 1];
+  for (let w = currentWeek; w <= lastPlanWeekNum; w++) {
+    const pw = planToRender.find((x) => x.week === w);
     if (!pw) continue;
     for (const day of ["wed", "sat", "sun"] as Day[]) {
       const session = pw.sessions.find((s) => s.day === day);
@@ -275,22 +301,25 @@ export default async function Dashboard({
   upcomingCandidates.sort((a, b) => a.date.getTime() - b.date.getTime());
   const upcomingSessions = upcomingCandidates.slice(0, 5);
 
-  // ── Sidebar checklist: exactly Wed / Sat / Sun (current week plan) ──────────
-  const CHECKLIST_DAYS: Day[] = ["wed", "sat", "sun"];
-  const sessionChecklist = CHECKLIST_DAYS.map((day) => {
-    const session = currentPlanWeek!.sessions.find((s) => s.day === day)!;
-    const date = getSessionDate(currentWeek, session.day, planStart);
-    const completed = weekActivities.some((a) => {
-      const d = new Date(a.date);
-      return sameDayAEST(d, date) && isActivityOnOrAfterPlanStart(d, planStart);
+  // ── Sidebar checklist: same week + sessions as Program page (planToRender) ─
+  const CHECKLIST_DAY_ORDER: Day[] = ["wed", "sat", "sun"];
+  const DAY_LABEL: Record<Day, string> = { wed: "Wed", sat: "Sat", sun: "Sun" };
+  const sessionChecklist = [...(currentPlanWeek?.sessions ?? [])]
+    .filter((s) => CHECKLIST_DAY_ORDER.includes(s.day))
+    .sort((a, b) => CHECKLIST_DAY_ORDER.indexOf(a.day) - CHECKLIST_DAY_ORDER.indexOf(b.day))
+    .map((session) => {
+      const date = getSessionDate(currentWeek, session.day, planStart);
+      const completed = weekActivities.some((a) => {
+        const d = new Date(a.date);
+        return sameDayAEST(d, date) && isActivityOnOrAfterPlanStart(d, planStart);
+      });
+      return { session, date, completed, future: date > todayAESTMidnight, dayLabel: DAY_LABEL[session.day] };
     });
-    return { session, date, completed, future: date > todayAESTMidnight };
-  });
 
   // ── Sidebar: phase progress ───────────────────────────────────────────────
-  const phaseWeeks = trainingPlan.filter((w) => w.phase === currentPhase);
+  const phaseWeeks = planToRender.filter((w) => w.phase === currentPhase);
   const phaseStart = phaseWeeks[0]?.week ?? 1;
-  const phaseEnd = phaseWeeks[phaseWeeks.length - 1]?.week ?? trainingPlan.length;
+  const phaseEnd = phaseWeeks[phaseWeeks.length - 1]?.week ?? lastPlanWeekNum;
   const phaseProgress = Math.min(
     100,
     Math.round(
@@ -361,7 +390,7 @@ export default async function Dashboard({
               <div className="mt-3 space-y-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-white font-semibold text-sm">
-                    {formatAEST(todayPlanEntry.date, "EEE d MMM")}
+                    {todayPlanEntry.dayLabel} {formatAEST(todayPlanEntry.date, "d MMM")}
                   </span>
                   <span
                     className="text-xs px-2 py-0.5 rounded-full font-medium capitalize"
@@ -653,7 +682,7 @@ export default async function Dashboard({
 
           {/* Session checklist */}
           <div className="space-y-2.5">
-            {sessionChecklist.map(({ session, date, completed, future }) => (
+            {sessionChecklist.map(({ session, date, completed, future, dayLabel }) => (
               <div key={session.day} className="flex items-start gap-2.5">
                 <div
                   className="w-4 h-4 rounded mt-0.5 flex items-center justify-center text-xs flex-shrink-0"
@@ -668,11 +697,11 @@ export default async function Dashboard({
                 </div>
                 <div className="flex-1 min-w-0">
                   <p
-                    className="text-xs font-medium leading-tight"
+                    className="text-xs font-medium leading-tight capitalize"
                     style={{ color: completed ? "var(--text-muted)" : "white" }}
                   >
-                    {formatAEST(date, "EEE")} · {session.type}{" "}
-                    {session.targetDistanceKm} km
+                    {dayLabel} · {session.type}{" "}
+                    {session.targetDistanceKm} km @ {formatTargetPace(session.targetPaceMinPerKm)}
                   </p>
                   {future && !completed && (
                     <p
