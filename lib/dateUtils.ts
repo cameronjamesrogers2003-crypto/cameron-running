@@ -1,4 +1,4 @@
-import { format as dateFnsFormat, formatDistanceToNow } from "date-fns";
+import { format as dateFnsFormat, formatDistance } from "date-fns";
 
 // Brisbane is always UTC+10 — no daylight saving observed
 export const AEST_OFFSET_MS = 10 * 60 * 60 * 1000;
@@ -26,7 +26,8 @@ export function formatDistanceToNowAEST(
 ): string {
   const d = toAEST(new Date(date));
   const baseDate = toAEST(new Date());
-  return formatDistanceToNow(d, { ...options, baseDate });
+  // date-fns v4: formatDistanceToNow has no baseDate; use formatDistance(date, now)
+  return formatDistance(d, baseDate, options);
 }
 
 /**
