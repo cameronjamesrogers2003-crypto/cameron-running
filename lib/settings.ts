@@ -1,4 +1,4 @@
-import { getPlanWeekForDate } from "@/lib/planUtils";
+import { getEffectivePlanStart, getPlanWeekForDate } from "@/lib/planUtils";
 import { trainingPlan } from "@/data/trainingPlan";
 import type { Phase } from "@/data/trainingPlan";
 
@@ -82,7 +82,8 @@ export function dbSettingsToUserSettings(row: any): UserSettings {
 
 export function deriveCurrentWeek(settings: UserSettings): number {
   if (settings.currentWeekOverride != null) return settings.currentWeekOverride;
-  return getPlanWeekForDate(new Date());
+  const planStart = getEffectivePlanStart(settings.planStartDate);
+  return getPlanWeekForDate(new Date(), planStart);
 }
 
 export function deriveCurrentPhase(settings: UserSettings): Phase {

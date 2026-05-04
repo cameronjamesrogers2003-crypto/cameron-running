@@ -2,17 +2,17 @@ import prisma from "@/lib/db";
 import { formatPace } from "@/lib/strava";
 import { trainingPlan, type Phase, type RunType, type Day } from "@/data/trainingPlan";
 import {
-  PLAN_START_DATE,
-  getPlanWeekForDate,
+  getEffectivePlanStart,
   getWeekStartForPlanWeek,
   getSessionDate,
   getWeeklyTargetKm,
   inferRunType as inferRunTypeFromPlanSessions,
   getNextPhaseInfo,
+  isActivityOnOrAfterPlanStart,
 } from "@/lib/planUtils";
 import { formatAEST, formatDistanceToNowAEST, sameDayAEST, startOfDayAEST } from "@/lib/dateUtils";
 import { inferRunType } from "@/lib/rating";
-import { dbSettingsToUserSettings, DEFAULT_SETTINGS } from "@/lib/settings";
+import { dbSettingsToUserSettings, DEFAULT_SETTINGS, deriveCurrentWeek } from "@/lib/settings";
 import WeeklyKmChart from "@/components/charts/WeeklyKmChart";
 import AvgPaceTrendChart from "@/components/charts/AvgPaceTrendChart";
 import TrainingLoadChart from "@/components/charts/TrainingLoadChart";
@@ -108,34 +108,29 @@ export default async function Dashboard({
   const oauthDetail = params.detail as string | undefined;
 
   const today = new Date();
+  const todayAESTMidnight = startOfDayAEST(today);
 
-  // ── Plan week maths ───────────────────────────────────────────────────────
-  const rawWeek = getPlanWeekForDate(today);
+  const [profile, userSettingsRow, lastSyncRow] = await Promise.all([
+    prisma.profile.findUnique({ where: { id: 1 } }),
+    prisma.userSettings.findUnique({ where: { id: 1 } }),
+    prisma.activity.findFirst({ orderBy: { syncedAt: "desc" } }),
+  ]);
+
+  const settings = userSettingsRow ? dbSettingsToUserSettings(userSettingsRow) : DEFAULT_SETTINGS;
+  const planStart = getEffectivePlanStart(settings.planStartDate);
+
+  const rawWeek = deriveCurrentWeek(settings);
   const currentWeek = Math.max(1, Math.min(trainingPlan.length, rawWeek));
   const currentPlanWeek = trainingPlan[currentWeek - 1];
   const currentPhase = currentPlanWeek?.phase ?? "Base";
 
-  const weekStart = getWeekStartForPlanWeek(currentWeek);
+  const weekStart = getWeekStartForPlanWeek(currentWeek, planStart);
   const weekEnd = new Date(weekStart.getTime() + 7 * 24 * 60 * 60 * 1000);
 
   const chartStartWeek = Math.max(1, currentWeek - 3);
+  const chartRangeStart = getWeekStartForPlanWeek(chartStartWeek, planStart);
 
-  // ── DB queries ────────────────────────────────────────────────────────────
-  const chartRangeStart = getWeekStartForPlanWeek(chartStartWeek);
-
-  const todayAESTMidnight = startOfDayAEST(today);
-
-  const [
-    profile,
-    userSettingsRow,
-    recentRuns,
-    weekActivities,
-    chartActivities,
-    runsPlanForward,
-    lastSyncRow,
-  ] = await Promise.all([
-    prisma.profile.findUnique({ where: { id: 1 } }),
-    prisma.userSettings.findUnique({ where: { id: 1 } }),
+  const [recentRuns, weekActivities, chartActivities, runsPlanForward] = await Promise.all([
     prisma.activity.findMany({
       where: { activityType: { in: ["running", "trail_running"] } },
       orderBy: { date: "desc" },
@@ -161,10 +156,7 @@ export default async function Dashboard({
       },
       orderBy: { date: "asc" },
     }),
-    prisma.activity.findFirst({ orderBy: { syncedAt: "desc" } }),
   ]);
-
-  const settings   = userSettingsRow ? dbSettingsToUserSettings(userSettingsRow) : DEFAULT_SETTINGS;
 
   // ── Stat tile data ────────────────────────────────────────────────────────
   const weekTargetKm = currentPlanWeek ? getWeeklyTargetKm(currentPlanWeek) : 0;
@@ -187,7 +179,7 @@ export default async function Dashboard({
 
   const weeklyKmData = chartWeekNums.map((wn) => {
     const planWeek = trainingPlan.find((w) => w.week === wn);
-    const wStart = getWeekStartForPlanWeek(wn);
+    const wStart = getWeekStartForPlanWeek(wn, planStart);
     const wEnd = new Date(wStart.getTime() + 7 * 24 * 60 * 60 * 1000);
     const actual = chartActivities
       .filter((a) => {
@@ -204,11 +196,19 @@ export default async function Dashboard({
 
   const paceData = chartWeekNums.map((wn) => {
     const planWeek = trainingPlan.find((w) => w.week === wn);
-    const wStart = getWeekStartForPlanWeek(wn);
+    const wStart = getWeekStartForPlanWeek(wn, planStart);
     const wEnd = new Date(wStart.getTime() + 7 * 24 * 60 * 60 * 1000);
     const easyRuns = chartActivities.filter((a) => {
       const d = new Date(a.date);
-      return d >= wStart && d < wEnd && inferRunTypeFromPlanSessions(a, planWeek?.sessions) === "easy";
+      return (
+        d >= wStart
+        && d < wEnd
+        && (
+          isActivityOnOrAfterPlanStart(d, planStart)
+            ? inferRunTypeFromPlanSessions(a, planWeek?.sessions)
+            : inferRunType(a, settings)
+        ) === "easy"
+      );
     });
     const avgPace =
       easyRuns.length > 0
@@ -221,7 +221,7 @@ export default async function Dashboard({
 
   const loadData = chartWeekNums.map((wn) => {
     const planWeek = trainingPlan.find((w) => w.week === wn);
-    const wStart = getWeekStartForPlanWeek(wn);
+    const wStart = getWeekStartForPlanWeek(wn, planStart);
     const wEnd = new Date(wStart.getTime() + 7 * 24 * 60 * 60 * 1000);
     const groups = { easy: 0, tempo: 0, interval: 0, long: 0 };
     chartActivities
@@ -230,7 +230,10 @@ export default async function Dashboard({
         return d >= wStart && d < wEnd;
       })
       .forEach((a) => {
-        const type = inferRunTypeFromPlanSessions(a, planWeek?.sessions);
+        const d = new Date(a.date);
+        const type = isActivityOnOrAfterPlanStart(d, planStart)
+          ? inferRunTypeFromPlanSessions(a, planWeek?.sessions)
+          : inferRunType(a, settings);
         groups[type] = Math.round((groups[type] + a.distanceKm) * 10) / 10;
       });
     return { week: `W${wn}`, ...groups };
@@ -244,7 +247,10 @@ export default async function Dashboard({
   }));
 
   function hasRunOnCalendarDay(activities: { date: Date }[], day: Date): boolean {
-    return activities.some((a) => sameDayAEST(new Date(a.date), day));
+    return activities.some((a) => {
+      const d = new Date(a.date);
+      return sameDayAEST(d, day) && isActivityOnOrAfterPlanStart(d, planStart);
+    });
   }
 
   // ── Upcoming: next 5 Wed/Sat/Sun plan sessions (no completed days) ───────
@@ -260,7 +266,7 @@ export default async function Dashboard({
     for (const day of ["wed", "sat", "sun"] as Day[]) {
       const session = pw.sessions.find((s) => s.day === day);
       if (!session) continue;
-      const date = getSessionDate(w, session.day);
+      const date = getSessionDate(w, session.day, planStart);
       if (date < todayAESTMidnight) continue;
       if (hasRunOnCalendarDay(runsPlanForward, date)) continue;
       upcomingCandidates.push({ session, date, week: w });
@@ -273,10 +279,11 @@ export default async function Dashboard({
   const CHECKLIST_DAYS: Day[] = ["wed", "sat", "sun"];
   const sessionChecklist = CHECKLIST_DAYS.map((day) => {
     const session = currentPlanWeek!.sessions.find((s) => s.day === day)!;
-    const date = getSessionDate(currentWeek, session.day);
-    const completed = weekActivities.some((a) =>
-      sameDayAEST(new Date(a.date), date),
-    );
+    const date = getSessionDate(currentWeek, session.day, planStart);
+    const completed = weekActivities.some((a) => {
+      const d = new Date(a.date);
+      return sameDayAEST(d, date) && isActivityOnOrAfterPlanStart(d, planStart);
+    });
     return { session, date, completed, future: date > todayAESTMidnight };
   });
 
@@ -718,7 +725,7 @@ export default async function Dashboard({
 
         {/* Plan start reference */}
         <p className="text-xs px-1" style={{ color: "rgba(156,163,175,0.4)" }}>
-          Plan started {formatAEST(PLAN_START_DATE, "d MMM yyyy")}
+          Plan starts {formatAEST(planStart, "d MMM yyyy")}
         </p>
 
       </aside>

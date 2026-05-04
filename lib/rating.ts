@@ -1,5 +1,10 @@
 import type { RunType, Session, TrainingWeek } from "@/data/trainingPlan";
-import { getPlanWeekForDate, getSessionDate } from "@/lib/planUtils";
+import {
+  getEffectivePlanStart,
+  getPlanWeekForDate,
+  getSessionDate,
+  isActivityOnOrAfterPlanStart,
+} from "@/lib/planUtils";
 import { sameDayAEST } from "@/lib/dateUtils";
 import { DEFAULT_SETTINGS, formatPace, type UserSettings } from "@/lib/settings";
 
@@ -290,15 +295,21 @@ export function inferRunType(run: StatActivity, settings: UserSettings = DEFAULT
   );
 }
 
-export function resolveRunSession(run: StatActivity, plan: TrainingWeek[]): Session | null {
+export function resolveRunSession(
+  run: StatActivity,
+  plan: TrainingWeek[],
+  planStart: Date,
+): Session | null {
   const runDate = new Date(run.date);
-  const weekNum = getPlanWeekForDate(runDate);
+  if (!isActivityOnOrAfterPlanStart(runDate, planStart)) return null;
+
+  const weekNum = getPlanWeekForDate(runDate, planStart);
 
   if (weekNum <= 0 || weekNum > plan.length) return null;
 
   const planWeek = plan[weekNum - 1];
   for (const session of planWeek.sessions) {
-    const sessionDate = getSessionDate(weekNum, session.day);
+    const sessionDate = getSessionDate(weekNum, session.day, planStart);
     if (sameDayAEST(runDate, sessionDate)) return session;
   }
 
@@ -306,10 +317,12 @@ export function resolveRunSession(run: StatActivity, plan: TrainingWeek[]): Sess
 }
 
 export function resolveRunType(run: StatActivity, plan: TrainingWeek[], settings: UserSettings = DEFAULT_SETTINGS): RunType {
-  return resolveRunSession(run, plan)?.type ?? inferRunType(run, settings);
+  const planStart = getEffectivePlanStart(settings.planStartDate);
+  return resolveRunSession(run, plan, planStart)?.type ?? inferRunType(run, settings);
 }
 
-export function resolveTargetPaceSecKm(run: StatActivity, plan: TrainingWeek[]): number | null {
-  const session = resolveRunSession(run, plan);
+export function resolveTargetPaceSecKm(run: StatActivity, plan: TrainingWeek[], settings: UserSettings): number | null {
+  const planStart = getEffectivePlanStart(settings.planStartDate);
+  const session = resolveRunSession(run, plan, planStart);
   return session ? Math.round(session.targetPaceMinPerKm * 60) : null;
 }

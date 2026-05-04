@@ -2,10 +2,11 @@ import prisma from "@/lib/db";
 import { formatPace as fmtPaceSec } from "@/lib/settings";
 import { buildTrainingPlan, type Phase, type RunType, type TrainingWeek } from "@/data/trainingPlan";
 import {
-  PLAN_START_DATE,
+  getEffectivePlanStart,
   getPlanWeekForDate,
   getSessionDate,
   getWeeklyTargetKm,
+  isActivityOnOrAfterPlanStart,
 } from "@/lib/planUtils";
 import { sameDayAEST, startOfDayAEST } from "@/lib/dateUtils";
 import { dbSettingsToUserSettings, DEFAULT_SETTINGS } from "@/lib/settings";
@@ -156,8 +157,8 @@ function groupIntoSections(plan: TrainingWeek[]): PlanSection[] {
 
 // ── Date formatter ────────────────────────────────────────────────────────────
 
-function fmtWeekStartDate(weekNumber: number): string {
-  const d = new Date(PLAN_START_DATE.getTime() + (weekNumber - 1) * 7 * 24 * 60 * 60 * 1000);
+function fmtWeekStartDate(weekNumber: number, planStart: Date): string {
+  const d = new Date(planStart.getTime() + (weekNumber - 1) * 7 * 24 * 60 * 60 * 1000);
   // shift to AEST (+10h) to get local date
   const aest = new Date(d.getTime() + 10 * 60 * 60 * 1000);
   return aest.toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
@@ -168,7 +169,6 @@ function fmtWeekStartDate(weekNumber: number): string {
 export default async function ProgramPage() {
   const today        = new Date();
   const todayMidnight = startOfDayAEST(today);
-  const rawWeek      = getPlanWeekForDate(today);
 
   const [profile, userSettingsRow, activities, interruptionRows] = await Promise.all([
     prisma.profile.findUnique({ where: { id: 1 } }),
@@ -180,6 +180,8 @@ export default async function ProgramPage() {
   ]);
 
   const settings   = userSettingsRow ? dbSettingsToUserSettings(userSettingsRow) : DEFAULT_SETTINGS;
+  const planStart  = getEffectivePlanStart(settings.planStartDate);
+  const rawWeek    = getPlanWeekForDate(today, planStart);
   const maxHR       = settings.maxHR;
 
   // Build VDOT-adjusted base plan
@@ -206,6 +208,7 @@ export default async function ProgramPage() {
       isBeginnerCurve: true,
       raceDate: settings.raceDate ? new Date(settings.raceDate) : null,
       normalWeeklyKm,
+      planStart,
     });
 
   const currentWeek = rawWeek > 0 ? Math.min(planToRender[planToRender.length - 1]?.week ?? 18, rawWeek) : 1;
@@ -215,11 +218,11 @@ export default async function ProgramPage() {
 
   // Race date warning info
   const lastPlanWeek = planToRender[planToRender.length - 1];
-  const planEndDateStr = lastPlanWeek ? fmtWeekStartDate(lastPlanWeek.week + 1) : "";
+  const planEndDateStr = lastPlanWeek ? fmtWeekStartDate(lastPlanWeek.week + 1, planStart) : "";
   const raceDateStr = settings.raceDate ? settings.raceDate.slice(0, 10) : "";
   const weeksOver = extendsPastRace && settings.raceDate && lastPlanWeek
     ? Math.ceil(
-        (PLAN_START_DATE.getTime() + lastPlanWeek.week * 7 * 24 * 60 * 60 * 1000 -
+        (planStart.getTime() + lastPlanWeek.week * 7 * 24 * 60 * 60 * 1000 -
           new Date(settings.raceDate).getTime()) /
           (7 * 24 * 60 * 60 * 1000)
       )
@@ -388,12 +391,16 @@ export default async function ProgramPage() {
                       {/* Session cards */}
                       <div className="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-2 min-w-0 w-full">
                         {planWeek.sessions.map((session) => {
-                          const sessionDate = getSessionDate(planWeek.week, session.day);
+                          const sessionDate = getSessionDate(planWeek.week, session.day, planStart);
                           const isPast      = sessionDate < todayMidnight;
                           const isToday     = sameDayAEST(sessionDate, today);
-                          const matchedAct  = activities.find((a) =>
-                            sameDayAEST(new Date(a.date), sessionDate)
-                          );
+                          const matchedAct  = activities.find((a) => {
+                            const d = new Date(a.date);
+                            return (
+                              isActivityOnOrAfterPlanStart(d, planStart)
+                              && sameDayAEST(d, sessionDate)
+                            );
+                          });
                           const isCompleted = !!matchedAct;
                           const showRating  = isCompleted && (isPast || isCurrentWeek);
 
