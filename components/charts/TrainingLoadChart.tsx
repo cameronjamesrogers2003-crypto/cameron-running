@@ -10,6 +10,7 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts";
+import { useMediaQuery } from "@/lib/useMediaQuery";
 
 interface LoadData {
   week: string;
@@ -27,9 +28,17 @@ const TOOLTIP_STYLE = {
 };
 
 export default function TrainingLoadChart({ data }: { data: LoadData[] }) {
+  const compact = useMediaQuery("(max-width: 767px)");
+  const tickSize = compact ? 9 : 11;
+  const tipSize = compact ? 11 : 12;
+
   return (
-    <ResponsiveContainer width="100%" height={140}>
-      <BarChart data={data} margin={{ top: 4, right: 4, bottom: 0, left: -20 }}>
+    <div className="w-full min-w-0 -mx-1 sm:mx-0">
+      <ResponsiveContainer width="100%" height={compact ? 150 : 140}>
+        <BarChart
+          data={data}
+          margin={{ top: 4, right: compact ? 0 : 4, bottom: compact ? 4 : 0, left: compact ? -28 : -20 }}
+        >
         <CartesianGrid
           strokeDasharray="3 3"
           stroke="rgba(255,255,255,0.06)"
@@ -37,26 +46,31 @@ export default function TrainingLoadChart({ data }: { data: LoadData[] }) {
         />
         <XAxis
           dataKey="week"
-          tick={{ fill: "#9ca3af", fontSize: 11 }}
+          tick={{ fill: "#9ca3af", fontSize: tickSize }}
           axisLine={false}
           tickLine={false}
         />
         <YAxis
-          tick={{ fill: "#9ca3af", fontSize: 11 }}
+          tick={{ fill: "#9ca3af", fontSize: tickSize }}
           axisLine={false}
           tickLine={false}
+          width={compact ? 36 : 44}
           unit=" km"
         />
         <Tooltip
-          contentStyle={TOOLTIP_STYLE}
-          labelStyle={{ color: "#fff", marginBottom: 4 }}
-          itemStyle={{ color: "#9ca3af" }}
+          contentStyle={{ ...TOOLTIP_STYLE, fontSize: tipSize }}
+          labelStyle={{ color: "#fff", marginBottom: 4, fontSize: tipSize }}
+          itemStyle={{ color: "#9ca3af", fontSize: tipSize }}
           cursor={{ fill: "rgba(255,255,255,0.04)" }}
           formatter={(value, name) => [`${value} km`, name]}
         />
         <Legend
-          wrapperStyle={{ fontSize: 11, color: "#9ca3af", paddingTop: 8 }}
-          iconSize={8}
+          wrapperStyle={{
+            fontSize: compact ? 9 : 11,
+            color: "#9ca3af",
+            paddingTop: 6,
+          }}
+          iconSize={compact ? 6 : 8}
           iconType="circle"
         />
         <Bar dataKey="easy"     stackId="a" fill="#7c3aed" name="Easy"     />
@@ -67,5 +81,6 @@ export default function TrainingLoadChart({ data }: { data: LoadData[] }) {
         />
       </BarChart>
     </ResponsiveContainer>
+    </div>
   );
 }

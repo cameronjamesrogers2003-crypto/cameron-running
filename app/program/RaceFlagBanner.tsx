@@ -36,7 +36,7 @@ export default function RaceFlagBanner({ planEndDate, raceDate, weeksOver }: Pro
       </div>
       <button
         onClick={() => setDismissed(true)}
-        className="shrink-0 mt-0.5"
+        className="shrink-0 mt-0.5 min-h-11 min-w-11 inline-flex items-center justify-center rounded-lg"
         style={{ color: "rgba(251,191,36,0.4)" }}
         aria-label="Dismiss"
       >

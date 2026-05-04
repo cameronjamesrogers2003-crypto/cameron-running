@@ -321,9 +321,11 @@ export default async function Dashboard({
     ? formatDistanceToNowAEST(profile.lastRefreshedAt, { addSuffix: true })
     : "Never refreshed";
 
+  const todayPlanEntry = sessionChecklist.find((row) => sameDayAEST(row.date, today));
+
   // ─────────────────────────────────────────────────────────────────────────
   return (
-    <div className="flex gap-5 items-start">
+    <div className="flex flex-col lg:flex-row gap-5 lg:gap-5 items-start">
       {/* ── Main column ──────────────────────────────────────────────────── */}
       <div className="flex-1 min-w-0 space-y-4">
 
@@ -349,29 +351,65 @@ export default async function Dashboard({
         {/* Logo icon + phase header */}
         <Logo size="md" showWordmark={false} />
 
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <span className="text-xl font-bold text-white">Dashboard</span>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3 min-w-0">
+            <span className="text-lg sm:text-xl md:text-2xl font-bold text-white shrink-0">Dashboard</span>
             <span
-              className="text-xs font-semibold px-2.5 py-1 rounded-full"
+              className="text-xs font-semibold px-2.5 py-1 rounded-full shrink-0"
               style={phaseStyle(currentPhase)}
             >
               Week {currentWeek} · {currentPhase}
             </span>
           </div>
-          <p className="text-xs hidden sm:block" style={{ color: "var(--text-muted)" }}>
+          <p className="text-xs w-full sm:w-auto" style={{ color: "var(--text-muted)" }}>
             {formatAEST(today, "EEEE, d MMMM yyyy")}
           </p>
         </div>
 
+        {/* Today's plan — full width on small screens (sidebar is lg+) */}
+        <div className="lg:hidden w-full">
+          <Card className="p-4">
+            <SectionLabel>Today&apos;s workout</SectionLabel>
+            {todayPlanEntry ? (
+              <div className="mt-3 space-y-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-white font-semibold text-sm">
+                    {formatAEST(todayPlanEntry.date, "EEE d MMM")}
+                  </span>
+                  <span
+                    className="text-xs px-2 py-0.5 rounded-full font-medium capitalize"
+                    style={runTypePillStyle(todayPlanEntry.session.type)}
+                  >
+                    {todayPlanEntry.session.type}
+                  </span>
+                  {todayPlanEntry.completed && (
+                    <span className="text-xs font-medium text-green-400">Done</span>
+                  )}
+                </div>
+                <p className="text-sm text-white">
+                  {todayPlanEntry.session.targetDistanceKm} km ·{" "}
+                  {formatTargetPace(todayPlanEntry.session.targetPaceMinPerKm)}
+                </p>
+                <p className="text-xs leading-snug" style={{ color: "var(--text-muted)" }}>
+                  {todayPlanEntry.session.description}
+                </p>
+              </div>
+            ) : (
+              <p className="text-sm mt-2" style={{ color: "var(--text-muted)" }}>
+                No structured session on the plan for today.
+              </p>
+            )}
+          </Card>
+        </div>
+
         {/* ── Stat tiles ─────────────────────────────────────────────────── */}
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
           {/* Weekly distance */}
           <Card className="p-4">
             <SectionLabel>Weekly Distance</SectionLabel>
-            <p className="text-2xl font-bold text-white mt-2">
+            <p className="text-xl sm:text-2xl font-bold text-white mt-2 tabular-nums">
               {weekActualKm.toFixed(1)}
-              <span className="text-sm font-normal ml-1" style={{ color: "var(--text-muted)" }}>
+              <span className="text-xs sm:text-sm font-normal ml-1" style={{ color: "var(--text-muted)" }}>
                 / {weekTargetKm.toFixed(0)} km
               </span>
             </p>
@@ -392,9 +430,9 @@ export default async function Dashboard({
           {/* Runs completed */}
           <Card className="p-4">
             <SectionLabel>Runs Completed</SectionLabel>
-            <p className="text-2xl font-bold text-white mt-2">
+            <p className="text-xl sm:text-2xl font-bold text-white mt-2 tabular-nums">
               {weekDone}
-              <span className="text-sm font-normal ml-1" style={{ color: "var(--text-muted)" }}>
+              <span className="text-xs sm:text-sm font-normal ml-1" style={{ color: "var(--text-muted)" }}>
                 / {weekPlanned}
               </span>
             </p>
@@ -409,11 +447,11 @@ export default async function Dashboard({
             {avgWeekRating !== null ? (
               <>
                 <p
-                  className="text-2xl font-bold mt-2"
+                  className="text-xl sm:text-2xl font-bold mt-2 tabular-nums"
                   style={{ color: ratingStatColor(avgWeekRating) }}
                 >
                   {avgWeekRating.toFixed(1)}
-                  <span className="text-sm font-normal ml-1 text-white">/ 10</span>
+                  <span className="text-xs sm:text-sm font-normal ml-1 text-white">/ 10</span>
                 </p>
                 <p className="text-xs mt-3" style={{ color: "var(--text-muted)" }}>
                   from {weekRatings.length} {weekRatings.length === 1 ? "run" : "runs"}
@@ -421,7 +459,7 @@ export default async function Dashboard({
               </>
             ) : (
               <>
-                <p className="text-2xl font-bold mt-2" style={{ color: "var(--text-muted)" }}>
+                <p className="text-xl sm:text-2xl font-bold mt-2" style={{ color: "var(--text-muted)" }}>
                   —
                 </p>
                 <p className="text-xs mt-3" style={{ color: "var(--text-muted)" }}>
@@ -441,7 +479,7 @@ export default async function Dashboard({
         </Card>
 
         {/* ── Pace + Load charts side by side ─────────────────────────────── */}
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <Card className="p-4">
             <SectionLabel>Avg Easy Pace</SectionLabel>
             <p className="text-xs mt-0.5 mb-3" style={{ color: "rgba(156,163,175,0.6)" }}>
@@ -479,54 +517,52 @@ export default async function Dashboard({
                 return (
                   <div
                     key={run.id}
-                    className="flex items-center gap-3 px-4 py-3"
+                    className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center"
                     style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}
                   >
-                    {/* Rating badge */}
-                    <div
-                      className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 text-sm font-bold"
-                      style={badge}
-                    >
-                      {run.rating.total.toFixed(1)}
-                    </div>
-
-                    {/* Name + meta */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-white font-semibold text-sm truncate">
-                          {run.name ?? `${run.distanceKm.toFixed(1)} km run`}
-                        </span>
-                        <span
-                          className="text-xs px-2 py-0.5 rounded-full font-medium flex-shrink-0"
-                          style={pill}
-                        >
-                          {run.runType}
-                        </span>
+                    <div className="flex items-start gap-3 min-w-0">
+                      <div
+                        className="w-11 h-11 shrink-0 rounded-lg flex items-center justify-center text-sm font-bold"
+                        style={badge}
+                      >
+                        {run.rating.total.toFixed(1)}
                       </div>
-                      <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
-                        {formatAEST(run.date, "EEE d MMM")}
-                      </p>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-white font-semibold text-sm break-words">
+                            {run.name ?? `${run.distanceKm.toFixed(1)} km run`}
+                          </span>
+                          <span
+                            className="text-xs px-2 py-0.5 rounded-full font-medium shrink-0"
+                            style={pill}
+                          >
+                            {run.runType}
+                          </span>
+                        </div>
+                        <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
+                          {formatAEST(run.date, "EEE d MMM")}
+                        </p>
+                      </div>
                     </div>
 
-                    {/* Stats */}
-                    <div className="flex gap-4 text-xs text-right flex-shrink-0">
-                      <div>
-                        <p className="text-white font-medium">{run.distanceKm.toFixed(2)} km</p>
+                    <div className="grid grid-cols-2 gap-3 text-xs sm:flex sm:flex-wrap sm:gap-4 sm:justify-end sm:ml-auto sm:text-right">
+                      <div className="min-w-0">
+                        <p className="text-white font-medium tabular-nums">{run.distanceKm.toFixed(2)} km</p>
                         <p style={{ color: "var(--text-muted)" }}>dist</p>
                       </div>
-                      <div>
-                        <p className="text-white font-medium">{formatPace(run.avgPaceSecKm)}</p>
+                      <div className="min-w-0">
+                        <p className="text-white font-medium tabular-nums">{formatPace(run.avgPaceSecKm)}</p>
                         <p style={{ color: "var(--text-muted)" }}>pace</p>
                       </div>
                       {run.avgHeartRate && (
-                        <div>
-                          <p className="text-white font-medium">{run.avgHeartRate}</p>
+                        <div className="min-w-0">
+                          <p className="text-white font-medium tabular-nums">{run.avgHeartRate}</p>
                           <p style={{ color: "var(--text-muted)" }}>bpm</p>
                         </div>
                       )}
                       {run.temperatureC != null && (
-                        <div>
-                          <p className="text-white font-medium">{run.temperatureC}°C</p>
+                        <div className="min-w-0">
+                          <p className="text-white font-medium tabular-nums">{run.temperatureC}°C</p>
                           <p style={{ color: "var(--text-muted)" }}>temp</p>
                         </div>
                       )}
@@ -541,49 +577,47 @@ export default async function Dashboard({
                 return (
                   <div
                     key={`upcoming-${s.day}`}
-                    className="flex items-center gap-3 px-4 py-3"
+                    className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center"
                     style={{
                       borderTop: "1px solid rgba(255,255,255,0.06)",
                       opacity: 0.5,
                     }}
                   >
-                    {/* Dash badge */}
-                    <div
-                      className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 text-sm font-bold"
-                      style={{
-                        background: "rgba(255,255,255,0.05)",
-                        color: "var(--text-muted)",
-                      }}
-                    >
-                      —
-                    </div>
-
-                    {/* Session info */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-white font-semibold text-sm">
-                          {s.targetDistanceKm} km {s.type}
-                        </span>
-                        <span
-                          className="text-xs px-2 py-0.5 rounded-full font-medium flex-shrink-0"
-                          style={pill}
-                        >
-                          {s.type}
-                        </span>
+                    <div className="flex items-start gap-3 min-w-0">
+                      <div
+                        className="w-11 h-11 shrink-0 rounded-lg flex items-center justify-center text-sm font-bold"
+                        style={{
+                          background: "rgba(255,255,255,0.05)",
+                          color: "var(--text-muted)",
+                        }}
+                      >
+                        —
                       </div>
-                      <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
-                        {formatAEST(s.date, "EEE d MMM")} · planned
-                      </p>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-white font-semibold text-sm">
+                            {s.targetDistanceKm} km {s.type}
+                          </span>
+                          <span
+                            className="text-xs px-2 py-0.5 rounded-full font-medium shrink-0"
+                            style={pill}
+                          >
+                            {s.type}
+                          </span>
+                        </div>
+                        <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
+                          {formatAEST(s.date, "EEE d MMM")} · planned
+                        </p>
+                      </div>
                     </div>
 
-                    {/* Target stats */}
-                    <div className="flex gap-4 text-xs text-right flex-shrink-0">
+                    <div className="grid grid-cols-2 gap-3 text-xs sm:flex sm:gap-4 sm:ml-auto sm:text-right">
                       <div>
                         <p className="text-white font-medium">{s.targetDistanceKm} km</p>
                         <p style={{ color: "var(--text-muted)" }}>target</p>
                       </div>
                       <div>
-                        <p className="text-white font-medium">
+                        <p className="text-white font-medium tabular-nums">
                           {formatTargetPace(s.targetPaceMinPerKm)}
                         </p>
                         <p style={{ color: "var(--text-muted)" }}>target pace</p>

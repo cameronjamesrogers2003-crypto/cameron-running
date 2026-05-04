@@ -214,18 +214,19 @@ export default function RunsClient({
           placeholder="Search by name…"
           value={search}
           onChange={e => setSearch(e.target.value)}
-          className="w-full rounded-md px-3 py-1.5 text-sm text-white outline-none"
+          className="w-full min-h-11 rounded-md px-3 py-2 text-sm text-white outline-none"
           style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}
         />
 
-        <div className="flex flex-wrap gap-3 items-center">
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
           {/* Type pills */}
-          <div className="flex gap-1.5">
+          <div className="flex flex-wrap gap-1.5">
             {RUN_TYPES.map(t => (
               <button
                 key={t}
+                type="button"
                 onClick={() => toggleType(t)}
-                className="px-3 py-1 rounded-full text-xs font-medium capitalize transition-all"
+                className="min-h-11 px-3 py-2 rounded-full text-xs font-medium capitalize transition-all"
                 style={{
                   background: types.includes(t) ? `${TYPE_COLORS[t]}33` : "rgba(255,255,255,0.06)",
                   color: types.includes(t) ? TYPE_COLORS[t] : "var(--text-muted)",
@@ -238,52 +239,59 @@ export default function RunsClient({
           </div>
 
           {/* Date range */}
-          <div className="flex items-center gap-1.5">
-            <input
-              type="date"
-              value={dateFrom}
-              onChange={e => setDateFrom(e.target.value)}
-              className="rounded-md px-2 py-1 text-xs text-white outline-none"
-              style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}
-            />
-            <span className="text-xs" style={{ color: "var(--text-muted)" }}>to</span>
-            <input
-              type="date"
-              value={dateTo}
-              onChange={e => setDateTo(e.target.value)}
-              className="rounded-md px-2 py-1 text-xs text-white outline-none"
-              style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}
-            />
+          <div className="flex flex-col gap-1 w-full sm:w-auto sm:flex-row sm:items-center sm:gap-1.5">
+            <span className="text-xs sm:hidden" style={{ color: "var(--text-muted)" }}>Date range</span>
+            <div className="flex items-center gap-1.5 flex-1 min-w-0">
+              <input
+                type="date"
+                value={dateFrom}
+                onChange={e => setDateFrom(e.target.value)}
+                className="min-h-11 flex-1 min-w-0 rounded-md px-2 py-2 text-xs text-white outline-none"
+                style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}
+              />
+              <span className="text-xs shrink-0" style={{ color: "var(--text-muted)" }}>to</span>
+              <input
+                type="date"
+                value={dateTo}
+                onChange={e => setDateTo(e.target.value)}
+                className="min-h-11 flex-1 min-w-0 rounded-md px-2 py-2 text-xs text-white outline-none"
+                style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}
+              />
+            </div>
           </div>
 
           {/* Distance range */}
-          <div className="flex items-center gap-1.5">
-            <input
-              type="number"
-              placeholder="Dist ≥"
-              value={distMin}
-              onChange={e => setDistMin(e.target.value)}
-              className="w-20 rounded-md px-2 py-1 text-xs text-white outline-none"
-              style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}
-            />
-            <input
-              type="number"
-              placeholder="≤ km"
-              value={distMax}
-              onChange={e => setDistMax(e.target.value)}
-              className="w-20 rounded-md px-2 py-1 text-xs text-white outline-none"
-              style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}
-            />
+          <div className="flex flex-col gap-1 w-full sm:w-auto sm:flex-row sm:items-center sm:gap-1.5">
+            <span className="text-xs sm:hidden" style={{ color: "var(--text-muted)" }}>Distance (km)</span>
+            <div className="flex items-center gap-1.5 w-full sm:w-auto">
+              <input
+                type="number"
+                placeholder="Dist ≥"
+                value={distMin}
+                onChange={e => setDistMin(e.target.value)}
+                className="min-h-11 w-full sm:w-24 rounded-md px-2 py-2 text-xs text-white outline-none"
+                style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}
+              />
+              <input
+                type="number"
+                placeholder="≤ km"
+                value={distMax}
+                onChange={e => setDistMax(e.target.value)}
+                className="min-h-11 w-full sm:w-24 rounded-md px-2 py-2 text-xs text-white outline-none"
+                style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}
+              />
+            </div>
           </div>
 
           {/* Clear */}
           {(search || types.length || dateFrom || dateTo || distMin || distMax) && (
             <button
+              type="button"
               onClick={() => { setSearch(""); setTypes([]); setDateFrom(""); setDateTo(""); setDistMin(""); setDistMax(""); }}
-              className="text-xs px-2 py-1 rounded-md"
+              className="min-h-11 text-xs px-3 py-2 rounded-md w-full sm:w-auto"
               style={{ color: "var(--text-muted)", background: "rgba(255,255,255,0.04)" }}
             >
-              Clear
+              Clear filters
             </button>
           )}
         </div>
@@ -299,14 +307,14 @@ export default function RunsClient({
         </p>
       </div>
 
-      {/* ── Table ──────────────────────────────────────────────────────── */}
+      {/* ── Desktop table ─────────────────────────────────────────────── */}
       <div
-        className="rounded-[10px] overflow-hidden"
+        className="hidden md:block rounded-[10px] overflow-x-auto"
         style={{ border: "1px solid rgba(255,255,255,0.08)" }}
       >
         {/* Header */}
         <div
-          className="grid text-xs font-medium px-4 py-2"
+          className="grid text-xs font-medium px-4 py-2 min-w-[640px]"
           style={{
             gridTemplateColumns: "1fr 100px 80px 80px 70px 70px 60px",
             background: "#111",
@@ -325,6 +333,7 @@ export default function RunsClient({
           ].map(({ label, field }) => (
             <button
               key={label}
+              type="button"
               onClick={() => field && toggleSort(field)}
               className="text-left"
               style={{ cursor: field ? "pointer" : "default" }}
@@ -347,7 +356,8 @@ export default function RunsClient({
           return (
             <div key={run.id}>
               <button
-                className="w-full grid px-4 py-3 text-left transition-colors hover:bg-white/[0.03]"
+                type="button"
+                className="w-full grid px-4 py-3 text-left transition-colors hover:bg-white/[0.03] min-w-[640px]"
                 style={{
                   gridTemplateColumns: "1fr 100px 80px 80px 70px 70px 60px",
                   borderTop: i > 0 ? "1px solid rgba(255,255,255,0.04)" : undefined,
@@ -458,13 +468,158 @@ export default function RunsClient({
         })}
       </div>
 
+      {/* ── Mobile cards ─────────────────────────────────────────────── */}
+      <div className="md:hidden space-y-3">
+        {!loading && runs.length === 0 && (
+          <div
+            className="rounded-[10px] px-4 py-8 text-center text-sm"
+            style={{ border: "1px solid rgba(255,255,255,0.08)", color: "var(--text-muted)" }}
+          >
+            No runs match the current filters.
+          </div>
+        )}
+        {runs.map((run) => {
+          const isOpen = expanded.has(run.id);
+          return (
+            <div
+              key={run.id}
+              className="rounded-[10px] overflow-hidden"
+              style={{ border: "1px solid rgba(255,255,255,0.08)", background: "#111" }}
+            >
+              <button
+                type="button"
+                className="w-full text-left p-4 min-h-11"
+                onClick={() => toggleExpand(run.id)}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm text-white font-medium break-words">{run.name ?? "Run"}</p>
+                    <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
+                      {formatDateAest(run.dateIso)}
+                    </p>
+                    <div className="mt-2">
+                      <Pill type={run.runType} />
+                    </div>
+                  </div>
+                  <span
+                    className="text-lg font-bold shrink-0 tabular-nums"
+                    style={{ color: run.rating ? ratingColor(run.rating.total) : "var(--text-muted)" }}
+                  >
+                    {run.rating ? run.rating.total.toFixed(1) : "—"}
+                  </span>
+                </div>
+                <div className="grid grid-cols-3 gap-2 mt-3 text-xs">
+                  <div>
+                    <p style={{ color: "var(--text-muted)" }}>Distance</p>
+                    <p className="text-white font-medium tabular-nums">{run.distanceKm.toFixed(2)} km</p>
+                  </div>
+                  <div>
+                    <p style={{ color: "var(--text-muted)" }}>Pace</p>
+                    <p className="text-white font-medium tabular-nums">
+                      {run.avgPaceSecKm > 0 ? formatPace(run.avgPaceSecKm) : "—"}
+                    </p>
+                  </div>
+                  <div>
+                    <p style={{ color: "var(--text-muted)" }}>Time</p>
+                    <p className="text-white font-medium tabular-nums">{formatDuration(run.durationSecs)}</p>
+                  </div>
+                </div>
+                <p className="text-[11px] mt-2" style={{ color: "rgba(156,163,175,0.5)" }}>
+                  {isOpen ? "Tap to collapse" : "Tap for details"}
+                </p>
+              </button>
+              {isOpen && (
+                <div
+                  className="px-4 pb-4 pt-1 grid grid-cols-1 gap-x-8 gap-y-2 text-xs border-t"
+                  style={{
+                    borderColor: "rgba(255,255,255,0.06)",
+                    background: "rgba(255,255,255,0.02)",
+                  }}
+                >
+                  <div className="flex flex-wrap gap-2 mb-1">
+                    <a
+                      href={`https://www.strava.com/activities/${run.id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs min-h-11 px-3 inline-flex items-center rounded-md"
+                      style={{ background: "#FC4C0233", color: "#FC4C02", border: "1px solid #FC4C0244" }}
+                    >
+                      View on Strava
+                    </a>
+                  </div>
+                  {[
+                    ["Avg HR",      run.avgHeartRate ? `${run.avgHeartRate} bpm` : "—"],
+                    ["Max HR",      run.maxHeartRate ? `${run.maxHeartRate} bpm` : "—"],
+                    ["Calories",    run.calories     ? `${run.calories} kcal`   : "—"],
+                    ["Elevation",   run.elevationGainM != null ? `+${run.elevationGainM.toFixed(0)} m` : "—"],
+                    ["Temp",        run.temperatureC != null ? `${run.temperatureC.toFixed(1)}°C`  : "—"],
+                    ["Humidity",    run.humidityPct  != null ? `${run.humidityPct.toFixed(0)}%`    : "—"],
+                  ].map(([label, value]) => (
+                    <div key={label} className="flex justify-between gap-2">
+                      <span style={{ color: "var(--text-muted)" }}>{label}</span>
+                      <span className="text-white text-right">{value}</span>
+                    </div>
+                  ))}
+                  {run.rating && (
+                    <>
+                      <div className="flex justify-between">
+                        <span style={{ color: "var(--text-muted)" }}>Pace score</span>
+                        <span className="text-white">{run.rating.pace.toFixed(1)}/2.5</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span style={{ color: "var(--text-muted)" }}>Effort score</span>
+                        <span className="text-white">{run.rating.effort.toFixed(1)}/2.5</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span style={{ color: "var(--text-muted)" }}>Dist score</span>
+                        <span className="text-white">{run.rating.distance.toFixed(1)}/2.5</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span style={{ color: "var(--text-muted)" }}>Conditions</span>
+                        <span className="text-white">{run.rating.conditions.toFixed(1)}/2.5</span>
+                      </div>
+                    </>
+                  )}
+                  {run.avgPaceSecKm > 0 && (() => {
+                    const { checks, result } = buildClassificationChecks(
+                      run.avgPaceSecKm, run.distanceKm,
+                      intervalThresholdSec, tempoThresholdSec,
+                    );
+                    return (
+                      <div
+                        className="mt-2 rounded-md px-3 py-2.5 space-y-1 col-span-1"
+                        style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}
+                      >
+                        <p className="text-[10px] uppercase tracking-wider mb-1.5" style={{ color: "var(--text-muted)" }}>
+                          Type classification
+                        </p>
+                        {checks.map((c, j) => (
+                          <p key={j} className="text-xs" style={{ color: c.passed ? "rgba(255,255,255,0.4)" : "rgba(255,255,255,0.7)" }}>
+                            <span style={{ color: c.passed ? "#5DCAA5" : "#AFA9EC" }}>{c.passed ? "✓" : "→"}</span>
+                            {" "}{c.text}
+                          </p>
+                        ))}
+                        <p className="text-xs font-semibold pt-0.5" style={{ color: TYPE_COLORS[result] }}>
+                          → Classified as: {result.charAt(0).toUpperCase() + result.slice(1)}
+                        </p>
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
       {/* ── Pagination ─────────────────────────────────────────────────── */}
       {totalPages > 1 && (
         <div className="flex items-center justify-center gap-2 pt-1">
           <button
+            type="button"
             onClick={() => fetchRuns(page - 1)}
             disabled={page <= 1 || loading}
-            className="px-3 py-1.5 rounded-md text-sm"
+            className="min-h-11 px-4 py-2 rounded-md text-sm"
             style={{
               background: "rgba(255,255,255,0.06)",
               color: page <= 1 ? "var(--text-muted)" : "var(--text)",
@@ -477,9 +632,10 @@ export default function RunsClient({
             {page} / {totalPages}
           </span>
           <button
+            type="button"
             onClick={() => fetchRuns(page + 1)}
             disabled={page >= totalPages || loading}
-            className="px-3 py-1.5 rounded-md text-sm"
+            className="min-h-11 px-4 py-2 rounded-md text-sm"
             style={{
               background: "rgba(255,255,255,0.06)",
               color: page >= totalPages ? "var(--text-muted)" : "var(--text)",

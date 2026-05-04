@@ -128,7 +128,7 @@ export default function InterruptionsForm() {
       <div className="space-y-3">
         <p className="text-xs font-medium text-white">Log an interruption</p>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="flex flex-col gap-1">
             <label className="text-xs" style={{ color: "var(--text-muted)" }}>Reason</label>
             <input
@@ -212,7 +212,7 @@ export default function InterruptionsForm() {
           />
         </div>
 
-        <div className="flex items-center justify-end gap-3 pt-1">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end pt-1">
           {saveMsg && (
             <span
               className="text-xs"
@@ -222,9 +222,10 @@ export default function InterruptionsForm() {
             </span>
           )}
           <button
+            type="button"
             onClick={handleAdd}
             disabled={saving}
-            className="px-4 py-1.5 rounded-md text-sm font-medium"
+            className="min-h-11 px-4 py-2 rounded-md text-sm font-medium w-full sm:w-auto"
             style={{
               background: "rgba(255,255,255,0.06)",
               border: "1px solid rgba(255,255,255,0.1)",
@@ -274,9 +275,10 @@ export default function InterruptionsForm() {
                   )}
                 </div>
                 <button
+                  type="button"
                   onClick={() => handleDelete(row.id)}
                   disabled={deletingId === row.id}
-                  className="shrink-0 text-[11px] px-2 py-1 rounded"
+                  className="shrink-0 min-h-11 text-[11px] px-3 py-2 rounded"
                   style={{
                     color: "rgba(232,230,224,0.3)",
                     background: "rgba(255,255,255,0.04)",

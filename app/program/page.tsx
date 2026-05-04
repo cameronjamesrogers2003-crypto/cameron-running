@@ -241,15 +241,15 @@ export default async function ProgramPage() {
     : 0;
 
   return (
-    <div className="flex items-start gap-0">
+    <div className="flex flex-col lg:flex-row items-start gap-0 w-full min-w-0">
 
       {/* ── Main content ─────────────────────────────────────────────── */}
-      <div className="flex-1 min-w-0 space-y-8 pr-6">
+      <div className="flex-1 min-w-0 w-full space-y-6 sm:space-y-8 lg:pr-6">
 
         {/* Page header */}
-        <div className="flex items-center gap-3 flex-wrap">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           <Logo size="sm" showWordmark={false} />
-          <h1 className="text-xl font-bold text-white">Training Program</h1>
+          <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-white">Training Program</h1>
           <span
             className="text-xs font-semibold px-2.5 py-1 rounded-full"
             style={phaseChipStyle(currentPlanEntry?.phase ?? "Base")}
@@ -301,13 +301,13 @@ export default async function ProgramPage() {
               {section.isRecovery ? (
                 // Simplified recovery header
                 <div
-                  className="rounded-xl px-4 py-3"
+                  className="rounded-xl px-3 py-3 sm:px-4"
                   style={{
                     background: "#181818",
                     border: "1px solid rgba(167,139,250,0.15)",
                   }}
                 >
-                  <div className="flex items-center gap-3 flex-wrap">
+                  <div className="flex items-center gap-2 sm:gap-3 flex-wrap text-xs sm:text-sm">
                     <span className="text-xs font-semibold px-2.5 py-1 rounded-full" style={chip}>
                       Return to Training
                     </span>
@@ -322,11 +322,11 @@ export default async function ProgramPage() {
               ) : (
                 // Full phase header
                 <div
-                  className="rounded-xl px-4 py-3"
+                  className="rounded-xl px-3 py-3 sm:px-4"
                   style={{ background: "#181818", border: "1px solid rgba(255,255,255,0.08)" }}
                 >
-                  <div className="flex items-center justify-between gap-4 mb-2 flex-wrap">
-                    <div className="flex items-center gap-3 flex-wrap">
+                  <div className="flex items-center justify-between gap-3 sm:gap-4 mb-2 flex-wrap">
+                    <div className="flex items-center gap-2 sm:gap-3 flex-wrap min-w-0">
                       <span className="text-xs font-semibold px-2.5 py-1 rounded-full" style={chip}>
                         {section.phase}
                       </span>
@@ -374,16 +374,16 @@ export default async function ProgramPage() {
                     {/* Weekly focus label */}
                     {focusLabel && (
                       <p
-                        className="text-[11px] mb-1.5 pl-[87px]"
+                        className="text-[11px] mb-1.5 pl-0 sm:pl-[87px]"
                         style={{ color: "rgba(232,230,224,0.3)" }}
                       >
                         {focusLabel}
                       </p>
                     )}
 
-                    <div className="flex items-start gap-3">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:gap-3">
                       {/* Week label */}
-                      <div className="w-[84px] shrink-0 pt-1">
+                      <div className="w-full sm:w-[84px] shrink-0 pt-0 sm:pt-1 flex sm:block items-center justify-between sm:justify-start gap-2">
                         <p className="text-xs font-bold text-white leading-tight">
                           Week {planWeek.week}
                           {planWeek.isCutback && (
@@ -401,7 +401,7 @@ export default async function ProgramPage() {
                       </div>
 
                       {/* Session cards */}
-                      <div className="flex-1 grid grid-cols-3 gap-2 min-w-0">
+                      <div className="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-2 min-w-0 w-full">
                         {planWeek.sessions.map((session) => {
                           const sessionDate = getSessionDate(planWeek.week, session.day);
                           const isPast      = sessionDate < todayMidnight;
@@ -550,7 +550,7 @@ export default async function ProgramPage() {
                       </div>
 
                       {/* Total km + volume change */}
-                      <div className="w-16 shrink-0 text-right pt-1">
+                      <div className="w-full sm:w-16 shrink-0 text-left sm:text-right pt-0 sm:pt-1 flex sm:block items-center justify-between sm:justify-end gap-2">
                         <p className="text-sm font-bold text-white">{weekTotalKm}</p>
                         <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>km</p>
                         {volumeChange !== null && (
@@ -576,8 +576,10 @@ export default async function ProgramPage() {
         })}
       </div>
 
-      {/* ── Side panel ───────────────────────────────────────────────── */}
-      <ProgramSidePanel maxHR={maxHR} />
+      {/* ── Side panel (desktop) ─────────────────────────────────────── */}
+      <div className="hidden lg:block shrink-0">
+        <ProgramSidePanel maxHR={maxHR} />
+      </div>
     </div>
   );
 }

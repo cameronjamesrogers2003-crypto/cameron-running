@@ -35,9 +35,10 @@ function SaveButton({ status, onClick }: { status: SaveStatus; onClick: () => vo
     "var(--accent)";
   return (
     <button
+      type="button"
       onClick={onClick}
       disabled={status === "saving"}
-      className="px-4 py-1.5 rounded-md text-sm font-medium transition-colors"
+      className="min-h-11 px-4 py-2 rounded-md text-sm font-medium transition-colors w-full sm:w-auto"
       style={{ background: "rgba(255,255,255,0.06)", color, border: "1px solid rgba(255,255,255,0.1)" }}
     >
       {label}
@@ -61,12 +62,12 @@ function Panel({ title, children }: { title: string; children: React.ReactNode }
 
 function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
-    <div className="flex items-center gap-4">
-      <div className="w-48 shrink-0">
+    <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:gap-4">
+      <div className="w-full sm:w-48 shrink-0">
         <p className="text-sm text-white">{label}</p>
         {hint && <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>{hint}</p>}
       </div>
-      <div className="flex-1">{children}</div>
+      <div className="flex-1 w-full min-w-0">{children}</div>
     </div>
   );
 }
@@ -78,11 +79,10 @@ function TextInput({ value, onChange, placeholder }: { value: string; onChange: 
       value={value}
       onChange={e => onChange(e.target.value)}
       placeholder={placeholder}
-      className="w-full rounded-md px-3 py-1.5 text-sm text-white outline-none focus:ring-1"
+      className="w-full max-w-full sm:max-w-xs rounded-md px-3 py-2 min-h-11 text-sm text-white outline-none focus:ring-1"
       style={{
         background: "rgba(255,255,255,0.06)",
         border: "1px solid rgba(255,255,255,0.1)",
-        maxWidth: 220,
       }}
     />
   );
@@ -96,7 +96,7 @@ function NumberInput({ value, onChange, min, max }: { value: number | string; on
       onChange={e => onChange(Number(e.target.value))}
       min={min}
       max={max}
-      className="w-24 rounded-md px-3 py-1.5 text-sm text-white outline-none focus:ring-1"
+      className="w-full sm:w-24 rounded-md px-3 py-2 min-h-11 text-sm text-white outline-none focus:ring-1"
       style={{
         background: "rgba(255,255,255,0.06)",
         border: "1px solid rgba(255,255,255,0.1)",
@@ -112,7 +112,7 @@ function PaceInput({ value, onChange, placeholder = "0:00" }: { value: string; o
       value={value}
       onChange={e => onChange(e.target.value)}
       placeholder={placeholder}
-      className="w-16 rounded-md px-2 py-1.5 text-sm text-white outline-none focus:ring-1 text-center"
+      className="w-full max-w-[5.5rem] sm:w-16 rounded-md px-2 py-2 min-h-11 text-sm text-white outline-none focus:ring-1 text-center"
       style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}
     />
   );
@@ -223,7 +223,7 @@ export default function SettingsForm() {
   const distGroup = useSaveGroup();
 
   return (
-    <div className="space-y-5 max-w-2xl">
+    <div className="space-y-5 w-full max-w-2xl min-w-0">
       {/* Training Plan */}
       <Panel title="Training Plan">
         <Field label="Plan start date" hint="AEST date plan begins">
@@ -236,7 +236,7 @@ export default function SettingsForm() {
             placeholder="Auto"
           />
         </Field>
-        <div className="flex justify-end pt-1">
+        <div className="flex justify-stretch sm:justify-end pt-1">
           <SaveButton
             status={planGroup.status}
             onClick={() =>
@@ -291,19 +291,19 @@ export default function SettingsForm() {
             vdotRef: string;
           }>).map(({ label, min, setMin, max, setMax, hint, vdotRef }) => (
             <div key={label}>
-              <div className="flex items-center gap-3 flex-wrap">
-                <span className="text-sm text-white w-16 shrink-0">{label}</span>
-                <div className="flex items-center gap-2">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:flex-wrap">
+                <span className="text-sm text-white sm:w-16 shrink-0">{label}</span>
+                <div className="flex items-center gap-2 flex-wrap">
                   <PaceInput value={min} onChange={setMin} />
                   <span className="text-xs" style={{ color: "var(--text-muted)" }}>to</span>
                   <PaceInput value={max} onChange={setMax} />
                   <span className="text-xs" style={{ color: "var(--text-muted)" }}>/km</span>
                 </div>
-                <span className="text-[11px]" style={{ color: "rgba(156,163,175,0.4)" }}>
+                <span className="text-[11px] sm:ml-0" style={{ color: "rgba(156,163,175,0.4)" }}>
                   VDOT target: {vdotRef} /km
                 </span>
               </div>
-              <p className="text-xs mt-1 ml-[76px]" style={{ color: "var(--text-muted)" }}>{hint}</p>
+              <p className="text-xs mt-1 sm:ml-20" style={{ color: "var(--text-muted)" }}>{hint}</p>
             </div>
           ))}
         </div>
@@ -318,8 +318,8 @@ export default function SettingsForm() {
               Suggested Updates
             </p>
             {suggestions.map(sug => (
-              <div key={sug.type} className="flex items-start justify-between gap-3">
-                <p className="text-xs flex-1" style={{ color: "var(--text-muted)" }}>
+              <div key={sug.type} className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
+                <p className="text-xs flex-1 min-w-0" style={{ color: "var(--text-muted)" }}>
                   Your recent <span className="text-white">{sug.type}</span> runs average{" "}
                   <span className="text-white">{formatPace(sug.avgPace)}/km</span> — faster than your current{" "}
                   {sug.type} zone midpoint of {formatPace(sug.midpoint)}/km.{" "}
@@ -327,8 +327,9 @@ export default function SettingsForm() {
                   <span className="text-white">{formatPace(sug.newMin)}–{formatPace(sug.newMax)} /km</span>.
                 </p>
                 <button
+                  type="button"
                   onClick={() => applySuggestion(sug)}
-                  className="shrink-0 px-3 py-1 rounded-md text-xs font-medium"
+                  className="shrink-0 min-h-11 px-3 py-2 rounded-md text-xs font-medium w-full sm:w-auto"
                   style={{ background: "rgba(167,139,250,0.12)", color: "#a78bfa", border: "1px solid rgba(167,139,250,0.2)" }}
                 >
                   Apply
@@ -338,7 +339,7 @@ export default function SettingsForm() {
           </div>
         )}
 
-        <div className="flex justify-end pt-1">
+        <div className="flex justify-stretch sm:justify-end pt-1">
           <SaveButton
             status={zonesGroup.status}
             onClick={() =>
@@ -365,9 +366,9 @@ export default function SettingsForm() {
           <NumberInput value={maxHR} onChange={setMaxHR} min={140} max={220} />
         </Field>
         <Field label="Current VDOT" hint="Jack Daniels (28–60)">
-          <div className="flex items-center gap-3">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
             <NumberInput value={vdot} onChange={setVdot} min={28} max={60} />
-            <span className="text-xs" style={{ color: "var(--text-muted)" }}>
+            <span className="text-xs break-words" style={{ color: "var(--text-muted)" }}>
               Easy {formatPace(vdotPaces.easyMaxSecKm)} · Tempo {formatPace(vdotPaces.tempoSecKm)} · Interval {formatPace(vdotPaces.intervalSecKm)} /km
             </span>
           </div>
@@ -375,7 +376,7 @@ export default function SettingsForm() {
         <Field label="Starting tempo pace" hint="min/km at plan start">
           <TextInput value={startTP} onChange={setStartTP} placeholder="6:30" />
         </Field>
-        <div className="flex justify-end pt-1">
+        <div className="flex justify-stretch sm:justify-end pt-1">
           <SaveButton
             status={perfGroup.status}
             onClick={() => {
@@ -395,7 +396,7 @@ export default function SettingsForm() {
       {/* HM Goal */}
       <Panel title="Half Marathon Goal">
         <Field label="Target time" hint="H:MM:SS">
-          <div className="flex items-center gap-3">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
             <TextInput value={hmTime} onChange={setHmTime} placeholder="1:55:00" />
             {hmPacePreview && (
               <span className="text-xs" style={{ color: "var(--text-muted)" }}>
@@ -410,7 +411,7 @@ export default function SettingsForm() {
         <Field label="Race date" hint="AEST date">
           <TextInput value={raceDate} onChange={setRaceDate} placeholder="YYYY-MM-DD" />
         </Field>
-        <div className="flex justify-end pt-1">
+        <div className="flex justify-stretch sm:justify-end pt-1">
           <SaveButton
             status={hmGroup.status}
             onClick={() => {
@@ -439,7 +440,7 @@ export default function SettingsForm() {
             <NumberInput value={value} onChange={set} min={1} max={50} />
           </Field>
         ))}
-        <div className="flex justify-end pt-1">
+        <div className="flex justify-stretch sm:justify-end pt-1">
           <SaveButton
             status={distGroup.status}
             onClick={() =>
