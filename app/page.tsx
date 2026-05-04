@@ -1,17 +1,17 @@
 import prisma from "@/lib/db";
 import { formatPace } from "@/lib/strava";
-import { trainingPlan, buildTrainingPlan, type Phase, type RunType } from "@/data/trainingPlan";
+import { trainingPlan, type Phase, type RunType, type Day } from "@/data/trainingPlan";
 import {
   PLAN_START_DATE,
   getPlanWeekForDate,
   getWeekStartForPlanWeek,
   getSessionDate,
   getWeeklyTargetKm,
-  inferRunType,
+  inferRunType as inferRunTypeFromPlanSessions,
   getNextPhaseInfo,
 } from "@/lib/planUtils";
-import { formatAEST, formatDistanceToNowAEST, sameDayAEST, startOfDayAEST } from "@/lib/dateUtils";
-import { calculateRunRating, resolveRunType, resolveTargetPaceSecKm } from "@/lib/rating";
+import { formatAEST, formatDistanceToNowAEST, isBrisbaneWedSatSun, sameDayAEST, startOfDayAEST } from "@/lib/dateUtils";
+import { inferRunType } from "@/lib/rating";
 import { dbSettingsToUserSettings, DEFAULT_SETTINGS } from "@/lib/settings";
 import WeeklyKmChart from "@/components/charts/WeeklyKmChart";
 import AvgPaceTrendChart from "@/components/charts/AvgPaceTrendChart";
@@ -123,13 +123,15 @@ export default async function Dashboard({
   // ── DB queries ────────────────────────────────────────────────────────────
   const chartRangeStart = getWeekStartForPlanWeek(chartStartWeek);
 
+  const todayAESTMidnight = startOfDayAEST(today);
+
   const [
     profile,
     userSettingsRow,
     recentRuns,
     weekActivities,
     chartActivities,
-    bestPaceRow,
+    runsPlanForward,
     lastSyncRow,
   ] = await Promise.all([
     prisma.profile.findUnique({ where: { id: 1 } }),
@@ -137,7 +139,7 @@ export default async function Dashboard({
     prisma.activity.findMany({
       where: { activityType: { in: ["running", "trail_running"] } },
       orderBy: { date: "desc" },
-      take: 3,
+      take: 5,
     }),
     prisma.activity.findMany({
       where: {
@@ -152,29 +154,17 @@ export default async function Dashboard({
       },
       orderBy: { date: "asc" },
     }),
-    prisma.activity.findFirst({
-      where: { activityType: { in: ["running", "trail_running"] } },
-      orderBy: { avgPaceSecKm: "asc" },
+    prisma.activity.findMany({
+      where: {
+        date: { gte: weekStart },
+        activityType: { in: ["running", "trail_running"] },
+      },
+      orderBy: { date: "asc" },
     }),
     prisma.activity.findFirst({ orderBy: { syncedAt: "desc" } }),
   ]);
 
   const settings   = userSettingsRow ? dbSettingsToUserSettings(userSettingsRow) : DEFAULT_SETTINGS;
-  const ratingPlan = buildTrainingPlan(settings);
-  const distTargets: Record<string, number> = {
-    easy:     settings.distTargetEasyM     / 1000,
-    tempo:    settings.distTargetTempoM    / 1000,
-    interval: settings.distTargetIntervalM / 1000,
-    long:     settings.distTargetLongM     / 1000,
-  };
-
-  const athleteAge = profile?.dateOfBirth
-    ? Math.floor(
-        (Date.now() - new Date(profile.dateOfBirth).getTime()) /
-          (365.25 * 86400000)
-      )
-    : 23;
-  const pbPaceSecKm = bestPaceRow?.avgPaceSecKm ?? null;
 
   // ── Stat tile data ────────────────────────────────────────────────────────
   const weekTargetKm = currentPlanWeek ? getWeeklyTargetKm(currentPlanWeek) : 0;
@@ -182,23 +172,9 @@ export default async function Dashboard({
   const weekPlanned = currentPlanWeek?.sessions.length ?? 0;
   const weekDone = weekActivities.length;
 
-  const weekRatings = weekActivities.map((a) => {
-    const type = resolveRunType(a, ratingPlan, settings);
-    return calculateRunRating({
-      distanceKm: a.distanceKm,
-      avgPaceSecKm: a.avgPaceSecKm,
-      avgHeartRate: a.avgHeartRate,
-      temperatureC: a.temperatureC,
-      humidityPct: a.humidityPct,
-      runType: type,
-      personalBestPaceSecKm: pbPaceSecKm,
-      athleteAgeYears: athleteAge,
-      maxHROverride: settings.maxHR,
-      distTargetKmOverride: distTargets[type],
-      targetPaceSecKmOverride: resolveTargetPaceSecKm(a, ratingPlan),
-      settings,
-    }).total;
-  });
+  const weekRatings = weekActivities
+    .map((a) => a.rating)
+    .filter((r): r is number => r != null && !Number.isNaN(r));
   const avgWeekRating =
     weekRatings.length > 0
       ? Math.round(
@@ -232,7 +208,7 @@ export default async function Dashboard({
     const wEnd = new Date(wStart.getTime() + 7 * 24 * 60 * 60 * 1000);
     const easyRuns = chartActivities.filter((a) => {
       const d = new Date(a.date);
-      return d >= wStart && d < wEnd && inferRunType(a, planWeek?.sessions) === "easy";
+      return d >= wStart && d < wEnd && inferRunTypeFromPlanSessions(a, planWeek?.sessions) === "easy";
     });
     const avgPace =
       easyRuns.length > 0
@@ -254,50 +230,55 @@ export default async function Dashboard({
         return d >= wStart && d < wEnd;
       })
       .forEach((a) => {
-        const type = inferRunType(a, planWeek?.sessions);
+        const type = inferRunTypeFromPlanSessions(a, planWeek?.sessions);
         groups[type] = Math.round((groups[type] + a.distanceKm) * 10) / 10;
       });
     return { week: `W${wn}`, ...groups };
   });
 
-  // ── Recent runs with ratings ──────────────────────────────────────────────
-  const recentRunsRated = recentRuns.map((a) => {
-    const type = resolveRunType(a, ratingPlan, settings);
-    const rating = calculateRunRating({
-      distanceKm: a.distanceKm,
-      avgPaceSecKm: a.avgPaceSecKm,
-      avgHeartRate: a.avgHeartRate,
-      temperatureC: a.temperatureC,
-      humidityPct: a.humidityPct,
-      runType: type,
-      personalBestPaceSecKm: pbPaceSecKm,
-      athleteAgeYears: athleteAge,
-      maxHROverride: settings.maxHR,
-      distTargetKmOverride: distTargets[type],
-      targetPaceSecKmOverride: resolveTargetPaceSecKm(a, ratingPlan),
-      settings,
-    });
-    return { ...a, runType: type, rating };
-  });
+  // ── Recent runs (DB: rating + classifiedRunType via inferRunType fallback) ─
+  const recentRunsRows = recentRuns.map((a) => ({
+    ...a,
+    runType: inferRunType(a, settings),
+    rating: a.rating != null && !Number.isNaN(a.rating) ? a.rating : null,
+  }));
 
-  // ── Upcoming sessions ─────────────────────────────────────────────────────
-  const todayAESTMidnight = startOfDayAEST(today);
-  const upcomingSessions = (currentPlanWeek?.sessions ?? [])
-    .map((s) => ({
-      ...s,
-      date: getSessionDate(currentWeek, s.day),
-    }))
-    .filter((s) => {
-      if (s.date < todayAESTMidnight) return false;
-      return !weekActivities.some((a) => sameDayAEST(new Date(a.date), s.date));
-    })
-    .slice(0, 2);
+  function hasRunOnCalendarDay(activities: { date: Date }[], day: Date): boolean {
+    return activities.some((a) => sameDayAEST(new Date(a.date), day));
+  }
 
-  // ── Sidebar: session checklist ────────────────────────────────────────────
-  const sessionChecklist = (currentPlanWeek?.sessions ?? []).map((s) => {
-    const date = getSessionDate(currentWeek, s.day);
-    const completed = weekActivities.some((a) => sameDayAEST(new Date(a.date), date));
-    return { session: s, date, completed, future: date > todayAESTMidnight };
+  // ── Upcoming: next 5 Wed/Sat/Sun plan sessions (no completed days) ───────
+  type UpcomingRow = {
+    session: (typeof trainingPlan)[0]["sessions"][0];
+    date: Date;
+    week: number;
+  };
+  const upcomingCandidates: UpcomingRow[] = [];
+  for (let w = currentWeek; w <= trainingPlan.length; w++) {
+    const pw = trainingPlan[w - 1];
+    if (!pw) continue;
+    for (const day of ["wed", "sat", "sun"] as Day[]) {
+      const session = pw.sessions.find((s) => s.day === day);
+      if (!session) continue;
+      const date = getSessionDate(w, session.day);
+      if (date < todayAESTMidnight) continue;
+      if (hasRunOnCalendarDay(runsPlanForward, date)) continue;
+      upcomingCandidates.push({ session, date, week: w });
+    }
+  }
+  upcomingCandidates.sort((a, b) => a.date.getTime() - b.date.getTime());
+  const upcomingSessions = upcomingCandidates.slice(0, 5);
+
+  // ── Sidebar checklist: exactly Wed / Sat / Sun (current week plan) ──────────
+  const CHECKLIST_DAYS: Day[] = ["wed", "sat", "sun"];
+  const sessionChecklist = CHECKLIST_DAYS.map((day) => {
+    const session = currentPlanWeek!.sessions.find((s) => s.day === day)!;
+    const date = getSessionDate(currentWeek, session.day);
+    const completed = weekActivities.some(
+      (a) =>
+        sameDayAEST(new Date(a.date), date) && isBrisbaneWedSatSun(new Date(a.date)),
+    );
+    return { session, date, completed, future: date > todayAESTMidnight };
   });
 
   // ── Sidebar: phase progress ───────────────────────────────────────────────
@@ -496,46 +477,42 @@ export default async function Dashboard({
           </Card>
         </div>
 
-        {/* ── Recent runs ─────────────────────────────────────────────────── */}
-        <Card>
-          <div className="px-4 pt-4 pb-2">
-            <SectionLabel>Recent Runs</SectionLabel>
-          </div>
-
-          {recentRunsRated.length === 0 && upcomingSessions.length === 0 ? (
-            <div className="px-4 py-6 text-center">
-              <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-                No activities synced yet. Connect Strava to see your runs here.
-              </p>
+        {/* ── Recent runs | Upcoming sessions (side by side on md+) ─────────── */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <Card>
+            <div className="px-4 pt-4 pb-2">
+              <SectionLabel>Recent Runs</SectionLabel>
             </div>
-          ) : (
-            <div>
-              {/* Completed runs */}
-              {recentRunsRated.map((run) => {
-                const badge = ratingBadgeStyle(run.rating.total);
+            {recentRunsRows.length === 0 ? (
+              <div className="px-4 py-6 text-center">
+                <p className="text-sm" style={{ color: "var(--text-muted)" }}>
+                  No completed runs yet. Sync Strava to import activities.
+                </p>
+              </div>
+            ) : (
+              recentRunsRows.map((run, idx) => {
                 const pill = runTypePillStyle(run.runType);
+                const score = run.rating;
+                const badge = score != null ? ratingBadgeStyle(score) : { background: "rgba(255,255,255,0.06)", color: "var(--text-muted)" };
                 return (
                   <div
                     key={run.id}
                     className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center"
-                    style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}
+                    style={{ borderTop: idx === 0 ? undefined : "1px solid rgba(255,255,255,0.06)" }}
                   >
                     <div className="flex items-start gap-3 min-w-0">
                       <div
                         className="w-11 h-11 shrink-0 rounded-lg flex items-center justify-center text-sm font-bold"
                         style={badge}
                       >
-                        {run.rating.total.toFixed(1)}
+                        {score != null ? score.toFixed(1) : "—"}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="text-white font-semibold text-sm break-words">
                             {run.name ?? `${run.distanceKm.toFixed(1)} km run`}
                           </span>
-                          <span
-                            className="text-xs px-2 py-0.5 rounded-full font-medium shrink-0"
-                            style={pill}
-                          >
+                          <span className="text-xs px-2 py-0.5 rounded-full font-medium shrink-0 capitalize" style={pill}>
                             {run.runType}
                           </span>
                         </div>
@@ -544,7 +521,6 @@ export default async function Dashboard({
                         </p>
                       </div>
                     </div>
-
                     <div className="grid grid-cols-2 gap-3 text-xs sm:flex sm:flex-wrap sm:gap-4 sm:justify-end sm:ml-auto sm:text-right">
                       <div className="min-w-0">
                         <p className="text-white font-medium tabular-nums">{run.distanceKm.toFixed(2)} km</p>
@@ -554,81 +530,68 @@ export default async function Dashboard({
                         <p className="text-white font-medium tabular-nums">{formatPace(run.avgPaceSecKm)}</p>
                         <p style={{ color: "var(--text-muted)" }}>pace</p>
                       </div>
-                      {run.avgHeartRate && (
-                        <div className="min-w-0">
-                          <p className="text-white font-medium tabular-nums">{run.avgHeartRate}</p>
-                          <p style={{ color: "var(--text-muted)" }}>bpm</p>
-                        </div>
-                      )}
-                      {run.temperatureC != null && (
-                        <div className="min-w-0">
-                          <p className="text-white font-medium tabular-nums">{run.temperatureC}°C</p>
-                          <p style={{ color: "var(--text-muted)" }}>temp</p>
-                        </div>
-                      )}
                     </div>
                   </div>
                 );
-              })}
+              })
+            )}
+          </Card>
 
-              {/* Upcoming planned sessions */}
-              {upcomingSessions.map((s) => {
+          <Card>
+            <div className="px-4 pt-4 pb-2">
+              <SectionLabel>Upcoming Sessions</SectionLabel>
+            </div>
+            {upcomingSessions.length === 0 ? (
+              <div className="px-4 py-6 text-center">
+                <p className="text-sm" style={{ color: "var(--text-muted)" }}>
+                  No upcoming sessions in the plan, or all are already completed.
+                </p>
+              </div>
+            ) : (
+              upcomingSessions.map((row, idx) => {
+                const s = row.session;
                 const pill = runTypePillStyle(s.type);
                 return (
                   <div
-                    key={`upcoming-${s.day}`}
+                    key={`upcoming-${row.week}-${s.day}`}
                     className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center"
-                    style={{
-                      borderTop: "1px solid rgba(255,255,255,0.06)",
-                      opacity: 0.5,
-                    }}
+                    style={{ borderTop: idx === 0 ? undefined : "1px solid rgba(255,255,255,0.06)" }}
                   >
-                    <div className="flex items-start gap-3 min-w-0">
+                    <div className="flex items-start gap-3 min-w-0 flex-1">
                       <div
-                        className="w-11 h-11 shrink-0 rounded-lg flex items-center justify-center text-sm font-bold"
-                        style={{
-                          background: "rgba(255,255,255,0.05)",
-                          color: "var(--text-muted)",
-                        }}
+                        className="w-11 h-11 shrink-0 rounded-lg flex items-center justify-center text-xs font-bold"
+                        style={{ background: "rgba(255,255,255,0.06)", color: "var(--text-muted)" }}
                       >
-                        —
+                        {s.day === "wed" ? "W" : s.day === "sat" ? "Sa" : "Su"}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-white font-semibold text-sm">
-                            {s.targetDistanceKm} km {s.type}
-                          </span>
-                          <span
-                            className="text-xs px-2 py-0.5 rounded-full font-medium shrink-0"
-                            style={pill}
-                          >
+                          <span className="text-white font-semibold text-sm capitalize">{s.type}</span>
+                          <span className="text-xs px-2 py-0.5 rounded-full font-medium shrink-0 capitalize" style={pill}>
                             {s.type}
                           </span>
                         </div>
                         <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
-                          {formatAEST(s.date, "EEE d MMM")} · planned
+                          {formatAEST(row.date, "EEE d MMM yyyy")}
                         </p>
                       </div>
                     </div>
-
                     <div className="grid grid-cols-2 gap-3 text-xs sm:flex sm:gap-4 sm:ml-auto sm:text-right">
                       <div>
                         <p className="text-white font-medium">{s.targetDistanceKm} km</p>
                         <p style={{ color: "var(--text-muted)" }}>target</p>
                       </div>
                       <div>
-                        <p className="text-white font-medium tabular-nums">
-                          {formatTargetPace(s.targetPaceMinPerKm)}
-                        </p>
+                        <p className="text-white font-medium tabular-nums">{formatTargetPace(s.targetPaceMinPerKm)}</p>
                         <p style={{ color: "var(--text-muted)" }}>target pace</p>
                       </div>
                     </div>
                   </div>
                 );
-              })}
-            </div>
-          )}
-        </Card>
+              })
+            )}
+          </Card>
+        </div>
 
         {/* ── Strava sync indicator ────────────────────────────────────────── */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:flex-wrap px-1 pb-2">

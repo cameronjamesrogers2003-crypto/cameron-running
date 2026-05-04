@@ -1,4 +1,3 @@
-import type { RatingResult } from "@/lib/rating";
 import type { RunType } from "@/data/trainingPlan";
 
 export interface CalendarRun {
@@ -15,7 +14,8 @@ export interface CalendarRun {
   temperatureC: number | null;
   humidityPct: number | null;
   activityType: string;
-  rating: RatingResult | null;
+  /** Stored 0–10 from Activity.rating */
+  rating: number | null;
   runType: RunType;
   isPlanned: boolean;
 }

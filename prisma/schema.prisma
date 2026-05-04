@@ -8,25 +8,29 @@ datasource db {
 }
 
 model Activity {
-  id              String   @id
-  name            String?
-  date            DateTime
-  distanceKm      Float
-  durationSecs    Int
-  avgPaceSecKm    Int
-  avgHeartRate    Int?
-  maxHeartRate    Int?
-  calories        Int?
-  activityType    String
-  syncedAt        DateTime @default(now())
-  elapsedTimeSecs Int?
-  elevationGainM  Float?
-  startLat        Float?
-  startLon        Float?
-  manual          Boolean  @default(false)
-  splits          Json?
-  temperatureC    Float?
-  humidityPct     Float?
+  id                 String   @id
+  name               String?
+  date               DateTime
+  distanceKm         Float
+  durationSecs       Int
+  avgPaceSecKm       Int
+  avgHeartRate       Int?
+  maxHeartRate       Int?
+  calories           Int?
+  activityType       String
+  syncedAt           DateTime @default(now())
+  elapsedTimeSecs    Int?
+  elevationGainM     Float?
+  startLat           Float?
+  startLon           Float?
+  manual             Boolean  @default(false)
+  splits             Json?
+  temperatureC       Float?
+  humidityPct        Float?
+  // 0–10 run quality score (calculateRunRating + sync/backfill only)
+  rating             Float?
+  // Pace-zone type from classifyRunByPaceZones; kept in sync with rating
+  classifiedRunType  String?
 }
 
 model Profile {

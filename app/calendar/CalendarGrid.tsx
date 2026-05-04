@@ -11,8 +11,6 @@ interface Props {
   year: number;
   todayKey: string;
   calendarData: CalendarData;
-  pbPaceSecKm: number | null;
-  athleteAge: number;
 }
 
 // ── style helpers ──────────────────────────────────────────────────────────
@@ -153,9 +151,9 @@ function MonthCard({ year, month, todayKey, calendarData, selectedKey, onSelect 
           }
 
           // Day with runs — use highest rating
-          const bestRun   = runs.reduce((b, r) => (r.rating?.total ?? 0) > (b.rating?.total ?? 0) ? r : b, runs[0]);
+          const bestRun   = runs.reduce((b, r) => (r.rating ?? 0) > (b.rating ?? 0) ? r : b, runs[0]);
           const hasRating = bestRun.rating != null;
-          const colors    = hasRating ? cellColors(bestRun.rating!.total) : { bg: "#181818", text: "rgba(232,230,224,0.3)" };
+          const colors    = hasRating ? cellColors(bestRun.rating!) : { bg: "#181818", text: "rgba(232,230,224,0.3)" };
           const [, , dayStr] = key.split("-");
 
           return (
@@ -172,7 +170,7 @@ function MonthCard({ year, month, todayKey, calendarData, selectedKey, onSelect 
               onClick={() => onSelect(isSelected ? null : key)}
             >
               <span className="text-[9px] font-semibold leading-none" style={{ color: colors.text }}>
-                {hasRating ? bestRun.rating!.total.toFixed(1) : "—"}
+                {hasRating ? bestRun.rating!.toFixed(1) : "—"}
               </span>
               <span className="text-[8px] leading-none mt-0.5" style={{ color: "rgba(156,163,175,0.4)" }}>
                 {parseInt(dayStr)}
@@ -312,11 +310,10 @@ function DetailPanel({
         </div>
 
         {/* Right: rating badge + components */}
-        {run.rating ? (
+        {run.rating != null ? (
           <div className="space-y-3 w-full max-w-full md:w-44 md:max-w-none">
-            {/* Large rating badge */}
             {(() => {
-              const score = run.rating.total;
+              const score = run.rating;
               const c = score >= 9   ? { bg: "#2e1065", text: "#c4b5fd" }
                       : score >= 7.5 ? { bg: "#052e16", text: "#4ade80" }
                       : score >= 6   ? { bg: "#0c1a2e", text: "#60a5fa" }
@@ -333,35 +330,9 @@ function DetailPanel({
                 </div>
               );
             })()}
-            {/* Component scores */}
-            {[
-              { label: "Pace",        value: run.rating.pace },
-              { label: "Effort / HR", value: run.rating.effort },
-              { label: "Distance",    value: run.rating.distance },
-              { label: "Conditions",  value: run.rating.conditions },
-            ].map(({ label, value }) => (
-              <div key={label} className="flex items-center gap-2">
-                <span className="text-xs shrink-0" style={{ color: "var(--text-muted)", width: 72 }}>
-                  {label}
-                </span>
-                <div
-                  className="flex-1 rounded-sm overflow-hidden"
-                  style={{ height: 3, background: "rgba(255,255,255,0.06)" }}
-                >
-                  <div
-                    style={{
-                      width: `${(value / 2.5) * 100}%`,
-                      height: "100%",
-                      background: "#fb923c",
-                      borderRadius: 2,
-                    }}
-                  />
-                </div>
-                <span className="text-xs text-white shrink-0" style={{ width: 24, textAlign: "right" }}>
-                  {value.toFixed(1)}
-                </span>
-              </div>
-            ))}
+            <p className="text-[10px] text-center" style={{ color: "var(--text-muted)" }}>
+              Stored run rating
+            </p>
           </div>
         ) : (
           <div

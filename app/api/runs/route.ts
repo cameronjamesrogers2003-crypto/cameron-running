@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
-import { buildTrainingPlan } from "@/data/trainingPlan";
-import { calculateRunRating, inferRunType, resolveTargetPaceSecKm } from "@/lib/rating";
+import { inferRunType, type RunType } from "@/lib/rating";
 import { dbSettingsToUserSettings, DEFAULT_SETTINGS } from "@/lib/settings";
 import { brisbaneMidnightUtcForYmd, toBrisbaneYmd } from "@/lib/dateUtils";
 
@@ -23,12 +22,10 @@ export async function GET(req: NextRequest) {
   const sortBy   = sp.get("sort")  ?? "date";
   const order    = sp.get("order") === "asc" ? "asc" : "desc";
 
-  // Build Prisma where clause (filters on DB fields)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const where: any = { activityType: { in: ["running", "trail_running"] } };
 
   if (search) where.name = { contains: search, mode: "insensitive" };
-  // HTML date inputs are yyyy-MM-dd — interpret as Brisbane calendar days, not UTC midnight.
   if (dateFrom) {
     where.date = { ...where.date, gte: brisbaneMidnightUtcForYmd(dateFrom) };
   }
@@ -46,46 +43,17 @@ export async function GET(req: NextRequest) {
   const sortField: SortField = (validSortFields as readonly string[]).includes(sortBy) ? (sortBy as SortField) : "date";
   const orderBy = { [sortField]: order } as Record<SortField, "asc" | "desc">;
 
-  const [settingsRow, profileRow, bestPaceRow, total, activities] = await Promise.all([
+  const [settingsRow, total, activities] = await Promise.all([
     prisma.userSettings.findUnique({ where: { id: 1 } }),
-    prisma.profile.findUnique({ where: { id: 1 } }),
-    prisma.activity.findFirst({
-      where:   { activityType: { in: ["running", "trail_running"] } },
-      orderBy: { avgPaceSecKm: "asc" },
-    }),
     prisma.activity.count({ where }),
     prisma.activity.findMany({ where, orderBy, skip, take: perPage }),
   ]);
 
-  const settings    = settingsRow ? dbSettingsToUserSettings(settingsRow) : DEFAULT_SETTINGS;
-  const ratingPlan  = buildTrainingPlan(settings);
-  const athleteAge  = profileRow?.dateOfBirth
-    ? Math.floor((Date.now() - new Date(profileRow.dateOfBirth).getTime()) / (365.25 * 86400000))
-    : 23;
-  const pbPaceSecKm = bestPaceRow?.avgPaceSecKm ?? null;
-
-  const distTargets: Record<string, number> = {
-    easy:     settings.distTargetEasyM     / 1000,
-    tempo:    settings.distTargetTempoM    / 1000,
-    interval: settings.distTargetIntervalM / 1000,
-    long:     settings.distTargetLongM     / 1000,
-  };
+  const settings = settingsRow ? dbSettingsToUserSettings(settingsRow) : DEFAULT_SETTINGS;
 
   const rows = activities.map(act => {
-    const runType = inferRunType(act, settings);
-    const hasRating = act.avgPaceSecKm > 0 && act.avgHeartRate != null;
-    const rating = hasRating
-      ? calculateRunRating({
-          distanceKm: act.distanceKm, avgPaceSecKm: act.avgPaceSecKm,
-          avgHeartRate: act.avgHeartRate, temperatureC: act.temperatureC,
-          humidityPct: act.humidityPct, runType,
-          personalBestPaceSecKm: pbPaceSecKm, athleteAgeYears: athleteAge,
-          maxHROverride: settings.maxHR,
-          distTargetKmOverride: distTargets[runType],
-          targetPaceSecKmOverride: resolveTargetPaceSecKm(act, ratingPlan),
-          settings,
-        })
-      : null;
+    const runType: RunType = inferRunType(act, settings);
+    const rating = act.rating != null && !Number.isNaN(act.rating) ? act.rating : null;
 
     return {
       id: act.id,
@@ -107,7 +75,6 @@ export async function GET(req: NextRequest) {
     };
   });
 
-  // Post-filter by run type (computed after DB query)
   const filtered = types.length > 0 ? rows.filter(r => types.includes(r.runType)) : rows;
 
   return NextResponse.json({

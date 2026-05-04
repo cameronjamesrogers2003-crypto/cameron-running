@@ -1,9 +1,6 @@
 import prisma from "@/lib/db";
 import { trainingPlan } from "@/data/trainingPlan";
-import {
-  calculateRunRating,
-  inferRunType,
-} from "@/lib/rating";
+import { inferRunType } from "@/lib/rating";
 import {
   calculateRunnerRating,
   calculateHMReadiness,
@@ -132,8 +129,7 @@ export default async function CalendarPage({
   // Stats always use the last 90 days regardless of displayed year
   const statsStart = new Date(today.getTime() - 90 * 24 * 60 * 60 * 1000);
 
-  const [profile, userSettingsRow, yearActivities, statsActivities, bestPaceRow] = await Promise.all([
-    prisma.profile.findUnique({ where: { id: 1 } }),
+  const [userSettingsRow, yearActivities, statsActivities] = await Promise.all([
     prisma.userSettings.findUnique({ where: { id: 1 } }),
     prisma.activity.findMany({
       where: {
@@ -149,20 +145,11 @@ export default async function CalendarPage({
       },
       orderBy: { date: "asc" },
     }),
-    prisma.activity.findFirst({
-      where:   { activityType: { in: ["running", "trail_running"] } },
-      orderBy: { avgPaceSecKm: "asc" },
-    }),
   ]);
 
   const settings    = userSettingsRow ? dbSettingsToUserSettings(userSettingsRow) : DEFAULT_SETTINGS;
-  const athleteAge  = profile?.dateOfBirth
-    ? Math.floor((Date.now() - new Date(profile.dateOfBirth).getTime()) / (365.25 * 86400000))
-    : 23;
-  const pbPaceSecKm = bestPaceRow?.avgPaceSecKm ?? null;
-
   // ── Compute top-strip stats ──────────────────────────────────────────────
-  const runnerRating = calculateRunnerRating(statsActivities, trainingPlan, settings, pbPaceSecKm);
+  const runnerRating = calculateRunnerRating(statsActivities, trainingPlan, settings);
   const hmReadiness  = calculateHMReadiness(statsActivities, trainingPlan, settings);
 
   // Derive stats strip values (Brisbane calendar day bounds)
@@ -212,16 +199,9 @@ export default async function CalendarPage({
 
   // Avg rating last 4 weeks
   const runsLast28 = statsActivities.filter((r) => new Date(r.date) >= past28 && new Date(r.date) < todayEnd);
-  const ratings28  = runsLast28.map((r) => {
-    const type = inferRunType(r, settings);
-    return calculateRunRating({
-      distanceKm: r.distanceKm, avgPaceSecKm: r.avgPaceSecKm,
-      avgHeartRate: r.avgHeartRate, temperatureC: r.temperatureC,
-      humidityPct: r.humidityPct, runType: type,
-      personalBestPaceSecKm: pbPaceSecKm, athleteAgeYears: athleteAge,
-      settings,
-    }).total;
-  });
+  const ratings28 = runsLast28
+    .map((r) => r.rating)
+    .filter((v): v is number => v != null && !Number.isNaN(v));
   const avgRating28 = ratings28.length > 0
     ? Math.round((ratings28.reduce((s, r) => s + r, 0) / ratings28.length) * 10) / 10
     : null;
@@ -233,17 +213,8 @@ export default async function CalendarPage({
     const dateKey = toBrisbaneYmd(act.date);
     if (!calendarData[dateKey]) calendarData[dateKey] = [];
 
-    const runType  = inferRunType(act, settings);
-    const hasRating = act.avgPaceSecKm > 0 && act.avgHeartRate != null;
-    const rating   = hasRating
-      ? calculateRunRating({
-          distanceKm: act.distanceKm, avgPaceSecKm: act.avgPaceSecKm,
-          avgHeartRate: act.avgHeartRate, temperatureC: act.temperatureC,
-          humidityPct: act.humidityPct, runType,
-          personalBestPaceSecKm: pbPaceSecKm, athleteAgeYears: athleteAge,
-          settings,
-        })
-      : null;
+    const runType = inferRunType(act, settings);
+    const rating  = act.rating != null && !Number.isNaN(act.rating) ? act.rating : null;
 
     const run: CalendarRun = {
       id: act.id,
@@ -384,13 +355,7 @@ export default async function CalendarPage({
       </div>
 
       {/* ── Calendar grid (client) ───────────────────────────────────────── */}
-      <CalendarGrid
-        year={year}
-        todayKey={todayKey}
-        calendarData={calendarData}
-        pbPaceSecKm={pbPaceSecKm}
-        athleteAge={athleteAge}
-      />
+      <CalendarGrid year={year} todayKey={todayKey} calendarData={calendarData} />
     </div>
   );
 }
