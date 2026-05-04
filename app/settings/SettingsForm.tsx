@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { useSettings } from "@/context/SettingsContext";
+import { brisbaneMidnightUtcForYmd } from "@/lib/dateUtils";
+import { planStartAusDisplayToIsoYmd, planStartIsoYmdToAusDisplay } from "@/lib/planStartDateFormat";
 import { formatPace, parsePace, formatDuration, parseDuration } from "@/lib/settings";
 import { getVdotPaces } from "@/lib/vdot";
 import InterruptionsForm from "./InterruptionsForm";
@@ -130,7 +132,9 @@ export default function SettingsForm() {
   const { settings, updateSettings } = useSettings();
 
   // ── Training Plan group ────────────────────────────────────────────────────
-  const [planStartDate,       setPlanStartDate]       = useState(settings.planStartDate?.slice(0, 10) ?? "");
+  const [planStartDate,       setPlanStartDate]       = useState(
+    () => planStartIsoYmdToAusDisplay(settings.planStartDate),
+  );
   const [currentWeekOverride, setCurrentWeekOverride] = useState(String(settings.currentWeekOverride ?? ""));
   const planGroup = useSaveGroup();
 
@@ -206,6 +210,10 @@ export default function SettingsForm() {
       .catch(() => {});
   }, [settings]);
 
+  useEffect(() => {
+    setPlanStartDate(planStartIsoYmdToAusDisplay(settings.planStartDate));
+  }, [settings.planStartDate]);
+
   function applySuggestion(sug: ZoneSuggestion) {
     const mn = formatPace(sug.newMin);
     const mx = formatPace(sug.newMax);
@@ -226,8 +234,8 @@ export default function SettingsForm() {
     <div className="space-y-5 w-full max-w-2xl min-w-0">
       {/* Training Plan */}
       <Panel title="Training Plan">
-        <Field label="Plan start date" hint="AEST date plan begins">
-          <TextInput value={planStartDate} onChange={setPlanStartDate} placeholder="YYYY-MM-DD" />
+        <Field label="Plan start date" hint="First day your program counts (Brisbane calendar)">
+          <TextInput value={planStartDate} onChange={setPlanStartDate} placeholder="DD/MM/YYYY" />
         </Field>
         <Field label="Week override" hint="Force a specific week number">
           <TextInput
@@ -240,12 +248,19 @@ export default function SettingsForm() {
           <SaveButton
             status={planGroup.status}
             onClick={() =>
-              planGroup.save(() =>
-                updateSettings({
-                  planStartDate:       planStartDate || null,
+              planGroup.save(async () => {
+                const trimmed = planStartDate.trim();
+                let planIso: string | null = null;
+                if (trimmed) {
+                  const isoYmd = planStartAusDisplayToIsoYmd(planStartDate);
+                  if (!isoYmd) throw new Error("Invalid plan start date (use DD/MM/YYYY)");
+                  planIso = brisbaneMidnightUtcForYmd(isoYmd).toISOString();
+                }
+                await updateSettings({
+                  planStartDate: planIso,
                   currentWeekOverride: currentWeekOverride ? parseInt(currentWeekOverride, 10) : null,
-                })
-              )
+                });
+              })
             }
           />
         </div>

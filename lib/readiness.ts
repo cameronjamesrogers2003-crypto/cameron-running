@@ -1,5 +1,5 @@
 import type { TrainingWeek } from "@/data/trainingPlan";
-import { getSessionDate } from "@/lib/planUtils";
+import { getEffectivePlanStart, getSessionDate, isActivityOnOrAfterPlanStart } from "@/lib/planUtils";
 import { startOfDayAEST, startOfNextDayAEST, toAEST, toBrisbaneYmd } from "@/lib/dateUtils";
 import { inferRunType, type StatActivity } from "@/lib/rating";
 import type { UserSettings } from "@/lib/settings";
@@ -46,6 +46,7 @@ export function calculateRunnerRating(
   const today         = referenceDate ?? new Date();
   const todayMidnight = startOfDayAEST(today);
   const MS            = 24 * 60 * 60 * 1000;
+  const planStart     = getEffectivePlanStart(settings.planStartDate);
 
   const past28 = new Date(todayMidnight.getTime() - 28 * MS);
   const past42 = new Date(todayMidnight.getTime() - 42 * MS);
@@ -56,7 +57,7 @@ export function calculateRunnerRating(
 
   for (const planWeek of plan) {
     for (const session of planWeek.sessions) {
-      const sd = getSessionDate(planWeek.week, session.day);
+      const sd = getSessionDate(planWeek.week, session.day, planStart);
       if (toBrisbaneYmd(sd) > toBrisbaneYmd(today)) continue;
       const key = toBrisbaneYmd(sd);
       if (sd >= past28) planDates4.add(key);
@@ -73,8 +74,16 @@ export function calculateRunnerRating(
   const pastRuns   = runs.filter(r => new Date(r.date) < todayEnd);
   const runsLast28 = pastRuns.filter(r => new Date(r.date) >= past28);
   const runsLast42 = pastRuns.filter(r => new Date(r.date) >= past42);
-  const runKeys28  = new Set(runsLast28.map(runKey));
-  const runKeys42  = new Set(runsLast42.map(runKey));
+  const runKeys28  = new Set(
+    runsLast28
+      .filter((r) => isActivityOnOrAfterPlanStart(new Date(r.date), planStart))
+      .map(runKey),
+  );
+  const runKeys42  = new Set(
+    runsLast42
+      .filter((r) => isActivityOnOrAfterPlanStart(new Date(r.date), planStart))
+      .map(runKey),
+  );
 
   // -- Consistency ----------------------------------------------------------
   let completedLast4Weeks = 0;
@@ -111,11 +120,17 @@ export function calculateRunnerRating(
   for (const planWeek of plan) {
     const sorted = [...planWeek.sessions].sort((a, b) => DAY_ORDER[a.day] - DAY_ORDER[b.day]);
     for (const session of sorted) {
-      const sd = getSessionDate(planWeek.week, session.day);
+      const sd = getSessionDate(planWeek.week, session.day, planStart);
       if (sd >= todayMidnight) continue;
       sessionList.push({
         weekNum: planWeek.week,
-        done: pastRuns.some(r => toBrisbaneYmd(new Date(r.date)) === toBrisbaneYmd(sd)),
+        done: pastRuns.some((r) => {
+          const rd = new Date(r.date);
+          return (
+            isActivityOnOrAfterPlanStart(rd, planStart)
+            && toBrisbaneYmd(rd) === toBrisbaneYmd(sd)
+          );
+        }),
       });
     }
   }
@@ -160,6 +175,7 @@ export function calculateHMReadiness(
   plan: TrainingWeek[],
   settings: UserSettings = DEFAULT_SETTINGS
 ): HMReadinessResult {
+  const planStart = getEffectivePlanStart(settings.planStartDate);
   const targetPaceSec   = settings.targetHMTimeSec / 21.0975;
   const targetPaceMinKm = targetPaceSec / 60;
   const startingPace    = settings.startingTempoPaceSec / 60;
@@ -188,14 +204,21 @@ export function calculateHMReadiness(
   const planDates6 = new Set<string>();
   for (const planWeek of plan) {
     for (const session of planWeek.sessions) {
-      const sd = getSessionDate(planWeek.week, session.day);
+      const sd = getSessionDate(planWeek.week, session.day, planStart);
       if (sd < todayEnd && sd >= past42) planDates6.add(toBrisbaneYmd(sd));
     }
   }
 
   let completed6 = 0;
   for (const k of planDates6) {
-    if (pastRuns.some(r => toBrisbaneYmd(new Date(r.date)) === k)) completed6++;
+    if (
+      pastRuns.some((r) => {
+        const rd = new Date(r.date);
+        return isActivityOnOrAfterPlanStart(rd, planStart) && toBrisbaneYmd(rd) === k;
+      })
+    ) {
+      completed6++;
+    }
   }
   const consistencyReadiness = planDates6.size > 0 ? clamp(completed6 / planDates6.size, 0, 1) : 0;
 

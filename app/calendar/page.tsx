@@ -8,7 +8,7 @@ import {
   type HMReadinessResult,
 } from "@/lib/readiness";
 import { dbSettingsToUserSettings, DEFAULT_SETTINGS } from "@/lib/settings";
-import { getPlanWeekForDate, getSessionDate } from "@/lib/planUtils";
+import { getEffectivePlanStart, getSessionDate, isPlannedRun } from "@/lib/planUtils";
 import {
   brisbaneCalendarYearUtcRange,
   formatAEST,
@@ -36,21 +36,6 @@ function ratingColor(score: number): { bg: string; text: string } {
 
 function hmColor(pct: number): { bg: string; text: string } {
   return ratingColor(pct);
-}
-
-function isPlannedSession(date: Date): boolean {
-  const weekNum = getPlanWeekForDate(date);
-  if (weekNum <= 0 || weekNum > trainingPlan.length) return false;
-  const planWeek = trainingPlan[weekNum - 1];
-  const ra = toAEST(date);
-  return planWeek.sessions.some((s) => {
-    const sd = toAEST(getSessionDate(weekNum, s.day));
-    return (
-      ra.getUTCFullYear() === sd.getUTCFullYear() &&
-      ra.getUTCMonth()    === sd.getUTCMonth()    &&
-      ra.getUTCDate()     === sd.getUTCDate()
-    );
-  });
 }
 
 // ── component bars ────────────────────────────────────────────────────────────
@@ -148,6 +133,7 @@ export default async function CalendarPage({
   ]);
 
   const settings    = userSettingsRow ? dbSettingsToUserSettings(userSettingsRow) : DEFAULT_SETTINGS;
+  const planStart     = getEffectivePlanStart(settings.planStartDate);
   // ── Compute top-strip stats ──────────────────────────────────────────────
   const runnerRating = calculateRunnerRating(statsActivities, trainingPlan, settings);
   const hmReadiness  = calculateHMReadiness(statsActivities, trainingPlan, settings);
@@ -179,7 +165,7 @@ export default async function CalendarPage({
   for (const pw of trainingPlan) {
     const ls = pw.sessions.find((s) => s.type === "long");
     if (!ls) continue;
-    const sd = getSessionDate(pw.week, ls.day);
+    const sd = getSessionDate(pw.week, ls.day, planStart);
     if (sd >= todayEnd || sd < past42) continue;
     longPlanned++;
     if (statsKeys.has(aestKey(sd))) longDone++;
@@ -190,7 +176,7 @@ export default async function CalendarPage({
   let sessDone    = 0;
   for (const pw of trainingPlan) {
     for (const sess of pw.sessions) {
-      const sd = getSessionDate(pw.week, sess.day);
+      const sd = getSessionDate(pw.week, sess.day, planStart);
       if (sd < monthStart || sd >= todayEnd) continue;
       sessPlanned++;
       if (statsKeys.has(aestKey(sd))) sessDone++;
@@ -232,7 +218,7 @@ export default async function CalendarPage({
       activityType: act.activityType,
       rating,
       runType,
-      isPlanned: isPlannedSession(act.date),
+      isPlanned: isPlannedRun(new Date(act.date), trainingPlan, planStart),
     };
 
     calendarData[dateKey].push(run);

@@ -103,9 +103,12 @@ export function reconfigurePlan(
     isBeginnerCurve?: boolean;
     raceDate?: Date | null;
     normalWeeklyKm?: number;
+    /** Week anchor; defaults to built-in {@link PLAN_START_DATE} when omitted. */
+    planStart?: Date;
   } = {},
 ): ReconfigureResult {
-  const { isBeginnerCurve = true, raceDate = null, normalWeeklyKm = 35 } = options;
+  const { isBeginnerCurve = true, raceDate = null, normalWeeklyKm = 35, planStart: planStartOpt } = options;
+  const planStart = planStartOpt ?? PLAN_START_DATE;
 
   const active = interruptions.filter(i => getWeeksOff(i) > 0);
 
@@ -113,7 +116,7 @@ export function reconfigurePlan(
     if (!raceDate) return false;
     const last = plan[plan.length - 1];
     if (!last) return false;
-    const planEndMs = PLAN_START_DATE.getTime() + last.week * 7 * 24 * 60 * 60 * 1000;
+    const planEndMs = planStart.getTime() + last.week * 7 * 24 * 60 * 60 * 1000;
     return planEndMs > raceDate.getTime();
   }
 
@@ -136,7 +139,7 @@ export function reconfigurePlan(
     const recoveryR = recoveryWeeksNeeded(eff);
     if (recoveryR === 0) continue;
 
-    const diffMs = interruption.startDate.getTime() - PLAN_START_DATE.getTime();
+    const diffMs = interruption.startDate.getTime() - planStart.getTime();
     const daysIn = Math.floor(diffMs / (1000 * 60 * 60 * 24));
     const interruptionWeek = daysIn < 0 ? 1 : Math.floor(daysIn / 7) + 1;
     const rawOff = getWeeksOff(interruption);
