@@ -218,7 +218,7 @@ export default async function Dashboard({
       })
       .reduce((s, a) => s + a.distanceKm, 0);
     return {
-      week: `W${wn}`,
+      week: `${formatAEST(wStart, "d MMM")}–${formatAEST(new Date(wEnd.getTime() - MS_PER_DAY), "d MMM")}`,
       actual: Math.round(actual * 10) / 10,
       target: planWeek ? getWeeklyTargetKm(planWeek) : 0,
     };
