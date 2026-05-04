@@ -2,12 +2,11 @@ import prisma from "@/lib/db";
 import { formatPace } from "@/lib/strava";
 import { buildTrainingPlan, trainingPlan, type Phase, type RunType, type Day } from "@/data/trainingPlan";
 import {
+  PLAN_START_DATE,
   getEffectivePlanStart,
   getPlanWeekForDate,
-  getWeekStartForPlanWeek,
   getSessionDate,
   getWeeklyTargetKm,
-  inferRunType as inferRunTypeFromPlanSessions,
   getNextPhaseInfo,
   isActivityOnOrAfterPlanStart,
 } from "@/lib/planUtils";
@@ -121,6 +120,8 @@ export default async function Dashboard({
 
   const settings = userSettingsRow ? dbSettingsToUserSettings(userSettingsRow) : DEFAULT_SETTINGS;
   const planStart = getEffectivePlanStart(settings.planStartDate);
+  // Session scheduling stays on the fixed plan anchor; planStart gates completion only.
+  const scheduleAnchor = PLAN_START_DATE;
 
   // Same plan pipeline as app/program/page.tsx (VDOT base + interruptions)
   const basePlan = buildTrainingPlan(settings);
@@ -144,17 +145,19 @@ export default async function Dashboard({
   });
 
   const lastPlanWeekNum = planToRender[planToRender.length - 1]?.week ?? trainingPlan.length;
-  const rawCalendarWeek = getPlanWeekForDate(today, planStart);
+  const rawCalendarWeek = getPlanWeekForDate(today, scheduleAnchor);
   const currentWeek =
     rawCalendarWeek > 0 ? Math.min(lastPlanWeekNum, rawCalendarWeek) : 1;
   const currentPlanWeek = planToRender.find((w) => w.week === currentWeek) ?? planToRender[0];
   const currentPhase = currentPlanWeek?.phase ?? "Base";
 
-  const weekStart = getWeekStartForPlanWeek(currentWeek, planStart);
-  const weekEnd = new Date(weekStart.getTime() + 7 * 24 * 60 * 60 * 1000);
+  const MS_PER_DAY = 24 * 60 * 60 * 1000;
+  const dayOfWeekAESTMonFirst = (new Date(today.getTime() + 10 * 60 * 60 * 1000).getUTCDay() + 6) % 7;
+  const weekStart = new Date(todayAESTMidnight.getTime() - dayOfWeekAESTMonFirst * MS_PER_DAY);
+  const weekEnd = new Date(weekStart.getTime() + 7 * MS_PER_DAY);
 
   const chartStartWeek = Math.max(1, currentWeek - 3);
-  const chartRangeStart = getWeekStartForPlanWeek(chartStartWeek, planStart);
+  const chartRangeStart = new Date(weekStart.getTime() - 3 * 7 * MS_PER_DAY);
 
   const [recentRuns, weekActivities, chartActivities, runsPlanForward] = await Promise.all([
     prisma.activity.findMany({
@@ -177,7 +180,7 @@ export default async function Dashboard({
     }),
     prisma.activity.findMany({
       where: {
-        date: { gte: weekStart },
+        date: { gte: todayAESTMidnight },
         activityType: { in: ["running", "trail_running"] },
       },
       orderBy: { date: "asc" },
@@ -205,8 +208,9 @@ export default async function Dashboard({
 
   const weeklyKmData = chartWeekNums.map((wn) => {
     const planWeek = planToRender.find((w) => w.week === wn);
-    const wStart = getWeekStartForPlanWeek(wn, planStart);
-    const wEnd = new Date(wStart.getTime() + 7 * 24 * 60 * 60 * 1000);
+    const idx = wn - chartStartWeek;
+    const wStart = new Date(chartRangeStart.getTime() + idx * 7 * MS_PER_DAY);
+    const wEnd = new Date(wStart.getTime() + 7 * MS_PER_DAY);
     const actual = chartActivities
       .filter((a) => {
         const d = new Date(a.date);
@@ -221,19 +225,15 @@ export default async function Dashboard({
   });
 
   const paceData = chartWeekNums.map((wn) => {
-    const planWeek = planToRender.find((w) => w.week === wn);
-    const wStart = getWeekStartForPlanWeek(wn, planStart);
-    const wEnd = new Date(wStart.getTime() + 7 * 24 * 60 * 60 * 1000);
+    const idx = wn - chartStartWeek;
+    const wStart = new Date(chartRangeStart.getTime() + idx * 7 * MS_PER_DAY);
+    const wEnd = new Date(wStart.getTime() + 7 * MS_PER_DAY);
     const easyRuns = chartActivities.filter((a) => {
       const d = new Date(a.date);
       return (
         d >= wStart
         && d < wEnd
-        && (
-          isActivityOnOrAfterPlanStart(d, planStart)
-            ? inferRunTypeFromPlanSessions(a, planWeek?.sessions)
-            : inferRunType(a, settings)
-        ) === "easy"
+        && inferRunType(a, settings) === "easy"
       );
     });
     const avgPace =
@@ -246,9 +246,9 @@ export default async function Dashboard({
   });
 
   const loadData = chartWeekNums.map((wn) => {
-    const planWeek = planToRender.find((w) => w.week === wn);
-    const wStart = getWeekStartForPlanWeek(wn, planStart);
-    const wEnd = new Date(wStart.getTime() + 7 * 24 * 60 * 60 * 1000);
+    const idx = wn - chartStartWeek;
+    const wStart = new Date(chartRangeStart.getTime() + idx * 7 * MS_PER_DAY);
+    const wEnd = new Date(wStart.getTime() + 7 * MS_PER_DAY);
     const groups = { easy: 0, tempo: 0, interval: 0, long: 0 };
     chartActivities
       .filter((a) => {
@@ -256,10 +256,7 @@ export default async function Dashboard({
         return d >= wStart && d < wEnd;
       })
       .forEach((a) => {
-        const d = new Date(a.date);
-        const type = isActivityOnOrAfterPlanStart(d, planStart)
-          ? inferRunTypeFromPlanSessions(a, planWeek?.sessions)
-          : inferRunType(a, settings);
+        const type = inferRunType(a, settings);
         groups[type] = Math.round((groups[type] + a.distanceKm) * 10) / 10;
       });
     return { week: `W${wn}`, ...groups };
@@ -292,8 +289,8 @@ export default async function Dashboard({
     for (const day of ["wed", "sat", "sun"] as Day[]) {
       const session = pw.sessions.find((s) => s.day === day);
       if (!session) continue;
-      const date = getSessionDate(w, session.day, planStart);
-      if (date < todayAESTMidnight) continue;
+      const date = getSessionDate(w, session.day, scheduleAnchor);
+      if (date <= todayAESTMidnight) continue;
       if (hasRunOnCalendarDay(runsPlanForward, date)) continue;
       upcomingCandidates.push({ session, date, week: w });
     }
@@ -308,7 +305,7 @@ export default async function Dashboard({
     .filter((s) => CHECKLIST_DAY_ORDER.includes(s.day))
     .sort((a, b) => CHECKLIST_DAY_ORDER.indexOf(a.day) - CHECKLIST_DAY_ORDER.indexOf(b.day))
     .map((session) => {
-      const date = getSessionDate(currentWeek, session.day, planStart);
+      const date = getSessionDate(currentWeek, session.day, scheduleAnchor);
       const completed = weekActivities.some((a) => {
         const d = new Date(a.date);
         return sameDayAEST(d, date) && isActivityOnOrAfterPlanStart(d, planStart);
@@ -597,7 +594,7 @@ export default async function Dashboard({
                         className="w-11 h-11 shrink-0 rounded-lg flex items-center justify-center text-xs font-bold"
                         style={{ background: "rgba(255,255,255,0.06)", color: "var(--text-muted)" }}
                       >
-                        {s.day === "wed" ? "W" : s.day === "sat" ? "Sa" : "Su"}
+                        {formatAEST(row.date, "EEE")}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
