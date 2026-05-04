@@ -1,7 +1,7 @@
 import { formatDistanceToNow } from "date-fns";
 import prisma from "@/lib/db";
 import { formatPace } from "@/lib/strava";
-import { trainingPlan, type Phase, type RunType } from "@/data/trainingPlan";
+import { trainingPlan, buildTrainingPlan, type Phase, type RunType } from "@/data/trainingPlan";
 import {
   PLAN_START_DATE,
   getPlanWeekForDate,
@@ -12,7 +12,8 @@ import {
   getNextPhaseInfo,
 } from "@/lib/planUtils";
 import { formatAEST, sameDayAEST, startOfDayAEST } from "@/lib/dateUtils";
-import { calculateRunRating } from "@/lib/rating";
+import { calculateRunRating, resolveRunType, resolveTargetPaceSecKm } from "@/lib/rating";
+import { dbSettingsToUserSettings, DEFAULT_SETTINGS } from "@/lib/settings";
 import WeeklyKmChart from "@/components/charts/WeeklyKmChart";
 import AvgPaceTrendChart from "@/components/charts/AvgPaceTrendChart";
 import TrainingLoadChart from "@/components/charts/TrainingLoadChart";
@@ -125,6 +126,7 @@ export default async function Dashboard({
 
   const [
     profile,
+    userSettingsRow,
     recentRuns,
     weekActivities,
     chartActivities,
@@ -132,6 +134,7 @@ export default async function Dashboard({
     lastSyncRow,
   ] = await Promise.all([
     prisma.profile.findUnique({ where: { id: 1 } }),
+    prisma.userSettings.findUnique({ where: { id: 1 } }),
     prisma.activity.findMany({
       where: { activityType: { in: ["running", "trail_running"] } },
       orderBy: { date: "desc" },
@@ -157,6 +160,15 @@ export default async function Dashboard({
     prisma.activity.findFirst({ orderBy: { syncedAt: "desc" } }),
   ]);
 
+  const settings   = userSettingsRow ? dbSettingsToUserSettings(userSettingsRow) : DEFAULT_SETTINGS;
+  const ratingPlan = buildTrainingPlan(settings);
+  const distTargets: Record<string, number> = {
+    easy:     settings.distTargetEasyM     / 1000,
+    tempo:    settings.distTargetTempoM    / 1000,
+    interval: settings.distTargetIntervalM / 1000,
+    long:     settings.distTargetLongM     / 1000,
+  };
+
   const athleteAge = profile?.dateOfBirth
     ? Math.floor(
         (Date.now() - new Date(profile.dateOfBirth).getTime()) /
@@ -172,7 +184,7 @@ export default async function Dashboard({
   const weekDone = weekActivities.length;
 
   const weekRatings = weekActivities.map((a) => {
-    const type = inferRunType(a, currentPlanWeek?.sessions);
+    const type = resolveRunType(a, ratingPlan);
     return calculateRunRating({
       distanceKm: a.distanceKm,
       avgPaceSecKm: a.avgPaceSecKm,
@@ -182,6 +194,9 @@ export default async function Dashboard({
       runType: type,
       personalBestPaceSecKm: pbPaceSecKm,
       athleteAgeYears: athleteAge,
+      maxHROverride: settings.maxHR,
+      distTargetKmOverride: distTargets[type],
+      targetPaceSecKmOverride: resolveTargetPaceSecKm(a, ratingPlan),
     }).total;
   });
   const avgWeekRating =
@@ -247,9 +262,7 @@ export default async function Dashboard({
 
   // ── Recent runs with ratings ──────────────────────────────────────────────
   const recentRunsRated = recentRuns.map((a) => {
-    const actWeekNum = getPlanWeekForDate(new Date(a.date));
-    const actPlanWeek = trainingPlan.find((w) => w.week === actWeekNum);
-    const type = inferRunType(a, actPlanWeek?.sessions);
+    const type = resolveRunType(a, ratingPlan);
     const rating = calculateRunRating({
       distanceKm: a.distanceKm,
       avgPaceSecKm: a.avgPaceSecKm,
@@ -259,6 +272,9 @@ export default async function Dashboard({
       runType: type,
       personalBestPaceSecKm: pbPaceSecKm,
       athleteAgeYears: athleteAge,
+      maxHROverride: settings.maxHR,
+      distTargetKmOverride: distTargets[type],
+      targetPaceSecKmOverride: resolveTargetPaceSecKm(a, ratingPlan),
     });
     return { ...a, runType: type, rating };
   });

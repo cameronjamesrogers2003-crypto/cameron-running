@@ -185,6 +185,12 @@ export default async function ProgramPage() {
   ]);
 
   const settings   = userSettingsRow ? dbSettingsToUserSettings(userSettingsRow) : DEFAULT_SETTINGS;
+  const distTargets: Record<string, number> = {
+    easy:     settings.distTargetEasyM     / 1000,
+    tempo:    settings.distTargetTempoM    / 1000,
+    interval: settings.distTargetIntervalM / 1000,
+    long:     settings.distTargetLongM     / 1000,
+  };
   const athleteAge = profile?.dateOfBirth
     ? Math.floor((Date.now() - new Date(profile.dateOfBirth).getTime()) / (365.25 * 86400000))
     : 23;
@@ -409,15 +415,17 @@ export default async function ProgramPage() {
                           let rating = null;
                           if (showRating && matchedAct) {
                             rating = calculateRunRating({
-                              distanceKm:           matchedAct.distanceKm,
-                              avgPaceSecKm:          matchedAct.avgPaceSecKm,
-                              avgHeartRate:          matchedAct.avgHeartRate,
-                              temperatureC:          matchedAct.temperatureC,
-                              humidityPct:           matchedAct.humidityPct,
-                              runType:               session.type,
-                              personalBestPaceSecKm: pbPaceSecKm,
-                              athleteAgeYears:       athleteAge,
-                              maxHROverride:         maxHR,
+                              distanceKm:              matchedAct.distanceKm,
+                              avgPaceSecKm:             matchedAct.avgPaceSecKm,
+                              avgHeartRate:             matchedAct.avgHeartRate,
+                              temperatureC:             matchedAct.temperatureC,
+                              humidityPct:              matchedAct.humidityPct,
+                              runType:                  session.type,
+                              personalBestPaceSecKm:    pbPaceSecKm,
+                              athleteAgeYears:          athleteAge,
+                              maxHROverride:            maxHR,
+                              distTargetKmOverride:     distTargets[session.type],
+                              targetPaceSecKmOverride:  Math.round(session.targetPaceMinPerKm * 60),
                             });
                           }
 

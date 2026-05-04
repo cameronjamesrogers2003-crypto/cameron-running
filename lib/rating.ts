@@ -98,16 +98,9 @@ export function calculateRunRating(input: RatingInput): RatingResult {
   const distance = Math.min(2.5, (ratio / 1.2) * 2.5);
 
   // -- Conditions (2.5 pts) -------------------------------------------------
-  let conditions = 1.5;
-  if (temperatureC !== null && temperatureC !== undefined) {
-    let apparent = temperatureC;
-    if (humidityPct !== null && humidityPct !== undefined && humidityPct > 40) {
-      apparent += (humidityPct - 40) * 0.1;
-    }
-    if (apparent <= 22)      conditions = 2.5;
-    else if (apparent >= 38) conditions = 0.8;
-    else                     conditions = 2.5 - ((apparent - 22) / 16) * (2.5 - 0.8);
-  }
+  // Weather present → always full marks (heat already penalises pace + HR naturally).
+  // No weather data → neutral, cannot reward or penalise.
+  const conditions = (temperatureC !== null && temperatureC !== undefined) ? 2.5 : 1.5;
 
   const total = Math.max(0, Math.min(10, pace + effort + distance + conditions));
 
