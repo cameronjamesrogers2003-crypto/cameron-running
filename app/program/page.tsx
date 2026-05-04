@@ -7,7 +7,6 @@ import {
   getSessionDate,
   getWeeklyTargetKm,
 } from "@/lib/planUtils";
-import { calculateRunRating } from "@/lib/rating";
 import { sameDayAEST, startOfDayAEST } from "@/lib/dateUtils";
 import { dbSettingsToUserSettings, DEFAULT_SETTINGS } from "@/lib/settings";
 import { reconfigurePlan, type PlanInterruption, type InterruptionType } from "@/lib/interruptions";
@@ -171,30 +170,16 @@ export default async function ProgramPage() {
   const todayMidnight = startOfDayAEST(today);
   const rawWeek      = getPlanWeekForDate(today);
 
-  const [profile, userSettingsRow, activities, bestPaceRow, interruptionRows] = await Promise.all([
+  const [profile, userSettingsRow, activities, interruptionRows] = await Promise.all([
     prisma.profile.findUnique({ where: { id: 1 } }),
     prisma.userSettings.findUnique({ where: { id: 1 } }),
     prisma.activity.findMany({
       where: { activityType: { in: ["running", "trail_running"] } },
     }),
-    prisma.activity.findFirst({
-      where:   { activityType: { in: ["running", "trail_running"] } },
-      orderBy: { avgPaceSecKm: "asc" },
-    }),
     prisma.planInterruption.findMany({ orderBy: { startDate: "asc" } }),
   ]);
 
   const settings   = userSettingsRow ? dbSettingsToUserSettings(userSettingsRow) : DEFAULT_SETTINGS;
-  const distTargets: Record<string, number> = {
-    easy:     settings.distTargetEasyM     / 1000,
-    tempo:    settings.distTargetTempoM    / 1000,
-    interval: settings.distTargetIntervalM / 1000,
-    long:     settings.distTargetLongM     / 1000,
-  };
-  const athleteAge = profile?.dateOfBirth
-    ? Math.floor((Date.now() - new Date(profile.dateOfBirth).getTime()) / (365.25 * 86400000))
-    : 23;
-  const pbPaceSecKm = bestPaceRow?.avgPaceSecKm ?? null;
   const maxHR       = settings.maxHR;
 
   // Build VDOT-adjusted base plan
@@ -412,23 +397,10 @@ export default async function ProgramPage() {
                           const isCompleted = !!matchedAct;
                           const showRating  = isCompleted && (isPast || isCurrentWeek);
 
-                          let rating = null;
-                          if (showRating && matchedAct) {
-                            rating = calculateRunRating({
-                              distanceKm:              matchedAct.distanceKm,
-                              avgPaceSecKm:             matchedAct.avgPaceSecKm,
-                              avgHeartRate:             matchedAct.avgHeartRate,
-                              temperatureC:             matchedAct.temperatureC,
-                              humidityPct:              matchedAct.humidityPct,
-                              runType:                  session.type,
-                              personalBestPaceSecKm:    pbPaceSecKm,
-                              athleteAgeYears:          athleteAge,
-                              maxHROverride:            maxHR,
-                              distTargetKmOverride:     distTargets[session.type],
-                              targetPaceSecKmOverride:  Math.round(session.targetPaceMinPerKm * 60),
-                              settings,
-                            });
-                          }
+                          const ratingNum =
+                            showRating && matchedAct && matchedAct.rating != null && !Number.isNaN(matchedAct.rating)
+                              ? matchedAct.rating
+                              : null;
 
                           const zoneBadge = showRating && matchedAct
                             ? getZoneBadge(matchedAct.avgHeartRate, session.type, maxHR)
@@ -469,12 +441,12 @@ export default async function ProgramPage() {
                                   {dayLabel}
                                 </span>
                                 <div className="flex flex-col items-end gap-0.5 shrink-0">
-                                  {rating && (
+                                  {ratingNum != null && (
                                     <span
                                       className="text-[11px] font-bold px-1.5 py-0.5 rounded"
-                                      style={ratingBadgeStyle(rating.total)}
+                                      style={ratingBadgeStyle(ratingNum)}
                                     >
-                                      {rating.total.toFixed(1)}
+                                      {ratingNum.toFixed(1)}
                                     </span>
                                   )}
                                   {zoneBadge && (

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import type { RatingResult } from "@/lib/rating";
 import { classifyRunByPaceZones } from "@/lib/rating";
 import type { RunType } from "@/data/trainingPlan";
 import { formatPace, formatDuration } from "@/lib/settings";
@@ -22,7 +21,7 @@ interface Run {
   humidityPct: number | null;
   activityType: string;
   runType: RunType;
-  rating: RatingResult | null;
+  rating: number | null;
 }
 
 interface RunsResponse {
@@ -386,9 +385,9 @@ export default function RunsClient({
                 <span className="text-sm" style={{ color: "var(--text-muted)" }}>{formatDateAest(run.dateIso)}</span>
                 <span
                   className="text-sm font-semibold"
-                  style={{ color: run.rating ? ratingColor(run.rating.total) : "var(--text-muted)" }}
+                  style={{ color: run.rating != null ? ratingColor(run.rating) : "var(--text-muted)" }}
                 >
-                  {run.rating ? run.rating.total.toFixed(1) : "—"}
+                  {run.rating != null ? run.rating.toFixed(1) : "—"}
                 </span>
               </button>
 
@@ -425,26 +424,6 @@ export default function RunsClient({
                       <span className="text-white">{value}</span>
                     </div>
                   ))}
-                  {run.rating && (
-                    <>
-                      <div className="flex justify-between">
-                        <span style={{ color: "var(--text-muted)" }}>Pace score</span>
-                        <span className="text-white">{run.rating.pace.toFixed(1)}/2.5</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span style={{ color: "var(--text-muted)" }}>Effort score</span>
-                        <span className="text-white">{run.rating.effort.toFixed(1)}/2.5</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span style={{ color: "var(--text-muted)" }}>Dist score</span>
-                        <span className="text-white">{run.rating.distance.toFixed(1)}/2.5</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span style={{ color: "var(--text-muted)" }}>Conditions</span>
-                        <span className="text-white">{run.rating.conditions.toFixed(1)}/2.5</span>
-                      </div>
-                    </>
-                  )}
                   {/* Classification checks */}
                   {run.avgPaceSecKm > 0 && (() => {
                     const { checks, result } = buildClassificationChecks(
@@ -523,9 +502,9 @@ export default function RunsClient({
                   </div>
                   <span
                     className="text-lg font-bold shrink-0 tabular-nums"
-                    style={{ color: run.rating ? ratingColor(run.rating.total) : "var(--text-muted)" }}
+                    style={{ color: run.rating != null ? ratingColor(run.rating) : "var(--text-muted)" }}
                   >
-                    {run.rating ? run.rating.total.toFixed(1) : "—"}
+                    {run.rating != null ? run.rating.toFixed(1) : "—"}
                   </span>
                 </div>
                 <div className="grid grid-cols-3 gap-2 mt-3 text-xs">
@@ -580,26 +559,6 @@ export default function RunsClient({
                       <span className="text-white text-right">{value}</span>
                     </div>
                   ))}
-                  {run.rating && (
-                    <>
-                      <div className="flex justify-between">
-                        <span style={{ color: "var(--text-muted)" }}>Pace score</span>
-                        <span className="text-white">{run.rating.pace.toFixed(1)}/2.5</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span style={{ color: "var(--text-muted)" }}>Effort score</span>
-                        <span className="text-white">{run.rating.effort.toFixed(1)}/2.5</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span style={{ color: "var(--text-muted)" }}>Dist score</span>
-                        <span className="text-white">{run.rating.distance.toFixed(1)}/2.5</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span style={{ color: "var(--text-muted)" }}>Conditions</span>
-                        <span className="text-white">{run.rating.conditions.toFixed(1)}/2.5</span>
-                      </div>
-                    </>
-                  )}
                   {run.avgPaceSecKm > 0 && (() => {
                     const { checks, result } = buildClassificationChecks(
                       run.avgPaceSecKm, run.distanceKm,

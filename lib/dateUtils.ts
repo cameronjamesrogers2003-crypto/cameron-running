@@ -87,3 +87,9 @@ export function startOfBrisbaneMonthContaining(date: Date | string): Date {
 export function brisbaneHour(date: Date | string): number {
   return parseInt(formatInTimeZone(new Date(date), BRISBANE_TZ, "H"), 10);
 }
+
+/** Training-plan days: Sun (0), Wed (3), Sat (6) in Brisbane civil time. */
+export function isBrisbaneWedSatSun(date: Date | string): boolean {
+  const dow = toAEST(new Date(date)).getUTCDay();
+  return dow === 0 || dow === 3 || dow === 6;
+}

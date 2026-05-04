@@ -1,4 +1,5 @@
 import prisma from "./db";
+import { persistActivityRating } from "./persistActivityRating";
 import { fetchHistoricalWeather, BRISBANE_LAT, BRISBANE_LON } from "./weather";
 
 const STRAVA_AUTH_URL = "https://www.strava.com/oauth/authorize";
@@ -199,7 +200,10 @@ export async function syncActivities(): Promise<{ synced: number; errors: number
     try {
       const id = String(act.id);
       const existing = await prisma.activity.findUnique({ where: { id } });
-      if (existing) continue;
+      if (existing) {
+        await persistActivityRating(prisma, id).catch(() => {});
+        continue;
+      }
 
       // average_speed is m/s → convert to sec/km
       const avgPaceSecKm = act.average_speed > 0 ? Math.round(1000 / act.average_speed) : 0;
@@ -245,6 +249,8 @@ export async function syncActivities(): Promise<{ synced: number; errors: number
           data:  { temperatureC: weather.temperatureC, humidityPct: weather.humidityPct },
         });
       }
+
+      await persistActivityRating(prisma, id).catch(() => {});
 
       synced++;
     } catch {

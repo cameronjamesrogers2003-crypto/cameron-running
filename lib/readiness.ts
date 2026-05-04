@@ -1,12 +1,7 @@
-import { buildTrainingPlan, type TrainingWeek } from "@/data/trainingPlan";
+import type { TrainingWeek } from "@/data/trainingPlan";
 import { getSessionDate } from "@/lib/planUtils";
 import { startOfDayAEST, startOfNextDayAEST, toAEST, toBrisbaneYmd } from "@/lib/dateUtils";
-import {
-  calculateRunRating,
-  resolveRunType,
-  resolveTargetPaceSecKm,
-  type StatActivity,
-} from "@/lib/rating";
+import { inferRunType, type StatActivity } from "@/lib/rating";
 import type { UserSettings } from "@/lib/settings";
 import { DEFAULT_SETTINGS } from "@/lib/settings";
 import { TARGET_HM_PACE, STARTING_TEMPO_PACE } from "@/lib/constants";
@@ -36,11 +31,16 @@ function clamp(v: number, lo: number, hi: number): number {
   return Math.max(lo, Math.min(hi, v));
 }
 
+function storedRating(r: StatActivity): number | null {
+  const x = r.rating;
+  return typeof x === "number" && !Number.isNaN(x) ? x : null;
+}
+
 export function calculateRunnerRating(
   runs: StatActivity[],
   plan: TrainingWeek[],
   settings: UserSettings = DEFAULT_SETTINGS,
-  pbPaceSecKm?: number | null,
+  _pbPaceSecKm?: number | null,
   referenceDate?: Date
 ): RunnerRatingResult {
   const today         = referenceDate ?? new Date();
@@ -82,37 +82,19 @@ export function calculateRunnerRating(
   const allWeeksComplete = planDates4.size >= 12 && completedLast4Weeks === planDates4.size;
   const consistencyScore = clamp((completedLast4Weeks / 12) * 20 + (allWeeksComplete ? 1 : 0), 0, 20);
 
-  // -- Progress -------------------------------------------------------------
+  // -- Progress (stored per-activity ratings only) -------------------------
   const byDateDesc = [...pastRuns].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   const last4Runs  = byDateDesc.slice(0, 4);
   const prior4Runs = byDateDesc.slice(4, 8);
 
-  const ratingPlan = buildTrainingPlan(settings);
-  const distTargets: Record<string, number> = {
-    easy:     settings.distTargetEasyM     / 1000,
-    tempo:    settings.distTargetTempoM    / 1000,
-    interval: settings.distTargetIntervalM / 1000,
-    long:     settings.distTargetLongM     / 1000,
-  };
-
-  function avgR(rs: StatActivity[]): number {
+  function avgStored(rs: StatActivity[]): number {
     if (!rs.length) return 5;
-    return rs.reduce((s, r) => {
-      const type = resolveRunType(r, ratingPlan, settings);
-      return s + calculateRunRating({
-        distanceKm: r.distanceKm, avgPaceSecKm: r.avgPaceSecKm,
-        avgHeartRate: r.avgHeartRate, temperatureC: r.temperatureC,
-        humidityPct: r.humidityPct, runType: type,
-        personalBestPaceSecKm: pbPaceSecKm ?? null,
-        maxHROverride: settings.maxHR,
-        distTargetKmOverride: distTargets[type],
-        targetPaceSecKmOverride: resolveTargetPaceSecKm(r, ratingPlan),
-        settings,
-      }).total;
-    }, 0) / rs.length;
+    const vals = rs.map(storedRating).filter((v): v is number => v != null);
+    if (!vals.length) return 5;
+    return vals.reduce((s, v) => s + v, 0) / vals.length;
   }
 
-  const progressScore = clamp(10 + (avgR(last4Runs) - avgR(prior4Runs)) * 5, 0, 20);
+  const progressScore = clamp(10 + (avgStored(last4Runs) - avgStored(prior4Runs)) * 5, 0, 20);
 
   // -- Long runs ------------------------------------------------------------
   let completedLong = 0;
@@ -192,7 +174,7 @@ export function calculateHMReadiness(
 
   // -- Pace readiness -------------------------------------------------------
   const tempoRuns = pastRuns
-    .filter(r => resolveRunType(r, plan, settings) === "tempo")
+    .filter(r => inferRunType(r, settings) === "tempo")
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     .slice(0, 3);
 
