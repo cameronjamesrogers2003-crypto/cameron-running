@@ -102,7 +102,7 @@ export function calculateRunnerRating(
   function avgR(rs: StatActivity[]): number {
     if (!rs.length) return 5;
     return rs.reduce((s, r) => {
-      const type = resolveRunType(r, ratingPlan);
+      const type = resolveRunType(r, ratingPlan, settings);
       return s + calculateRunRating({
         distanceKm: r.distanceKm, avgPaceSecKm: r.avgPaceSecKm,
         avgHeartRate: r.avgHeartRate, temperatureC: r.temperatureC,
@@ -193,7 +193,7 @@ export function calculateHMReadiness(
 
   // -- Pace readiness -------------------------------------------------------
   const tempoRuns = pastRuns
-    .filter(r => resolveRunType(r, plan) === "tempo")
+    .filter(r => resolveRunType(r, plan, settings) === "tempo")
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     .slice(0, 3);
 

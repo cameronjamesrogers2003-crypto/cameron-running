@@ -1,6 +1,8 @@
 import type { RunType, Session, TrainingWeek } from "@/data/trainingPlan";
 import { getPlanWeekForDate, getSessionDate } from "@/lib/planUtils";
 import { toAEST } from "@/lib/dateUtils";
+import { getVdotPaces } from "@/lib/vdot";
+import { DEFAULT_SETTINGS, type UserSettings } from "@/lib/settings";
 
 export type { RunType };
 
@@ -132,21 +134,14 @@ function aestDateKey(date: Date): string {
   return `${a.getUTCFullYear()}-${String(a.getUTCMonth() + 1).padStart(2, "0")}-${String(a.getUTCDate()).padStart(2, "0")}`;
 }
 
-export function inferRunType(run: StatActivity): RunType {
+export function inferRunType(run: StatActivity, settings: UserSettings = DEFAULT_SETTINGS): RunType {
   const paceMinPerKm = run.avgPaceSecKm / 60;
   const distKm       = run.distanceKm;
+  const vdotPaces    = getVdotPaces(settings.currentVdot);
 
-  if (distKm >= 15) return "long";
-
-  if (run.avgHeartRate && run.maxHeartRate) {
-    const hrPct = run.avgHeartRate / run.maxHeartRate;
-    if (hrPct >= 0.88 || paceMinPerKm <= 5.1) return "interval";
-    if (hrPct >= 0.78 || paceMinPerKm <= 5.4) return "tempo";
-    return "easy";
-  }
-
-  if (paceMinPerKm <= 5.1) return "interval";
-  if (paceMinPerKm <= 5.4) return "tempo";
+  if (paceMinPerKm <= vdotPaces.intervalSecKm / 60) return "interval";
+  if (paceMinPerKm <= vdotPaces.tempoSecKm    / 60) return "tempo";
+  if (distKm >= 15)                                  return "long";
   return "easy";
 }
 
@@ -165,8 +160,8 @@ export function resolveRunSession(run: StatActivity, plan: TrainingWeek[]): Sess
   return null;
 }
 
-export function resolveRunType(run: StatActivity, plan: TrainingWeek[]): RunType {
-  return resolveRunSession(run, plan)?.type ?? inferRunType(run);
+export function resolveRunType(run: StatActivity, plan: TrainingWeek[], settings: UserSettings = DEFAULT_SETTINGS): RunType {
+  return resolveRunSession(run, plan)?.type ?? inferRunType(run, settings);
 }
 
 export function resolveTargetPaceSecKm(run: StatActivity, plan: TrainingWeek[]): number | null {

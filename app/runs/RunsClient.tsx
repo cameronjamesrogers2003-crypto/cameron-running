@@ -72,7 +72,65 @@ function SortIcon({ active, dir }: { active: boolean; dir: "asc" | "desc" }) {
   );
 }
 
-export default function RunsClient() {
+interface ClassificationCheck {
+  text: string;
+  passed: boolean; // true = this check ruled out that type; false = matched → final
+}
+
+function buildClassificationChecks(
+  avgPaceSecKm: number,
+  distanceKm: number,
+  intervalThresholdSec: number,
+  tempoThresholdSec: number,
+): { checks: ClassificationCheck[]; result: RunType } {
+  const paceMinPerKm    = avgPaceSecKm / 60;
+  const intThreshMin    = intervalThresholdSec / 60;
+  const tempoThreshMin  = tempoThresholdSec  / 60;
+
+  function fmtSec(sec: number) {
+    const m = Math.floor(sec / 60);
+    const s = Math.round(sec % 60);
+    return `${m}:${String(s).padStart(2, "0")}/km`;
+  }
+  function fmtMin(min: number) {
+    const m = Math.floor(min);
+    const s = Math.round((min - m) * 60);
+    return `${m}:${String(s).padStart(2, "0")}/km`;
+  }
+
+  const pace = fmtMin(paceMinPerKm);
+  const intT = fmtSec(intervalThresholdSec);
+  const temT = fmtSec(tempoThresholdSec);
+  const checks: ClassificationCheck[] = [];
+
+  if (paceMinPerKm <= intThreshMin) {
+    checks.push({ text: `Pace ${pace} ≤ ${intT} interval threshold`, passed: false });
+    return { checks, result: "interval" };
+  }
+  checks.push({ text: `Pace ${pace} > ${intT} interval threshold → not Interval`, passed: true });
+
+  if (paceMinPerKm <= tempoThreshMin) {
+    checks.push({ text: `Pace ${pace} ≤ ${temT} tempo threshold`, passed: false });
+    return { checks, result: "tempo" };
+  }
+  checks.push({ text: `Pace ${pace} > ${temT} tempo threshold → not Tempo`, passed: true });
+
+  if (distanceKm >= 15) {
+    checks.push({ text: `Distance ${distanceKm.toFixed(2)} km ≥ 15 km`, passed: false });
+    return { checks, result: "long" };
+  }
+  checks.push({ text: `Distance ${distanceKm.toFixed(2)} km < 15 km → not Long`, passed: true });
+
+  return { checks, result: "easy" };
+}
+
+export default function RunsClient({
+  intervalThresholdSec,
+  tempoThresholdSec,
+}: {
+  intervalThresholdSec: number;
+  tempoThresholdSec: number;
+}) {
   const [runs,      setRuns]      = useState<Run[]>([]);
   const [total,     setTotal]     = useState(0);
   const [totalPages, setTotalPages] = useState(1);
@@ -364,6 +422,32 @@ export default function RunsClient() {
                       </div>
                     </>
                   )}
+                  {/* Classification checks */}
+                  {run.avgPaceSecKm > 0 && (() => {
+                    const { checks, result } = buildClassificationChecks(
+                      run.avgPaceSecKm, run.distanceKm,
+                      intervalThresholdSec, tempoThresholdSec,
+                    );
+                    return (
+                      <div
+                        className="col-span-2 mt-2 rounded-md px-3 py-2.5 space-y-1"
+                        style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}
+                      >
+                        <p className="text-[10px] uppercase tracking-wider mb-1.5" style={{ color: "var(--text-muted)" }}>
+                          Type classification
+                        </p>
+                        {checks.map((c, i) => (
+                          <p key={i} className="text-xs" style={{ color: c.passed ? "rgba(255,255,255,0.4)" : "rgba(255,255,255,0.7)" }}>
+                            <span style={{ color: c.passed ? "#5DCAA5" : "#AFA9EC" }}>{c.passed ? "✓" : "→"}</span>
+                            {" "}{c.text}
+                          </p>
+                        ))}
+                        <p className="text-xs font-semibold pt-0.5" style={{ color: TYPE_COLORS[result] }}>
+                          → Classified as: {result.charAt(0).toUpperCase() + result.slice(1)}
+                        </p>
+                      </div>
+                    );
+                  })()}
                 </div>
               )}
             </div>

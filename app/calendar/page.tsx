@@ -215,7 +215,7 @@ export default async function CalendarPage({
   // Avg rating last 4 weeks
   const runsLast28 = statsActivities.filter((r) => new Date(r.date) >= past28 && new Date(r.date) < todayMidnight);
   const ratings28  = runsLast28.map((r) => {
-    const type = resolveRunType(r, trainingPlan);
+    const type = resolveRunType(r, trainingPlan, settings);
     return calculateRunRating({
       distanceKm: r.distanceKm, avgPaceSecKm: r.avgPaceSecKm,
       avgHeartRate: r.avgHeartRate, temperatureC: r.temperatureC,
@@ -234,7 +234,7 @@ export default async function CalendarPage({
     const dateKey = formatAEST(act.date, "yyyy-MM-dd");
     if (!calendarData[dateKey]) calendarData[dateKey] = [];
 
-    const runType  = resolveRunType(act, trainingPlan);
+    const runType  = resolveRunType(act, trainingPlan, settings);
     const hasRating = act.avgPaceSecKm > 0 && act.avgHeartRate != null;
     const rating   = hasRating
       ? calculateRunRating({

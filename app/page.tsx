@@ -184,7 +184,7 @@ export default async function Dashboard({
   const weekDone = weekActivities.length;
 
   const weekRatings = weekActivities.map((a) => {
-    const type = resolveRunType(a, ratingPlan);
+    const type = resolveRunType(a, ratingPlan, settings);
     return calculateRunRating({
       distanceKm: a.distanceKm,
       avgPaceSecKm: a.avgPaceSecKm,
@@ -262,7 +262,7 @@ export default async function Dashboard({
 
   // ── Recent runs with ratings ──────────────────────────────────────────────
   const recentRunsRated = recentRuns.map((a) => {
-    const type = resolveRunType(a, ratingPlan);
+    const type = resolveRunType(a, ratingPlan, settings);
     const rating = calculateRunRating({
       distanceKm: a.distanceKm,
       avgPaceSecKm: a.avgPaceSecKm,

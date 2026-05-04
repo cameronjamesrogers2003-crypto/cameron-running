@@ -66,7 +66,7 @@ export async function GET(req: NextRequest) {
   };
 
   const rows = activities.map(act => {
-    const runType = resolveRunType(act, ratingPlan);
+    const runType = resolveRunType(act, ratingPlan, settings);
     const hasRating = act.avgPaceSecKm > 0 && act.avgHeartRate != null;
     const rating = hasRating
       ? calculateRunRating({

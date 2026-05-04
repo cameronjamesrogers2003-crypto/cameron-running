@@ -1,7 +1,16 @@
+import prisma from "@/lib/db";
+import { dbSettingsToUserSettings, DEFAULT_SETTINGS } from "@/lib/settings";
+import { getVdotPaces } from "@/lib/vdot";
 import RunsClient from "./RunsClient";
 import Logo from "@/components/Logo";
 
-export default function RunsPage() {
+export const dynamic = "force-dynamic";
+
+export default async function RunsPage() {
+  const settingsRow = await prisma.userSettings.findUnique({ where: { id: 1 } });
+  const settings    = settingsRow ? dbSettingsToUserSettings(settingsRow) : DEFAULT_SETTINGS;
+  const vdotPaces   = getVdotPaces(settings.currentVdot);
+
   return (
     <div className="space-y-5">
       <div>
@@ -13,7 +22,10 @@ export default function RunsPage() {
           All activity history with filters and ratings
         </p>
       </div>
-      <RunsClient />
+      <RunsClient
+        intervalThresholdSec={vdotPaces.intervalSecKm}
+        tempoThresholdSec={vdotPaces.tempoSecKm}
+      />
     </div>
   );
 }
