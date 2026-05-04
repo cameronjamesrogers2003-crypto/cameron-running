@@ -11,7 +11,8 @@ export default function PhaseOverview({ description }: { description: string }) 
       style={{ background: "#141414", border: "1px solid rgba(255,255,255,0.06)" }}
     >
       <button
-        className="w-full flex items-center justify-between px-4 py-2.5"
+        type="button"
+        className="w-full min-h-11 flex items-center justify-between px-4 py-2.5 text-left"
         onClick={() => setOpen(o => !o)}
       >
         <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>

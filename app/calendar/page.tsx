@@ -63,8 +63,8 @@ function ComponentBar({
 }) {
   const pct = Math.min(100, (value / max) * 100);
   return (
-    <div className="flex items-center gap-2 text-xs">
-      <span className="shrink-0" style={{ color: "var(--text-muted)", width: 76 }}>
+    <div className="flex items-center gap-2 text-xs min-w-0">
+      <span className="shrink-0 min-w-0 truncate max-w-[40%] sm:max-w-none sm:w-[76px]" style={{ color: "var(--text-muted)" }}>
         {label}
       </span>
       <div
@@ -90,8 +90,8 @@ function SubBar({
   accent: string;
 }) {
   return (
-    <div className="flex items-center gap-2 text-xs">
-      <span className="shrink-0" style={{ color: "var(--text-muted)", width: 80 }}>
+    <div className="flex items-center gap-2 text-xs min-w-0">
+      <span className="shrink-0 min-w-0 truncate max-w-[40%] sm:max-w-none sm:w-20" style={{ color: "var(--text-muted)" }}>
         {label}
       </span>
       <div
@@ -285,13 +285,13 @@ export default async function CalendarPage({
   return (
     <div className="space-y-5">
       {/* ── Page header ──────────────────────────────────────────────────── */}
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-2 sm:gap-3">
         <Logo size="sm" showWordmark={false} />
-        <h1 className="text-xl font-bold text-white">Calendar</h1>
+        <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-white">Calendar</h1>
       </div>
 
       {/* ── Top strip ───────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
 
         {/* Panel 1: Runner Rating */}
         <div
@@ -303,7 +303,7 @@ export default async function CalendarPage({
           </p>
           <div className="flex items-end gap-3">
             <span
-              className="text-5xl font-bold leading-none"
+              className="text-3xl sm:text-4xl md:text-5xl font-bold leading-none tabular-nums"
               style={{ color: rrColor.text }}
             >
               {runnerRating.total}
@@ -335,7 +335,7 @@ export default async function CalendarPage({
           </p>
           <div className="flex items-end gap-3">
             <span
-              className="text-5xl font-bold leading-none"
+              className="text-3xl sm:text-4xl md:text-5xl font-bold leading-none tabular-nums"
               style={{ color: hmColor_.text }}
             >
               {hmReadiness.total}%

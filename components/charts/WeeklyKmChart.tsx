@@ -10,6 +10,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
+import { useMediaQuery } from "@/lib/useMediaQuery";
 
 interface WeeklyKmData {
   week: string;
@@ -25,9 +26,17 @@ const TOOLTIP_STYLE = {
 };
 
 export default function WeeklyKmChart({ data }: { data: WeeklyKmData[] }) {
+  const compact = useMediaQuery("(max-width: 767px)");
+  const tickSize = compact ? 9 : 11;
+  const tipSize = compact ? 11 : 12;
+
   return (
-    <ResponsiveContainer width="100%" height={160}>
-      <ComposedChart data={data} margin={{ top: 4, right: 4, bottom: 0, left: -20 }}>
+    <div className="w-full min-w-0 -mx-1 sm:mx-0">
+      <ResponsiveContainer width="100%" height={compact ? 140 : 160}>
+        <ComposedChart
+          data={data}
+          margin={{ top: 4, right: compact ? 0 : 4, bottom: 0, left: compact ? -28 : -20 }}
+        >
         <CartesianGrid
           strokeDasharray="3 3"
           stroke="rgba(255,255,255,0.06)"
@@ -35,20 +44,21 @@ export default function WeeklyKmChart({ data }: { data: WeeklyKmData[] }) {
         />
         <XAxis
           dataKey="week"
-          tick={{ fill: "#9ca3af", fontSize: 11 }}
+          tick={{ fill: "#9ca3af", fontSize: tickSize }}
           axisLine={false}
           tickLine={false}
         />
         <YAxis
-          tick={{ fill: "#9ca3af", fontSize: 11 }}
+          tick={{ fill: "#9ca3af", fontSize: tickSize }}
           axisLine={false}
           tickLine={false}
+          width={compact ? 36 : 44}
           unit=" km"
         />
         <Tooltip
-          contentStyle={TOOLTIP_STYLE}
-          labelStyle={{ color: "#fff", marginBottom: 4 }}
-          itemStyle={{ color: "#9ca3af" }}
+          contentStyle={{ ...TOOLTIP_STYLE, fontSize: tipSize }}
+          labelStyle={{ color: "#fff", marginBottom: 4, fontSize: tipSize }}
+          itemStyle={{ color: "#9ca3af", fontSize: tipSize }}
           cursor={{ fill: "rgba(255,255,255,0.04)" }}
         />
         <Bar
@@ -68,5 +78,6 @@ export default function WeeklyKmChart({ data }: { data: WeeklyKmData[] }) {
         />
       </ComposedChart>
     </ResponsiveContainer>
+    </div>
   );
 }

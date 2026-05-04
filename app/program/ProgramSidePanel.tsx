@@ -97,7 +97,8 @@ function Section({
   return (
     <div className="space-y-0">
       <button
-        className="w-full flex items-center justify-between py-2.5"
+        type="button"
+        className="w-full min-h-11 flex items-center justify-between py-2.5 text-left"
         onClick={() => setOpen(o => !o)}
       >
         <span className="text-xs font-semibold uppercase tracking-wider text-white">

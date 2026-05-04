@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { formatPace } from "@/lib/strava";
 import type { CalendarRun, CalendarData } from "./types";
+import { useMediaQuery } from "@/lib/useMediaQuery";
 
 interface Props {
   year: number;
@@ -209,14 +210,19 @@ function DetailPanel({
 }) {
   const [tabIdx, setTabIdx] = useState(0);
   const run = runs[tabIdx] ?? runs[0];
+  const fullScreen = useMediaQuery("(max-width: 767px)");
 
   return (
     <div
-      className="rounded-xl mt-3 p-4"
+      className={
+        fullScreen
+          ? "fixed inset-0 z-[70] flex flex-col overflow-y-auto overscroll-contain p-4 pb-28"
+          : "rounded-xl mt-3 p-4"
+      }
       style={{
         background: "#181818",
-        borderTop: "0.5px solid rgba(255,255,255,0.08)",
-        border: "1px solid rgba(255,255,255,0.08)",
+        borderTop: fullScreen ? undefined : "0.5px solid rgba(255,255,255,0.08)",
+        border: fullScreen ? undefined : "1px solid rgba(255,255,255,0.08)",
       }}
     >
       {/* Header row */}
@@ -227,8 +233,9 @@ function DetailPanel({
               {runs.map((_, i) => (
                 <button
                   key={i}
+                  type="button"
                   onClick={() => setTabIdx(i)}
-                  className="text-xs px-2 py-0.5 rounded-md"
+                  className="text-xs min-h-11 px-2 py-1 rounded-md sm:min-h-0 sm:py-0.5"
                   style={{
                     background: i === tabIdx ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.04)",
                     color: i === tabIdx ? "white" : "var(--text-muted)",
@@ -244,15 +251,16 @@ function DetailPanel({
           </span>
         </div>
         <button
+          type="button"
           onClick={onClose}
-          className="text-xs px-2 py-1 rounded-md"
+          className="text-xs min-h-11 px-3 py-2 rounded-md"
           style={{ color: "var(--text-muted)", background: "rgba(255,255,255,0.06)" }}
         >
           Close
         </button>
       </div>
 
-      <div className="grid grid-cols-[1fr_auto] gap-6 items-start">
+      <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-6 items-start">
         {/* Left: type + rating */}
         <div className="space-y-3">
           {/* Run type pill */}
@@ -276,7 +284,7 @@ function DetailPanel({
           )}
 
           {/* Stats row */}
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             {[
               { label: "Distance",  value: `${run.distanceKm.toFixed(2)} km` },
               { label: "Pace",      value: fmtPaceMin(run.avgPaceSecKm) },
@@ -313,7 +321,7 @@ function DetailPanel({
 
         {/* Right: rating badge + components */}
         {run.rating ? (
-          <div className="space-y-3 w-44">
+          <div className="space-y-3 w-full max-w-full md:w-44 md:max-w-none">
             {/* Large rating badge */}
             {(() => {
               const score = run.rating.total;
@@ -365,7 +373,7 @@ function DetailPanel({
           </div>
         ) : (
           <div
-            className="flex items-center justify-center rounded-xl w-44"
+            className="flex items-center justify-center rounded-xl w-full md:w-44"
             style={{ background: "#181818", height: 56 }}
           >
             <span className="text-sm" style={{ color: "var(--text-muted)" }}>Unrated</span>
@@ -393,13 +401,14 @@ export default function CalendarGrid({ year, todayKey, calendarData }: Props) {
   return (
     <div>
       {/* Year navigation */}
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
         <button
+          type="button"
           onClick={() => {
             setSelectedKey(null);
             router.push(`/calendar?year=${year - 1}`);
           }}
-          className="text-sm px-3 py-1.5 rounded-lg"
+          className="text-sm min-h-11 px-3 py-2 rounded-lg"
           style={{
             background: "rgba(255,255,255,0.06)",
             color: "var(--text-muted)",
@@ -408,13 +417,14 @@ export default function CalendarGrid({ year, todayKey, calendarData }: Props) {
         >
           ← {year - 1}
         </button>
-        <span className="text-base font-semibold text-white">{year}</span>
+        <span className="text-base font-semibold text-white tabular-nums">{year}</span>
         <button
+          type="button"
           onClick={() => {
             setSelectedKey(null);
             router.push(`/calendar?year=${year + 1}`);
           }}
-          className="text-sm px-3 py-1.5 rounded-lg"
+          className="text-sm min-h-11 px-3 py-2 rounded-lg"
           style={{
             background: "rgba(255,255,255,0.06)",
             color: "var(--text-muted)",
@@ -425,8 +435,8 @@ export default function CalendarGrid({ year, todayKey, calendarData }: Props) {
         </button>
       </div>
 
-      {/* 3×4 month grid */}
-      <div className="grid grid-cols-3 gap-3">
+      {/* Month grid — responsive */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         {MONTHS.map((month) => (
           <MonthCard
             key={month}
@@ -440,7 +450,7 @@ export default function CalendarGrid({ year, todayKey, calendarData }: Props) {
         ))}
       </div>
 
-      {/* Inline detail panel */}
+      {/* Detail: dimmed backdrop on mobile when open */}
       {selectedKey && selectedRuns.length > 0 && (
         <DetailPanel
           runs={selectedRuns}

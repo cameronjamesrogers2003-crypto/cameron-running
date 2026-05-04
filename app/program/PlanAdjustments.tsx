@@ -23,7 +23,8 @@ export default function PlanAdjustments({ adjustmentSummary, totalWeeksAdded, ne
       }}
     >
       <button
-        className="w-full flex items-center justify-between px-4 py-3"
+        type="button"
+        className="w-full min-h-11 flex items-center justify-between px-4 py-3 text-left"
         onClick={() => setOpen(o => !o)}
       >
         <div className="flex items-center gap-2.5">

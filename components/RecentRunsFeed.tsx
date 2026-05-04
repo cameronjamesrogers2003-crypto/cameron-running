@@ -57,7 +57,7 @@ export default function RecentRunsFeed({ runs }: { runs: Run[] }) {
         {runs.map((run) => {
           const { label, colour } = activityLabel(run.activityType);
           return (
-            <div key={run.id} className="flex items-center px-4 py-3 gap-4">
+            <div key={run.id} className="flex flex-col gap-3 sm:flex-row sm:items-center px-4 py-3 sm:gap-4">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-white font-semibold text-sm">
@@ -71,7 +71,7 @@ export default function RecentRunsFeed({ runs }: { runs: Run[] }) {
                   {formatAEST(run.date, "EEE d MMM")}
                 </p>
               </div>
-              <div className="flex gap-4 text-right text-xs flex-shrink-0">
+              <div className="grid grid-cols-2 gap-3 text-xs sm:flex sm:gap-4 sm:text-right sm:flex-shrink-0 sm:justify-end">
                 <div>
                   <p className="text-white font-medium">{formatPace(run.avgPaceSecKm)}</p>
                   <p style={{ color: "var(--text-muted)" }}>pace</p>

@@ -40,7 +40,7 @@ export default function SyncButton({ lastSynced, stravaConnected }: SyncButtonPr
       <button
         onClick={handleSync}
         disabled={loading}
-        className="px-4 py-2 rounded-lg text-sm font-semibold transition-colors disabled:opacity-50"
+        className="min-h-11 px-4 py-2.5 rounded-lg text-sm font-semibold transition-colors disabled:opacity-50 w-full sm:w-auto"
         style={{
           background: stravaConnected ? "var(--accent)" : "var(--surface-2)",
           color: stravaConnected ? "#fff" : "var(--text-muted)",
