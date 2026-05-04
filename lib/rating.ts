@@ -1,7 +1,7 @@
 import type { RunType, Session, TrainingWeek } from "@/data/trainingPlan";
 import { getPlanWeekForDate, getSessionDate } from "@/lib/planUtils";
 import { sameDayAEST } from "@/lib/dateUtils";
-import { DEFAULT_SETTINGS, type UserSettings } from "@/lib/settings";
+import { DEFAULT_SETTINGS, formatPace, type UserSettings } from "@/lib/settings";
 
 export type { RunType };
 
@@ -15,24 +15,30 @@ export interface StatActivity {
   maxHeartRate?: number | null;
   temperatureC?: number | null;
   humidityPct?: number | null;
-  /** Persisted 0–10 rating; optional when not yet loaded from DB. */
   rating?: number | null;
-  /** Pace-zone classification persisted on Activity; optional for legacy rows. */
   classifiedRunType?: string | null;
+}
+
+export interface RunRatingComponentBreakdown {
+  score: number;
+  max: number;
+  reason: string;
+}
+
+export interface RunRatingResult {
+  total: number;
+  components: {
+    pace: RunRatingComponentBreakdown;
+    effort: RunRatingComponentBreakdown;
+    distance: RunRatingComponentBreakdown;
+    conditions: RunRatingComponentBreakdown;
+  };
 }
 
 function round1(n: number): number {
   return Math.round(n * 10) / 10;
 }
 
-function clamp01(n: number): number {
-  return Math.max(0, Math.min(1, n));
-}
-
-/**
- * Score from deviation where 0 = centre, 1 = first ring, 2 = second ring, >2 = out.
- * Anchors: (0, a0), (1, a1), (2, a2), (>2, 0). Piecewise linear.
- */
 function scoreFromDeviation(deviation: number, a0: number, a1: number, a2: number): number {
   if (deviation <= 0) return a0;
   if (deviation <= 1) return a0 + (a1 - a0) * deviation;
@@ -53,7 +59,6 @@ function paceZoneBounds(runType: RunType, s: UserSettings): { lo: number; hi: nu
   }
 }
 
-/** HR fraction zones as fraction of maxHR (0–1). Long uses same aerobic band as easy. */
 function hrFracZone(runType: RunType): [number, number] {
   switch (runType) {
     case "easy":
@@ -73,10 +78,6 @@ function median(nums: number[]): number {
   return s.length % 2 === 1 ? s[m]! : ((s[m - 1]! + s[m]!) / 2);
 }
 
-/**
- * Distance score (max 2.0): ratio = actual / median benchmark of recent same-type runs.
- * ratio ≥ 1.2 → 2.0; ratio 1.0 → 1.5; ratio 0.5 → 0.75; ratio 0 → 0; linear between anchors.
- */
 function distanceScoreFromRatio(ratio: number): number {
   if (ratio >= 1.2) return 2.0;
   if (ratio >= 1.0) return 1.5 + (2.0 - 1.5) * ((ratio - 1.0) / 0.2);
@@ -85,41 +86,24 @@ function distanceScoreFromRatio(ratio: number): number {
   return 0;
 }
 
+function paceKmStr(secPerKm: number): string {
+  if (!secPerKm || secPerKm <= 0) return "—";
+  return `${formatPace(secPerKm)}/km`;
+}
+
+function runTypeLabel(t: RunType): string {
+  return t.charAt(0).toUpperCase() + t.slice(1);
+}
+
 /**
- * Run quality score (0–10), independent of the training plan.
- *
- * Weights:
- *   1. Pace quality — max 4.0
- *      - Target band from UserSettings pace zones for the classified run type
- *      (easy / tempo / interval / long: min–max sec/km).
- *      - Midpoint of band; deviation = |actual − midpoint| / (half band width).
- *      - deviation 0 → 4.0; 1 → 2.5; 2 → 0.5; >2 → 0 (linear between).
- *      - Easy-only: if classified easy and pace faster than easy **lower** bound
- *        (avgPaceSecKm < easyPaceMinSec), treat pace as midpoint when
- *        avgHR ≤ 0.75×maxHR; otherwise apply normal deviation penalty.
- *
- *   2. Effort / HR appropriateness — max 3.0
- *      - Easy/long: 60–75% maxHR; Tempo: 80–90%; Interval: 90–100%.
- *      - Same deviation curve with anchors 3.0 / 2.0 / 0.5 / 0.
- *      - Missing HR → 1.5 neutral.
- *
- *   3. Distance — max 2.0
- *      - Benchmark = median km of `recentActivities` (same classified type).
- *      - Fewer than 3 prior runs of that type → 1.0 neutral.
- *      - Else score from ratio actual / benchmark (see distanceScoreFromRatio), cap 2.0.
- *
- *   4. Conditions — max 1.0
- *      - No temp → 0.5 neutral.
- *      - Else base 1.0 + heat (T>28: +0.1/° capped +0.3) + humidity (>80: +0.1 per 5% capped +0.2);
- *        final min(..., 1.0).
- *
- * Total is clamped to [0, 10] and rounded to 1 decimal.
+ * Run quality score (0–10) plus per-component scores and human-readable reasons.
+ * See prior spec: pace 4, effort 3, distance 2, conditions 1.
  */
 export function calculateRunRating(
   activity: StatActivity,
   settings: UserSettings,
   recentActivities: StatActivity[],
-): number {
+): RunRatingResult {
   const s = settings;
   const runType = classifyRunByPaceZones(
     activity.avgPaceSecKm,
@@ -131,27 +115,48 @@ export function calculateRunRating(
   const { lo: zoneLo, hi: zoneHi } = paceZoneBounds(runType, s);
   const zoneMid = (zoneLo + zoneHi) / 2;
   const halfWidth = Math.max(1e-6, (zoneHi - zoneLo) / 2);
+  const zoneStr = `${formatPace(zoneLo)}–${formatPace(zoneHi)}/km`;
 
-  // ── 1. Pace (max 4.0) ─────────────────────────────────────────────────
+  // ── 1. Pace (max 4.0) + reason ───────────────────────────────────────────
   let paceForDeviation = activity.avgPaceSecKm;
+  let usedEasyHrMidpoint = false;
   if (
     runType === "easy"
     && activity.avgPaceSecKm < zoneLo
     && activity.avgHeartRate != null
     && activity.avgHeartRate > 0
   ) {
-    const maxHR = s.maxHR;
-    const hrFrac = activity.avgHeartRate / maxHR;
-    if (hrFrac <= 0.75) paceForDeviation = zoneMid;
+    const hrFrac = activity.avgHeartRate / s.maxHR;
+    if (hrFrac <= 0.75) {
+      paceForDeviation = zoneMid;
+      usedEasyHrMidpoint = true;
+    }
   }
 
   const paceDeviation = Math.abs(paceForDeviation - zoneMid) / halfWidth;
-  const paceScore = scoreFromDeviation(paceDeviation, 4.0, 2.5, 0.5);
+  const paceScoreRaw = scoreFromDeviation(paceDeviation, 4.0, 2.5, 0.5);
 
-  // ── 2. Effort (max 3.0) ────────────────────────────────────────────────
-  let effortScore = 1.5;
+  let paceReason: string;
+  if (usedEasyHrMidpoint) {
+    paceReason = `Pace ${paceKmStr(activity.avgPaceSecKm)} was faster than your Easy zone lower bound (${paceKmStr(zoneLo)}), but HR ${activity.avgHeartRate} bpm is ≤ ${Math.round(0.75 * s.maxHR)} bpm (75% of max HR ${s.maxHR}) — scored as if at the Easy zone midpoint (${paceKmStr(zoneMid)}).`;
+  } else {
+    const rel =
+      paceForDeviation < zoneMid - halfWidth * 0.15
+        ? "near the fast edge"
+        : paceForDeviation > zoneMid + halfWidth * 0.15
+          ? "near the slow edge"
+          : "close to the centre";
+    paceReason = `Pace ${paceKmStr(activity.avgPaceSecKm)} was ${rel} of your ${runTypeLabel(runType)} zone (${zoneStr}).`;
+  }
+
+  // ── 2. Effort (max 3.0) + reason ───────────────────────────────────────────
   const hr = activity.avgHeartRate;
-  if (hr != null && hr > 0) {
+  let effortScoreRaw: number;
+  let effortReason: string;
+  if (hr == null || hr <= 0) {
+    effortScoreRaw = 1.5;
+    effortReason = "No average heart rate recorded — neutral score applied.";
+  } else {
     const maxHR = Math.max(1, s.maxHR);
     const [fLo, fHi] = hrFracZone(runType);
     const bpmLo = fLo * maxHR;
@@ -159,38 +164,102 @@ export function calculateRunRating(
     const mid = (bpmLo + bpmHi) / 2;
     const half = Math.max(1e-6, (bpmHi - bpmLo) / 2);
     const dev = Math.abs(hr - mid) / half;
-    effortScore = scoreFromDeviation(dev, 3.0, 2.0, 0.5);
+    effortScoreRaw = scoreFromDeviation(dev, 3.0, 2.0, 0.5);
+    const vs =
+      hr > mid + half * 0.1
+        ? "above"
+        : hr < mid - half * 0.1
+          ? "below"
+          : "close to";
+    effortReason = `HR ${hr} bpm was ${vs} the ${runTypeLabel(runType)} zone midpoint (${Math.round(bpmLo)}–${Math.round(bpmHi)} bpm from max HR ${maxHR}).`;
   }
 
-  // ── 3. Distance (max 2.0) ────────────────────────────────────────────────
-  let distanceScore = 1.0;
+  // ── 3. Distance (max 2.0) + reason ────────────────────────────────────────
   const dists = recentActivities
     .filter((r) => r.id !== activity.id)
     .map((r) => r.distanceKm)
     .filter((d) => d > 0);
-  if (dists.length >= 3) {
+  let distanceScoreRaw: number;
+  let distanceReason: string;
+  if (dists.length < 3) {
+    distanceScoreRaw = 1.0;
+    distanceReason = `Not enough prior ${runTypeLabel(runType)} runs yet to calculate a benchmark — neutral score applied (${dists.length} of 3 needed).`;
+  } else {
     const bench = median(dists);
-    if (bench > 0) {
-      const ratio = activity.distanceKm / bench;
-      distanceScore = Math.min(2.0, distanceScoreFromRatio(ratio));
-    }
+    const ratio = bench > 0 ? activity.distanceKm / bench : 0;
+    distanceScoreRaw = Math.min(2.0, distanceScoreFromRatio(ratio));
+    distanceReason = `Your ${activity.distanceKm.toFixed(2)} km vs median ${bench.toFixed(2)} km from ${dists.length} prior ${runTypeLabel(runType)} runs (ratio ${ratio.toFixed(2)}).`;
   }
 
-  // ── 4. Conditions (max 1.0) ─────────────────────────────────────────────
-  let conditionsScore = 0.5;
+  // ── 4. Conditions (max 1.0) + reason ─────────────────────────────────────
   const t = activity.temperatureC;
-  if (t != null && !Number.isNaN(t)) {
+  let conditionsScoreRaw: number;
+  let conditionsReason: string;
+  if (t == null || Number.isNaN(t)) {
+    conditionsScoreRaw = 0.5;
+    conditionsReason = "No temperature data — neutral score applied.";
+  } else {
     let bonus = 0;
-    if (t > 28) bonus += Math.min(0.3, (t - 28) * 0.1);
-    const h = activity.humidityPct;
-    if (h != null && !Number.isNaN(h) && h > 80) {
-      bonus += Math.min(0.2, Math.floor((h - 80) / 5) * 0.1);
+    let heatPart = "";
+    if (t > 28) {
+      const hBonus = Math.min(0.3, (t - 28) * 0.1);
+      bonus += hBonus;
+      heatPart = ` Heat bonus +${hBonus.toFixed(1)} (>${28}°C).`;
     }
-    conditionsScore = Math.min(1.0, 1.0 + bonus);
+    const h = activity.humidityPct;
+    let humPart = "";
+    if (h != null && !Number.isNaN(h) && h > 80) {
+      const hu = Math.min(0.2, Math.floor((h - 80) / 5) * 0.1);
+      bonus += hu;
+      humPart = ` Humidity bonus +${hu.toFixed(1)} (>80%).`;
+    }
+    conditionsScoreRaw = Math.min(1.0, 1.0 + bonus);
+    const humDisp = h != null && !Number.isNaN(h) ? `${h.toFixed(0)}%` : "—";
+    if (bonus === 0) {
+      conditionsReason = `Weather data present. No heat or humidity bonus (${t.toFixed(1)}°C, ${humDisp}).`;
+    } else {
+      conditionsReason = `Weather data present (${t.toFixed(1)}°C, ${humDisp}).${heatPart}${humPart}`.trim();
+    }
   }
 
-  const total = Math.max(0, Math.min(10, paceScore + effortScore + distanceScore + conditionsScore));
-  return round1(total);
+  const pace = round1(paceScoreRaw);
+  const effort = round1(effortScoreRaw);
+  const distance = round1(distanceScoreRaw);
+  const conditions = round1(conditionsScoreRaw);
+  const total = round1(Math.max(0, Math.min(10, pace + effort + distance + conditions)));
+
+  return {
+    total,
+    components: {
+      pace:       { score: pace,       max: 4.0, reason: paceReason },
+      effort:     { score: effort,     max: 3.0, reason: effortReason },
+      distance:   { score: distance,   max: 2.0, reason: distanceReason },
+      conditions: { score: conditions, max: 1.0, reason: conditionsReason },
+    },
+  };
+}
+
+export function parseRatingBreakdown(json: string | null | undefined): RunRatingResult | null {
+  if (!json || !json.trim()) return null;
+  try {
+    const o = JSON.parse(json) as RunRatingResult;
+    const p = o.components?.pace;
+    const e = o.components?.effort;
+    const d = o.components?.distance;
+    const c = o.components?.conditions;
+    if (
+      typeof o?.total === "number"
+      && p && typeof p.score === "number" && typeof p.max === "number" && typeof p.reason === "string"
+      && e && typeof e.score === "number" && typeof e.max === "number" && typeof e.reason === "string"
+      && d && typeof d.score === "number" && typeof d.max === "number" && typeof d.reason === "string"
+      && c && typeof c.score === "number" && typeof c.max === "number" && typeof c.reason === "string"
+    ) {
+      return o;
+    }
+    return null;
+  } catch {
+    return null;
+  }
 }
 
 /**

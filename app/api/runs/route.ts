@@ -51,27 +51,31 @@ export async function GET(req: NextRequest) {
 
   const settings = settingsRow ? dbSettingsToUserSettings(settingsRow) : DEFAULT_SETTINGS;
 
-  const rows = activities.map(act => {
-    const runType: RunType = inferRunType(act, settings);
-    const rating = act.rating != null && !Number.isNaN(act.rating) ? act.rating : null;
+  type ActivityRow = (typeof activities)[number] & { ratingBreakdown?: string | null };
+
+  const rows = activities.map((act) => {
+    const row = act as ActivityRow;
+    const runType: RunType = inferRunType(row, settings);
+    const rating = row.rating != null && !Number.isNaN(row.rating) ? row.rating : null;
 
     return {
-      id: act.id,
-      name: act.name,
-      dateIso: act.date.toISOString(),
-      dateAest: toBrisbaneYmd(act.date),
-      distanceKm: act.distanceKm,
-      durationSecs: act.durationSecs,
-      avgPaceSecKm: act.avgPaceSecKm,
-      avgHeartRate: act.avgHeartRate,
-      maxHeartRate: act.maxHeartRate,
-      calories: act.calories,
-      elevationGainM: act.elevationGainM,
-      temperatureC: act.temperatureC,
-      humidityPct: act.humidityPct,
-      activityType: act.activityType,
+      id: row.id,
+      name: row.name,
+      dateIso: row.date.toISOString(),
+      dateAest: toBrisbaneYmd(row.date),
+      distanceKm: row.distanceKm,
+      durationSecs: row.durationSecs,
+      avgPaceSecKm: row.avgPaceSecKm,
+      avgHeartRate: row.avgHeartRate,
+      maxHeartRate: row.maxHeartRate,
+      calories: row.calories,
+      elevationGainM: row.elevationGainM,
+      temperatureC: row.temperatureC,
+      humidityPct: row.humidityPct,
+      activityType: row.activityType,
       runType,
       rating,
+      ratingBreakdown: row.ratingBreakdown ?? null,
     };
   });
 

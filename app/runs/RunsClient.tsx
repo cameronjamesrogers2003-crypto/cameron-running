@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { classifyRunByPaceZones } from "@/lib/rating";
+import { classifyRunByPaceZones, parseRatingBreakdown } from "@/lib/rating";
 import type { RunType } from "@/data/trainingPlan";
 import { formatPace, formatDuration } from "@/lib/settings";
 
@@ -22,6 +22,7 @@ interface Run {
   activityType: string;
   runType: RunType;
   rating: number | null;
+  ratingBreakdown: string | null;
 }
 
 interface RunsResponse {
@@ -47,6 +48,50 @@ function ratingColor(score: number): string {
   if (score >= 5.5) return "#85B7EB";
   if (score >= 4)   return "#EF9F27";
   return "#F09595";
+}
+
+function RatingBreakdownPanel({ json, rating }: { json: string | null; rating: number }) {
+  const parsed = parseRatingBreakdown(json);
+  if (!parsed) {
+    return (
+      <p className="text-xs leading-relaxed" style={{ color: "var(--text-muted)" }}>
+        Run the backfill to generate breakdown data.
+      </p>
+    );
+  }
+  const c = parsed.components;
+  const line = (label: string, score: number, max: number, reason: string) => (
+    <div key={label} className="space-y-0.5">
+      <div className="flex justify-between gap-4 text-xs tabular-nums">
+        <span className="font-medium text-white">{label}</span>
+        <span style={{ color: "var(--text-muted)" }}>
+          {score.toFixed(1)} / {max.toFixed(1)}
+        </span>
+      </div>
+      <p className="text-[11px] leading-snug pl-0" style={{ color: "rgba(156,163,175,0.9)" }}>
+        {reason}
+      </p>
+    </div>
+  );
+  return (
+    <div className="space-y-3 max-w-xl">
+      {line("Pace Quality", c.pace.score, c.pace.max, c.pace.reason)}
+      {line("Effort", c.effort.score, c.effort.max, c.effort.reason)}
+      {line("Distance", c.distance.score, c.distance.max, c.distance.reason)}
+      {line("Conditions", c.conditions.score, c.conditions.max, c.conditions.reason)}
+      <div
+        className="border-t pt-2 mt-1 space-y-0.5"
+        style={{ borderColor: "rgba(255,255,255,0.08)" }}
+      >
+        <div className="flex justify-between gap-4 text-xs font-semibold tabular-nums">
+          <span className="text-white">Total</span>
+          <span style={{ color: ratingColor(rating) }}>
+            {parsed.total.toFixed(1)} / 10.0
+          </span>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function Pill({ type }: { type: RunType }) {
@@ -150,8 +195,9 @@ export default function RunsClient({
   const [sortBy,    setSortBy]    = useState("date");
   const [order,     setOrder]     = useState<"asc" | "desc">("desc");
 
-  // Expanded rows
+  // Expanded rows (detail) vs rating breakdown panel
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [ratingBreakdownOpen, setRatingBreakdownOpen] = useState<Set<string>>(new Set());
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -190,6 +236,14 @@ export default function RunsClient({
 
   function toggleExpand(id: string) {
     setExpanded(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleRatingBreakdown(id: string) {
+    setRatingBreakdownOpen(prev => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id); else next.add(id);
       return next;
@@ -356,17 +410,29 @@ export default function RunsClient({
 
         {runs.map((run, i) => {
           const isOpen = expanded.has(run.id);
+          const ratingOpen = ratingBreakdownOpen.has(run.id);
           return (
-            <div key={run.id}>
-              <button
-                type="button"
-                className="w-full grid px-4 py-3 text-left transition-colors hover:bg-white/[0.03] min-w-[640px]"
+            <div
+              key={run.id}
+              style={{
+                borderTop: i > 0 ? "1px solid rgba(255,255,255,0.04)" : undefined,
+              }}
+            >
+              <div
+                role="button"
+                tabIndex={0}
+                className="w-full grid px-4 py-3 text-left transition-colors hover:bg-white/[0.03] min-w-[640px] cursor-pointer outline-none focus-visible:ring-1 focus-visible:ring-white/20"
                 style={{
                   gridTemplateColumns: "1fr 100px 80px 80px 70px 70px 60px",
-                  borderTop: i > 0 ? "1px solid rgba(255,255,255,0.04)" : undefined,
                   alignItems: "center",
                 }}
                 onClick={() => toggleExpand(run.id)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    toggleExpand(run.id);
+                  }
+                }}
               >
                 <span className="text-sm text-white truncate pr-2">{run.name ?? "Run"}</span>
                 <span>
@@ -383,13 +449,33 @@ export default function RunsClient({
                 <span className="text-sm text-white">{run.avgPaceSecKm > 0 ? formatPace(run.avgPaceSecKm) + "/km" : "—"}</span>
                 <span className="text-sm" style={{ color: "var(--text-muted)" }}>{formatDuration(run.durationSecs)}</span>
                 <span className="text-sm" style={{ color: "var(--text-muted)" }}>{formatDateAest(run.dateIso)}</span>
-                <span
-                  className="text-sm font-semibold"
+                <button
+                  type="button"
+                  className="text-sm font-semibold text-left tabular-nums rounded px-0.5 -mx-0.5 hover:underline underline-offset-2 disabled:opacity-50 disabled:no-underline"
                   style={{ color: run.rating != null ? ratingColor(run.rating) : "var(--text-muted)" }}
+                  disabled={run.rating == null}
+                  aria-expanded={ratingOpen}
+                  aria-label={run.rating != null ? "Toggle rating breakdown" : "No rating"}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (run.rating != null) toggleRatingBreakdown(run.id);
+                  }}
                 >
                   {run.rating != null ? run.rating.toFixed(1) : "—"}
-                </span>
-              </button>
+                </button>
+              </div>
+
+              {ratingOpen && run.rating != null && (
+                <div
+                  className="px-4 pb-3 pt-2"
+                  style={{
+                    borderTop: "1px solid rgba(255,255,255,0.04)",
+                    background: "rgba(255,255,255,0.02)",
+                  }}
+                >
+                  <RatingBreakdownPanel json={run.ratingBreakdown} rating={run.rating} />
+                </div>
+              )}
 
               {/* Expanded detail */}
               {isOpen && (
@@ -472,19 +558,20 @@ export default function RunsClient({
         )}
         {runs.map((run) => {
           const isOpen = expanded.has(run.id);
+          const ratingOpen = ratingBreakdownOpen.has(run.id);
           return (
             <div
               key={run.id}
               className="rounded-[10px] overflow-hidden"
               style={{ border: "1px solid rgba(255,255,255,0.08)", background: "#111" }}
             >
-              <button
-                type="button"
-                className="w-full text-left p-4 min-h-11"
-                onClick={() => toggleExpand(run.id)}
-              >
+              <div className="p-4">
                 <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0 flex-1">
+                  <button
+                    type="button"
+                    className="min-w-0 flex-1 text-left min-h-11"
+                    onClick={() => toggleExpand(run.id)}
+                  >
                     <p className="text-sm text-white font-medium break-words">{run.name ?? "Run"}</p>
                     <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
                       {formatDateAest(run.dateIso)}
@@ -499,15 +586,26 @@ export default function RunsClient({
                         )}
                       />
                     </div>
-                  </div>
-                  <span
-                    className="text-lg font-bold shrink-0 tabular-nums"
+                  </button>
+                  <button
+                    type="button"
+                    className="text-lg font-bold shrink-0 tabular-nums min-h-11 min-w-[3rem] text-right rounded px-1 -mr-1 hover:underline underline-offset-2 disabled:opacity-50 disabled:no-underline"
                     style={{ color: run.rating != null ? ratingColor(run.rating) : "var(--text-muted)" }}
+                    disabled={run.rating == null}
+                    aria-expanded={ratingOpen}
+                    aria-label={run.rating != null ? "Toggle rating breakdown" : "No rating"}
+                    onClick={() => {
+                      if (run.rating != null) toggleRatingBreakdown(run.id);
+                    }}
                   >
                     {run.rating != null ? run.rating.toFixed(1) : "—"}
-                  </span>
+                  </button>
                 </div>
-                <div className="grid grid-cols-3 gap-2 mt-3 text-xs">
+                <button
+                  type="button"
+                  className="w-full text-left grid grid-cols-3 gap-2 mt-3 text-xs min-h-11"
+                  onClick={() => toggleExpand(run.id)}
+                >
                   <div>
                     <p style={{ color: "var(--text-muted)" }}>Distance</p>
                     <p className="text-white font-medium tabular-nums">{run.distanceKm.toFixed(2)} km</p>
@@ -522,11 +620,22 @@ export default function RunsClient({
                     <p style={{ color: "var(--text-muted)" }}>Time</p>
                     <p className="text-white font-medium tabular-nums">{formatDuration(run.durationSecs)}</p>
                   </div>
-                </div>
+                </button>
                 <p className="text-[11px] mt-2" style={{ color: "rgba(156,163,175,0.5)" }}>
-                  {isOpen ? "Tap to collapse" : "Tap for details"}
+                  {isOpen ? "Tap to collapse details" : "Tap run or stats for details"}
                 </p>
-              </button>
+              </div>
+              {ratingOpen && run.rating != null && (
+                <div
+                  className="px-4 pb-3 pt-1 border-t"
+                  style={{
+                    borderColor: "rgba(255,255,255,0.06)",
+                    background: "rgba(255,255,255,0.02)",
+                  }}
+                >
+                  <RatingBreakdownPanel json={run.ratingBreakdown} rating={run.rating} />
+                </div>
+              )}
               {isOpen && (
                 <div
                   className="px-4 pb-4 pt-1 grid grid-cols-1 gap-x-8 gap-y-2 text-xs border-t"
