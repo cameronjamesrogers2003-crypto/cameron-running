@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
 import { buildTrainingPlan } from "@/data/trainingPlan";
-import { calculateRunRating, resolveRunType, resolveTargetPaceSecKm } from "@/lib/rating";
+import { calculateRunRating, inferRunType, resolveTargetPaceSecKm } from "@/lib/rating";
 import { dbSettingsToUserSettings, DEFAULT_SETTINGS } from "@/lib/settings";
-import { toAEST } from "@/lib/dateUtils";
+import { brisbaneMidnightUtcForYmd, toBrisbaneYmd } from "@/lib/dateUtils";
 
 export async function GET(req: NextRequest) {
   const sp = req.nextUrl.searchParams;
@@ -27,9 +27,15 @@ export async function GET(req: NextRequest) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const where: any = { activityType: { in: ["running", "trail_running"] } };
 
-  if (search)   where.name = { contains: search, mode: "insensitive" };
-  if (dateFrom) where.date = { ...where.date, gte: new Date(dateFrom) };
-  if (dateTo)   where.date = { ...where.date, lte: new Date(dateTo) };
+  if (search) where.name = { contains: search, mode: "insensitive" };
+  // HTML date inputs are yyyy-MM-dd — interpret as Brisbane calendar days, not UTC midnight.
+  if (dateFrom) {
+    where.date = { ...where.date, gte: brisbaneMidnightUtcForYmd(dateFrom) };
+  }
+  if (dateTo) {
+    const endExclusive = new Date(brisbaneMidnightUtcForYmd(dateTo).getTime() + 24 * 60 * 60 * 1000);
+    where.date = { ...where.date, lt: endExclusive };
+  }
   if (!isNaN(distMin)) where.distanceKm = { ...where.distanceKm, gte: distMin };
   if (!isNaN(distMax)) where.distanceKm = { ...where.distanceKm, lte: distMax };
   if (!isNaN(paceMin)) where.avgPaceSecKm = { ...where.avgPaceSecKm, gte: paceMin };
@@ -66,7 +72,7 @@ export async function GET(req: NextRequest) {
   };
 
   const rows = activities.map(act => {
-    const runType = resolveRunType(act, ratingPlan, settings);
+    const runType = inferRunType(act, settings);
     const hasRating = act.avgPaceSecKm > 0 && act.avgHeartRate != null;
     const rating = hasRating
       ? calculateRunRating({
@@ -81,12 +87,11 @@ export async function GET(req: NextRequest) {
         })
       : null;
 
-    const aest = toAEST(new Date(act.date));
     return {
       id: act.id,
       name: act.name,
       dateIso: act.date.toISOString(),
-      dateAest: `${aest.getUTCFullYear()}-${String(aest.getUTCMonth()+1).padStart(2,"0")}-${String(aest.getUTCDate()).padStart(2,"0")}`,
+      dateAest: toBrisbaneYmd(act.date),
       distanceKm: act.distanceKm,
       durationSecs: act.durationSecs,
       avgPaceSecKm: act.avgPaceSecKm,

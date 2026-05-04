@@ -1,6 +1,6 @@
 import type { RunType, Session, TrainingWeek } from "@/data/trainingPlan";
 import { getPlanWeekForDate, getSessionDate } from "@/lib/planUtils";
-import { toAEST } from "@/lib/dateUtils";
+import { sameDayAEST } from "@/lib/dateUtils";
 import { DEFAULT_SETTINGS, type UserSettings } from "@/lib/settings";
 
 export type { RunType };
@@ -131,29 +131,29 @@ function round1(n: number): number {
   return Math.round(n * 10) / 10;
 }
 
-function sameAestDay(a: Date, b: Date): boolean {
-  const aa = toAEST(a);
-  const bb = toAEST(b);
-  return (
-    aa.getUTCFullYear() === bb.getUTCFullYear() &&
-    aa.getUTCMonth()    === bb.getUTCMonth()    &&
-    aa.getUTCDate()     === bb.getUTCDate()
-  );
-}
-
-function aestDateKey(date: Date): string {
-  const a = toAEST(date);
-  return `${a.getUTCFullYear()}-${String(a.getUTCMonth() + 1).padStart(2, "0")}-${String(a.getUTCDate()).padStart(2, "0")}`;
+/**
+ * Pace-zone classification (same rules as the Runs page “Type classification” panel).
+ * Thresholds are seconds per km: interval if pace ≤ interval upper bound, else tempo if ≤ tempo upper bound, etc.
+ */
+export function classifyRunByPaceZones(
+  avgPaceSecKm: number,
+  distanceKm: number,
+  intervalPaceMaxSec: number,
+  tempoPaceMaxSec: number,
+): RunType {
+  if (avgPaceSecKm <= intervalPaceMaxSec) return "interval";
+  if (avgPaceSecKm <= tempoPaceMaxSec) return "tempo";
+  if (distanceKm >= 15) return "long";
+  return "easy";
 }
 
 export function inferRunType(run: StatActivity, settings: UserSettings = DEFAULT_SETTINGS): RunType {
-  const paceSecKm = run.avgPaceSecKm;
-  const distKm    = run.distanceKm;
-
-  if (paceSecKm <= settings.intervalPaceMaxSec) return "interval";
-  if (paceSecKm <= settings.tempoPaceMaxSec)    return "tempo";
-  if (distKm    >= 15)          return "long";
-  return "easy";
+  return classifyRunByPaceZones(
+    run.avgPaceSecKm,
+    run.distanceKm,
+    settings.intervalPaceMaxSec,
+    settings.tempoPaceMaxSec,
+  );
 }
 
 export function resolveRunSession(run: StatActivity, plan: TrainingWeek[]): Session | null {
@@ -165,7 +165,7 @@ export function resolveRunSession(run: StatActivity, plan: TrainingWeek[]): Sess
   const planWeek = plan[weekNum - 1];
   for (const session of planWeek.sessions) {
     const sessionDate = getSessionDate(weekNum, session.day);
-    if (sameAestDay(runDate, sessionDate)) return session;
+    if (sameDayAEST(runDate, sessionDate)) return session;
   }
 
   return null;
@@ -179,5 +179,3 @@ export function resolveTargetPaceSecKm(run: StatActivity, plan: TrainingWeek[]):
   const session = resolveRunSession(run, plan);
   return session ? Math.round(session.targetPaceMinPerKm * 60) : null;
 }
-
-export { aestDateKey };

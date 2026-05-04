@@ -1,3 +1,5 @@
+import { brisbaneHour, toBrisbaneYmd } from "@/lib/dateUtils";
+
 export interface WeatherData {
   temp: number;
   weatherCode: number;
@@ -121,11 +123,8 @@ export async function fetchHistoricalWeather(
   date: Date
 ): Promise<{ temperatureC: number; humidityPct: number } | null> {
   try {
-    // Shift to AEST (UTC+10) to get the correct local calendar date and hour
-    const aestMs   = date.getTime() + 10 * 60 * 60 * 1000;
-    const aestDate = new Date(aestMs);
-    const dateStr  = aestDate.toISOString().slice(0, 10); // YYYY-MM-DD in AEST
-    const aestHour = aestDate.getUTCHours();
+    const dateStr  = toBrisbaneYmd(date);
+    const aestHour = brisbaneHour(date);
 
     const url =
       "https://archive-api.open-meteo.com/v1/archive" +

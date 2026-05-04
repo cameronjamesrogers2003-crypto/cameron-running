@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import type { RatingResult } from "@/lib/rating";
+import { classifyRunByPaceZones } from "@/lib/rating";
 import type { RunType } from "@/data/trainingPlan";
 import { formatPace, formatDuration } from "@/lib/settings";
 
@@ -83,6 +84,9 @@ function buildClassificationChecks(
   intervalThresholdSec: number,
   tempoThresholdSec: number,
 ): { checks: ClassificationCheck[]; result: RunType } {
+  const resultType = classifyRunByPaceZones(
+    avgPaceSecKm, distanceKm, intervalThresholdSec, tempoThresholdSec,
+  );
   const paceMinPerKm    = avgPaceSecKm / 60;
   const intThreshMin    = intervalThresholdSec / 60;
   const tempoThreshMin  = tempoThresholdSec  / 60;
@@ -105,23 +109,23 @@ function buildClassificationChecks(
 
   if (paceMinPerKm <= intThreshMin) {
     checks.push({ text: `Pace ${pace} ≤ ${intT} interval upper boundary`, passed: false });
-    return { checks, result: "interval" };
+    return { checks, result: resultType };
   }
   checks.push({ text: `Pace ${pace} > ${intT} interval upper boundary → not Interval`, passed: true });
 
   if (paceMinPerKm <= tempoThreshMin) {
     checks.push({ text: `Pace ${pace} ≤ ${temT} tempo upper boundary`, passed: false });
-    return { checks, result: "tempo" };
+    return { checks, result: resultType };
   }
   checks.push({ text: `Pace ${pace} > ${temT} tempo upper boundary → not Tempo`, passed: true });
 
   if (distanceKm >= 15) {
     checks.push({ text: `Distance ${distanceKm.toFixed(2)} km ≥ 15 km`, passed: false });
-    return { checks, result: "long" };
+    return { checks, result: resultType };
   }
   checks.push({ text: `Distance ${distanceKm.toFixed(2)} km < 15 km → not Long`, passed: true });
 
-  return { checks, result: "easy" };
+  return { checks, result: resultType };
 }
 
 export default function RunsClient({
@@ -366,7 +370,16 @@ export default function RunsClient({
                 onClick={() => toggleExpand(run.id)}
               >
                 <span className="text-sm text-white truncate pr-2">{run.name ?? "Run"}</span>
-                <span><Pill type={run.runType} /></span>
+                <span>
+                  <Pill
+                    type={classifyRunByPaceZones(
+                      run.avgPaceSecKm,
+                      run.distanceKm,
+                      intervalThresholdSec,
+                      tempoThresholdSec,
+                    )}
+                  />
+                </span>
                 <span className="text-sm text-white">{run.distanceKm.toFixed(2)} km</span>
                 <span className="text-sm text-white">{run.avgPaceSecKm > 0 ? formatPace(run.avgPaceSecKm) + "/km" : "—"}</span>
                 <span className="text-sm" style={{ color: "var(--text-muted)" }}>{formatDuration(run.durationSecs)}</span>
@@ -498,7 +511,14 @@ export default function RunsClient({
                       {formatDateAest(run.dateIso)}
                     </p>
                     <div className="mt-2">
-                      <Pill type={run.runType} />
+                      <Pill
+                        type={classifyRunByPaceZones(
+                          run.avgPaceSecKm,
+                          run.distanceKm,
+                          intervalThresholdSec,
+                          tempoThresholdSec,
+                        )}
+                      />
                     </div>
                   </div>
                   <span
