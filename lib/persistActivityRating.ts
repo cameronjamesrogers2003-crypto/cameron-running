@@ -12,6 +12,7 @@ function toStat(a: {
   distanceKm: number;
   avgPaceSecKm: number;
   avgHeartRate: number | null;
+  maxHeartRate: number | null;
   temperatureC: number | null;
   humidityPct: number | null;
   classifiedRunType: string | null;
@@ -22,6 +23,7 @@ function toStat(a: {
     distanceKm: a.distanceKm,
     avgPaceSecKm: a.avgPaceSecKm,
     avgHeartRate: a.avgHeartRate,
+    maxHeartRate: a.maxHeartRate,
     temperatureC: a.temperatureC,
     humidityPct: a.humidityPct,
     classifiedRunType: a.classifiedRunType,
@@ -75,6 +77,7 @@ export async function persistActivityRating(
       distanceKm: true,
       avgPaceSecKm: true,
       avgHeartRate: true,
+      maxHeartRate: true,
       temperatureC: true,
       humidityPct: true,
       classifiedRunType: true,
@@ -92,12 +95,13 @@ export async function persistActivityRating(
   }
 
   const stat = toStat({ ...act, classifiedRunType: classified });
-  const rating = calculateRunRating(stat, settings, recentSameType);
+  const ratingResult = calculateRunRating(stat, settings, recentSameType);
 
   await prisma.activity.update({
     where: { id: activityId },
     data: {
-      rating,
+      rating: ratingResult.total,
+      ratingBreakdown: JSON.stringify(ratingResult),
       classifiedRunType: classified,
     },
   });

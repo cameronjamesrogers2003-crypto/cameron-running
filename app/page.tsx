@@ -10,7 +10,7 @@ import {
   inferRunType as inferRunTypeFromPlanSessions,
   getNextPhaseInfo,
 } from "@/lib/planUtils";
-import { formatAEST, formatDistanceToNowAEST, isBrisbaneWedSatSun, sameDayAEST, startOfDayAEST } from "@/lib/dateUtils";
+import { formatAEST, formatDistanceToNowAEST, sameDayAEST, startOfDayAEST } from "@/lib/dateUtils";
 import { inferRunType } from "@/lib/rating";
 import { dbSettingsToUserSettings, DEFAULT_SETTINGS } from "@/lib/settings";
 import WeeklyKmChart from "@/components/charts/WeeklyKmChart";
@@ -274,9 +274,8 @@ export default async function Dashboard({
   const sessionChecklist = CHECKLIST_DAYS.map((day) => {
     const session = currentPlanWeek!.sessions.find((s) => s.day === day)!;
     const date = getSessionDate(currentWeek, session.day);
-    const completed = weekActivities.some(
-      (a) =>
-        sameDayAEST(new Date(a.date), date) && isBrisbaneWedSatSun(new Date(a.date)),
+    const completed = weekActivities.some((a) =>
+      sameDayAEST(new Date(a.date), date),
     );
     return { session, date, completed, future: date > todayAESTMidnight };
   });

@@ -1,8 +1,9 @@
 import type { TrainingWeek, Session, Phase, RunType, Day } from "@/data/trainingPlan";
 import { toAEST } from "@/lib/dateUtils";
 
-// AEST midnight Saturday 3 May 2026 = UTC 2026-05-02T14:00:00.000Z
-export const PLAN_START_DATE = new Date("2026-05-02T14:00:00.000Z");
+// Week anchor: AEST midnight Saturday 2 May 2026 = UTC 2026-05-01T14:00:00.000Z
+// (getSessionDate uses sat+0, sun+1, wed+4 from this Saturday)
+export const PLAN_START_DATE = new Date("2026-05-01T14:00:00.000Z");
 
 /** Returns 1-indexed plan week for a given date. Returns 0 if before plan start. */
 export function getPlanWeekForDate(date: Date): number {
