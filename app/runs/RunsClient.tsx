@@ -104,16 +104,16 @@ function buildClassificationChecks(
   const checks: ClassificationCheck[] = [];
 
   if (paceMinPerKm <= intThreshMin) {
-    checks.push({ text: `Pace ${pace} ≤ ${intT} interval zone midpoint`, passed: false });
+    checks.push({ text: `Pace ${pace} ≤ ${intT} interval upper boundary`, passed: false });
     return { checks, result: "interval" };
   }
-  checks.push({ text: `Pace ${pace} > ${intT} interval zone midpoint → not Interval`, passed: true });
+  checks.push({ text: `Pace ${pace} > ${intT} interval upper boundary → not Interval`, passed: true });
 
   if (paceMinPerKm <= tempoThreshMin) {
-    checks.push({ text: `Pace ${pace} ≤ ${temT} tempo zone midpoint`, passed: false });
+    checks.push({ text: `Pace ${pace} ≤ ${temT} tempo upper boundary`, passed: false });
     return { checks, result: "tempo" };
   }
-  checks.push({ text: `Pace ${pace} > ${temT} tempo zone midpoint → not Tempo`, passed: true });
+  checks.push({ text: `Pace ${pace} > ${temT} tempo upper boundary → not Tempo`, passed: true });
 
   if (distanceKm >= 15) {
     checks.push({ text: `Distance ${distanceKm.toFixed(2)} km ≥ 15 km`, passed: false });

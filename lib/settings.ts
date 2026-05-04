@@ -32,7 +32,7 @@ export const DEFAULT_SETTINGS: UserSettings = {
   planStartDate: null,
   currentWeekOverride: null,
   phaseOverride: null,
-  maxHR: 192,
+  maxHR: 198,
   startingTempoPaceSec: 390,
   currentVdot: 33,
   targetHMTimeSec: 6900,

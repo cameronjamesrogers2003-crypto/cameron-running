@@ -45,7 +45,7 @@ model UserSettings {
   planStartDate         DateTime?
   currentWeekOverride   Int?
   phaseOverride         String?
-  maxHR                 Int       @default(192)
+  maxHR                 Int       @default(198)
   startingTempoPaceSec  Int       @default(390)
   currentVdot           Int       @default(33)
   targetHMTimeSec       Int       @default(6900)

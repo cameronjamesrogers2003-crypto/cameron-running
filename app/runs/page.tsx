@@ -9,8 +9,8 @@ export default async function RunsPage() {
   const settingsRow = await prisma.userSettings.findUnique({ where: { id: 1 } });
   const settings    = settingsRow ? dbSettingsToUserSettings(settingsRow) : DEFAULT_SETTINGS;
 
-  const intervalThresholdSec = (settings.intervalPaceMinSec + settings.intervalPaceMaxSec) / 2;
-  const tempoThresholdSec    = (settings.tempoPaceMinSec    + settings.tempoPaceMaxSec)    / 2;
+  const intervalThresholdSec = settings.intervalPaceMaxSec;
+  const tempoThresholdSec    = settings.tempoPaceMaxSec;
 
   return (
     <div className="space-y-5">

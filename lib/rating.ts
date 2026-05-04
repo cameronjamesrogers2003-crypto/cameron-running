@@ -96,9 +96,13 @@ export function calculateRunRating(input: RatingInput): RatingResult {
     const maxHR = maxHROverride ?? (220 - age);
     const hrFrac = avgHeartRate / maxHR;
     const [zLow, zHigh] = HR_ZONE[runType];
-    const zMid  = (zLow + zHigh) / 2;
-    const zHalf = (zHigh - zLow) / 2;
-    effort = Math.max(0, Math.min(1, 1 - Math.abs(hrFrac - zMid) / zHalf)) * 2.5;
+    if (hrFrac >= zLow && hrFrac <= zHigh) {
+      effort = 2.5;
+    } else {
+      const gap       = hrFrac > zHigh ? hrFrac - zHigh : zLow - hrFrac;
+      const zoneWidth = zHigh - zLow;
+      effort = Math.max(0.5, 2.5 - (gap / zoneWidth) * 1.5);
+    }
   }
 
   // -- Distance (2.5 pts) ---------------------------------------------------
@@ -146,11 +150,8 @@ export function inferRunType(run: StatActivity, settings: UserSettings = DEFAULT
   const paceSecKm = run.avgPaceSecKm;
   const distKm    = run.distanceKm;
 
-  const intervalMid = (settings.intervalPaceMinSec + settings.intervalPaceMaxSec) / 2;
-  const tempoMid    = (settings.tempoPaceMinSec    + settings.tempoPaceMaxSec)    / 2;
-
-  if (paceSecKm <= intervalMid) return "interval";
-  if (paceSecKm <= tempoMid)    return "tempo";
+  if (paceSecKm <= settings.intervalPaceMaxSec) return "interval";
+  if (paceSecKm <= settings.tempoPaceMaxSec)    return "tempo";
   if (distKm    >= 15)          return "long";
   return "easy";
 }
