@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import type { Prisma } from "@prisma/client";
 import prisma from "@/lib/db";
 import { inferRunType, type RunType } from "@/lib/rating";
 import { dbSettingsToUserSettings, DEFAULT_SETTINGS } from "@/lib/settings";
@@ -22,8 +23,9 @@ export async function GET(req: NextRequest) {
   const sortBy   = sp.get("sort")  ?? "date";
   const order    = sp.get("order") === "asc" ? "asc" : "desc";
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const where: any = { activityType: { in: ["running", "trail_running"] } };
+  const where: Prisma.ActivityWhereInput = {
+    activityType: { in: ["running", "trail_running"] },
+  };
 
   if (search) where.name = { contains: search, mode: "insensitive" };
   if (dateFrom) {
@@ -37,6 +39,10 @@ export async function GET(req: NextRequest) {
   if (!isNaN(distMax)) where.distanceKm = { ...where.distanceKm, lte: distMax };
   if (!isNaN(paceMin)) where.avgPaceSecKm = { ...where.avgPaceSecKm, gte: paceMin };
   if (!isNaN(paceMax)) where.avgPaceSecKm = { ...where.avgPaceSecKm, lte: paceMax };
+  const whereWithTypes: Prisma.ActivityWhereInput =
+    types.length > 0
+      ? { ...where, classifiedRunType: { in: types } }
+      : where;
 
   const validSortFields = ["date", "distanceKm", "avgPaceSecKm", "durationSecs", "avgHeartRate"] as const;
   type SortField = typeof validSortFields[number];
@@ -45,8 +51,8 @@ export async function GET(req: NextRequest) {
 
   const [settingsRow, total, activities] = await Promise.all([
     prisma.userSettings.findUnique({ where: { id: 1 } }),
-    prisma.activity.count({ where }),
-    prisma.activity.findMany({ where, orderBy, skip, take: perPage }),
+    prisma.activity.count({ where: whereWithTypes }),
+    prisma.activity.findMany({ where: whereWithTypes, orderBy, skip, take: perPage }),
   ]);
 
   const settings = settingsRow ? dbSettingsToUserSettings(settingsRow) : DEFAULT_SETTINGS;
@@ -79,13 +85,11 @@ export async function GET(req: NextRequest) {
     };
   });
 
-  const filtered = types.length > 0 ? rows.filter(r => types.includes(r.runType)) : rows;
-
   return NextResponse.json({
-    data: filtered,
+    data: rows,
     page,
     perPage,
-    total: types.length > 0 ? filtered.length : total,
-    totalPages: Math.ceil((types.length > 0 ? filtered.length : total) / perPage),
+    total,
+    totalPages: Math.ceil(total / perPage),
   });
 }

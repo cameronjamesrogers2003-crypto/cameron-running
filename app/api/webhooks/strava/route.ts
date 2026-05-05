@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { syncActivities } from "@/lib/strava";
 
-const VERIFY_TOKEN = process.env.STRAVA_WEBHOOK_VERIFY_TOKEN ?? "cameron-running-verify";
+const VERIFY_TOKEN =
+  process.env.STRAVA_WEBHOOK_VERIFY_TOKEN ??
+  (process.env.NODE_ENV === "development"
+    ? "dev-verify-token"
+    : (() => { throw new Error("Missing STRAVA_WEBHOOK_VERIFY_TOKEN"); })());
 
 // Strava subscription verification handshake
 export async function GET(req: NextRequest) {

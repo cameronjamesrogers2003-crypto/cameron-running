@@ -8,12 +8,21 @@ export async function GET(req: NextRequest) {
   const error = searchParams.get("error");
   const scope = searchParams.get("scope");
 
-  console.log("[strava/callback] received — error:", error, "code present:", !!code, "scope:", scope);
+  console.log("[strava/callback] received", { error, hasCode: !!code, scope });
 
   if (error || !code) {
-    const detail = error ?? "no_code";
-    console.error("[strava/callback] denied or missing code:", detail);
-    return NextResponse.redirect(new URL(`/?error=strava_denied&detail=${encodeURIComponent(detail)}`, req.url));
+    const errorId = crypto.randomUUID();
+    const reason = error ?? "no_code";
+    console.error("[strava/callback] denied_or_missing_code", {
+      errorId,
+      reason,
+      error,
+      hasCode: !!code,
+      scope,
+    });
+    return NextResponse.redirect(
+      new URL(`/?error=strava_denied&id=${encodeURIComponent(errorId)}`, req.url)
+    );
   }
 
   try {
@@ -46,10 +55,16 @@ export async function GET(req: NextRequest) {
     console.log("[strava/callback] profile saved — Strava connected");
     return NextResponse.redirect(new URL("/?synced=1", req.url));
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    console.error("[strava/callback] auth_failed:", msg);
+    const errorId = crypto.randomUUID();
+    const errorObj = err instanceof Error ? err : new Error(String(err));
+    console.error("[strava/callback] auth_failed", {
+      errorId,
+      name: errorObj.name,
+      message: errorObj.message,
+      stack: errorObj.stack,
+    });
     return NextResponse.redirect(
-      new URL(`/?error=auth_failed&detail=${encodeURIComponent(msg)}`, req.url)
+      new URL(`/?error=auth_failed&id=${encodeURIComponent(errorId)}`, req.url)
     );
   }
 }

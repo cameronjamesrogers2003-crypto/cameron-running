@@ -217,7 +217,8 @@ export default async function Dashboard({
 }) {
   const params = await searchParams;
   const oauthError = params.error as string | undefined;
-  const oauthDetail = params.detail as string | undefined;
+  const oauthErrorIdParam = params.id;
+  const oauthErrorId = typeof oauthErrorIdParam === "string" ? oauthErrorIdParam : undefined;
 
   const today = new Date();
   const todayAESTMidnight = startOfDayAEST(today);
@@ -480,9 +481,12 @@ export default async function Dashboard({
                 ? "Strava authorisation denied"
                 : "Strava connection failed"}
             </p>
-            {oauthDetail && (
+            <p className="mt-1 text-xs" style={{ color: "#fca5a5" }}>
+              Something went wrong during authentication. Please try again.
+            </p>
+            {oauthErrorId && (
               <p className="mt-1 font-mono text-xs break-all" style={{ color: "#fca5a5" }}>
-                {oauthDetail}
+                Reference ID: {oauthErrorId}
               </p>
             )}
           </div>

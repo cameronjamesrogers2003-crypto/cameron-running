@@ -2,7 +2,7 @@
 
 Personal marathon training tracker — half marathon first, then the full 42.2.
 
-Built with Next.js 16, Tailwind CSS 4, Recharts, Prisma 5 + SQLite, and Strava API.
+Built with Next.js 16, Tailwind CSS 4, Recharts, Prisma 5 + PostgreSQL, and Strava API.
 
 ---
 
@@ -87,4 +87,4 @@ Both plans hardcoded from Hal Higdon, all distances in km (miles × 1.60934):
 
 ## Stack
 
-Next.js 16 · Tailwind CSS 4 · Recharts · Prisma 5 · SQLite · Strava API · Vercel
+Next.js 16 · Tailwind CSS 4 · Recharts · Prisma 5 · PostgreSQL · Strava API · Vercel
