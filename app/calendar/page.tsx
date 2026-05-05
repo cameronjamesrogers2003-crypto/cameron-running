@@ -1,14 +1,15 @@
 import prisma from "@/lib/db";
 import { trainingPlan } from "@/data/trainingPlan";
-import { inferRunType } from "@/lib/rating";
+import { inferRunType, parseRatingBreakdown, type StatActivity } from "@/lib/rating";
+import type { PlayerRatingAttribute, PlayerRatingLike } from "@/lib/playerRating";
+import { dbSettingsToUserSettings, DEFAULT_SETTINGS, formatPace, type UserSettings } from "@/lib/settings";
 import {
-  calculateRunnerRating,
-  calculateHMReadiness,
-  type RunnerRatingResult,
-  type HMReadinessResult,
-} from "@/lib/readiness";
-import { dbSettingsToUserSettings, DEFAULT_SETTINGS } from "@/lib/settings";
-import { getEffectivePlanStart, getSessionDate, isPlannedRun } from "@/lib/planUtils";
+  getEffectivePlanStart,
+  getPlanWeekForDate,
+  getSessionDate,
+  isActivityOnOrAfterPlanStart,
+  isPlannedRun,
+} from "@/lib/planUtils";
 import {
   brisbaneCalendarYearUtcRange,
   formatAEST,
@@ -24,75 +25,277 @@ import Logo from "@/components/Logo";
 
 export const dynamic = "force-dynamic";
 
-// ── helpers ──────────────────────────────────────────────────────────────────
+// ── Player card helpers ───────────────────────────────────────────────────────
 
-function ratingColor(score: number): { bg: string; text: string } {
-  if (score >= 85) return { bg: "#1e1a2e", text: "#AFA9EC" };
-  if (score >= 70) return { bg: "#0a1e0f", text: "#5DCAA5" };
-  if (score >= 55) return { bg: "#0a0f1e", text: "#85B7EB" };
-  if (score >= 40) return { bg: "#2e1e0a", text: "#EF9F27" };
-  return                  { bg: "#2e1010", text: "#F09595" };
-}
+type CalendarRatingActivity = StatActivity & {
+  activityType: string;
+  ratingBreakdown?: string | null;
+};
 
-function hmColor(pct: number): { bg: string; text: string } {
-  return ratingColor(pct);
-}
+type AttributeExplanationKey = Exclude<PlayerRatingAttribute, "overall">;
 
-// ── component bars ────────────────────────────────────────────────────────────
-
-function ComponentBar({
-  label,
-  value,
-  max,
-  accent,
-}: {
+const PLAYER_ATTRIBUTES: Array<{
+  key: AttributeExplanationKey;
   label: string;
-  value: number;
-  max: number;
-  accent: string;
-}) {
-  const pct = Math.min(100, (value / max) * 100);
-  return (
-    <div className="flex items-center gap-2 text-xs min-w-0">
-      <span className="shrink-0 min-w-0 truncate max-w-[40%] sm:max-w-none sm:w-[76px]" style={{ color: "var(--text-muted)" }}>
-        {label}
-      </span>
-      <div
-        className="flex-1 rounded-sm overflow-hidden"
-        style={{ height: 4, background: "rgba(255,255,255,0.06)" }}
-      >
-        <div style={{ width: `${pct}%`, height: "100%", background: accent, borderRadius: 2 }} />
-      </div>
-      <span className="text-white shrink-0" style={{ width: 32, textAlign: "right" }}>
-        {value.toFixed(1)}
-      </span>
-    </div>
-  );
+  name: string;
+}> = [
+  { key: "speed", label: "SPD", name: "Speed" },
+  { key: "endurance", label: "END", name: "Endurance" },
+  { key: "consistency", label: "CON", name: "Consistency" },
+  { key: "hrEfficiency", label: "EFF", name: "HR Efficiency" },
+  { key: "toughness", label: "TGH", name: "Toughness" },
+];
+
+function playerRatingAccent(score: number): string {
+  if (score >= 85) return "#22c55e";
+  if (score >= 70) return "#84cc16";
+  if (score >= 55) return "#facc15";
+  if (score >= 40) return "#fb923c";
+  return "#f87171";
 }
 
-function SubBar({
-  label,
-  pct,
-  accent,
+function playerRatingValue(rating: PlayerRatingLike, key: AttributeExplanationKey): number {
+  return Math.round(rating[key]);
+}
+
+function formatKm(value: number): string {
+  return `${Math.round(value * 10) / 10} km`;
+}
+
+function conditionsComponentScore(a: CalendarRatingActivity): number {
+  const breakdown = parseRatingBreakdown(a.ratingBreakdown);
+  return breakdown?.components.conditions.score ?? 0.5;
+}
+
+function calculateInjuryFreeWeeks(
+  activities: CalendarRatingActivity[],
+  planStart: Date,
+  today: Date,
+): number {
+  const todayMidnight = startOfDayAEST(today);
+  const dayOrder: Record<string, number> = { sat: 0, sun: 1, wed: 2 };
+  const sessions: Array<{ weekNum: number; done: boolean }> = [];
+
+  for (const planWeek of trainingPlan) {
+    const sorted = [...planWeek.sessions].sort((a, b) => dayOrder[a.day] - dayOrder[b.day]);
+    for (const session of sorted) {
+      const sessionDate = getSessionDate(planWeek.week, session.day, planStart);
+      if (sessionDate >= todayMidnight) continue;
+
+      sessions.push({
+        weekNum: planWeek.week,
+        done: activities.some((activity) => {
+          const activityDate = new Date(activity.date);
+          return (
+            isActivityOnOrAfterPlanStart(activityDate, planStart)
+            && toBrisbaneYmd(activityDate) === toBrisbaneYmd(sessionDate)
+          );
+        }),
+      });
+    }
+  }
+
+  let breakAtWeek = 0;
+  for (let i = sessions.length - 1; i > 0; i--) {
+    if (!sessions[i].done && !sessions[i - 1].done) {
+      breakAtWeek = sessions[i].weekNum;
+      break;
+    }
+  }
+
+  const streakSessions =
+    breakAtWeek === 0 ? sessions : sessions.filter((session) => session.weekNum > breakAtWeek);
+  return new Set(streakSessions.map((session) => session.weekNum)).size;
+}
+
+function playerAttributeExplanation(
+  key: AttributeExplanationKey,
+  activities: CalendarRatingActivity[],
+  settings: UserSettings,
+  planStart: Date,
+  today: Date,
+): string {
+  const todayEnd = startOfNextDayAEST(today);
+  const last30 = new Date(todayEnd.getTime() - 30 * 24 * 60 * 60 * 1000);
+  const last28 = new Date(todayEnd.getTime() - 28 * 24 * 60 * 60 * 1000);
+  const recent30 = activities.filter((a) => {
+    const d = new Date(a.date);
+    return d >= last30 && d < todayEnd;
+  });
+
+  if (key === "speed") {
+    const speedRuns = recent30
+      .filter((a) => a.avgPaceSecKm > 0 && ["tempo", "interval"].includes(inferRunType(a, settings)))
+      .sort((a, b) => a.avgPaceSecKm - b.avgPaceSecKm);
+    const best = speedRuns[0];
+    if (!best) {
+      return "No tempo or interval runs found in the last 30 days. Add a faster workout to give SPD fresh data.";
+    }
+    return `Your best tempo/interval pace in the last 30 days is ${formatPace(best.avgPaceSecKm)}/km. Run faster intervals to push this up.`;
+  }
+
+  if (key === "endurance") {
+    const recent28 = activities.filter((a) => {
+      const d = new Date(a.date);
+      return d >= last28 && d < todayEnd;
+    });
+    const longestRun = recent30.reduce((max, a) => Math.max(max, a.distanceKm), 0);
+    const avgWeeklyKm = recent28.reduce((sum, a) => sum + a.distanceKm, 0) / 4;
+    if (recent30.length === 0) {
+      return "No runs found in the last 30 days, so endurance has no recent distance data. Build your long run distance to improve this.";
+    }
+    return `Your longest run is ${formatKm(longestRun)} and weekly average is ${formatKm(avgWeeklyKm)}. Build your long run distance to improve this.`;
+  }
+
+  if (key === "consistency") {
+    const planStartLabel = formatAEST(planStart, "d MMM");
+    let hits = 0;
+    const currentWeek = Math.max(1, getPlanWeekForDate(today, planStart));
+    const firstWeek = Math.max(1, currentWeek - 3);
+    const runKeys = new Set(
+      activities
+        .filter((a) => isActivityOnOrAfterPlanStart(new Date(a.date), planStart))
+        .map((a) => toBrisbaneYmd(a.date)),
+    );
+    for (let week = firstWeek; week <= currentWeek; week++) {
+      const planWeek = trainingPlan.find((w) => w.week === week);
+      if (!planWeek) continue;
+      for (const session of planWeek.sessions) {
+        if (runKeys.has(toBrisbaneYmd(getSessionDate(week, session.day, planStart)))) hits++;
+      }
+    }
+    if (hits === 0) {
+      return `No scheduled Wed/Sat/Sun sessions completed yet; plan starts ${planStartLabel}. Hit your sessions every week to climb this.`;
+    }
+    return `You have completed ${hits}/12 scheduled Wed/Sat/Sun sessions in the last 4 weeks. Hit your sessions every week to climb this.`;
+  }
+
+  if (key === "hrEfficiency") {
+    const easyHrRuns = recent30.filter((a) =>
+      a.avgPaceSecKm > 0
+      && (a.avgHeartRate ?? 0) > 0
+      && inferRunType(a, settings) === "easy"
+    );
+    if (easyHrRuns.length === 0) {
+      return "No HR data on easy runs found in the last 30 days. Run more easy runs with your HR monitor to improve this score.";
+    }
+    const avgPace = Math.round(easyHrRuns.reduce((sum, a) => sum + a.avgPaceSecKm, 0) / easyHrRuns.length);
+    const avgHr = Math.round(easyHrRuns.reduce((sum, a) => sum + (a.avgHeartRate ?? 0), 0) / easyHrRuns.length);
+    return `Based on ${easyHrRuns.length} easy HR ${easyHrRuns.length === 1 ? "run" : "runs"} averaging ${formatPace(avgPace)}/km at ${avgHr} bpm. Run more easy runs with your HR monitor to improve this score.`;
+  }
+
+  const conditionRuns = recent30;
+  if (conditionRuns.length === 0) {
+    return "No runs found in the last 30 days, so toughness has no recent conditions data. Keep logging runs with weather data to improve this.";
+  }
+  const avgConditions =
+    conditionRuns.reduce((sum, a) => sum + conditionsComponentScore(a), 0) / conditionRuns.length;
+  return `Your average conditions score is ${avgConditions.toFixed(2)} across ${conditionRuns.length} recent ${conditionRuns.length === 1 ? "run" : "runs"}. Brisbane summer will push this up naturally.`;
+}
+
+function PlayerCard({
+  rating,
+  activities,
+  settings,
+  planStart,
+  today,
 }: {
-  label: string;
-  pct: number;
-  accent: string;
+  rating: PlayerRatingLike | null;
+  activities: CalendarRatingActivity[];
+  settings: UserSettings;
+  planStart: Date;
+  today: Date;
 }) {
-  return (
-    <div className="flex items-center gap-2 text-xs min-w-0">
-      <span className="shrink-0 min-w-0 truncate max-w-[40%] sm:max-w-none sm:w-20" style={{ color: "var(--text-muted)" }}>
-        {label}
-      </span>
+  if (!rating) {
+    return (
       <div
-        className="flex-1 rounded-sm overflow-hidden"
-        style={{ height: 3, background: "rgba(255,255,255,0.06)" }}
+        className="rounded-[10px] p-5 md:col-span-2"
+        style={{ background: "#181818", border: "1px solid rgba(255,255,255,0.08)" }}
       >
-        <div style={{ width: `${pct}%`, height: "100%", background: accent, borderRadius: 2 }} />
+        <div className="rounded-2xl p-5 text-center" style={{ background: "#0b1020" }}>
+          <p className="text-5xl font-black text-white tabular-nums">--</p>
+          <p className="text-xs uppercase tracking-[0.3em] font-bold" style={{ color: "var(--text-muted)" }}>
+            OVR
+          </p>
+          <p className="text-sm mt-4" style={{ color: "var(--text-muted)" }}>
+            Visit /api/player-rating/initialize after deployment to seed your first rating.
+          </p>
+        </div>
       </div>
-      <span className="text-white shrink-0" style={{ width: 28, textAlign: "right" }}>
-        {pct}%
-      </span>
+    );
+  }
+
+  const overall = Math.round(rating.overall);
+  const accent = playerRatingAccent(overall);
+
+  return (
+    <div
+      className="rounded-[10px] p-4 sm:p-5 overflow-hidden md:col-span-2"
+      style={{ background: "#181818", border: "1px solid rgba(255,255,255,0.08)" }}
+    >
+      <div
+        className="relative rounded-3xl p-5 sm:p-6"
+        style={{
+          background:
+            "radial-gradient(circle at 22% 0%, rgba(250,204,21,0.25), transparent 32%), linear-gradient(145deg, #101827 0%, #0b1020 48%, #050816 100%)",
+          border: "1px solid rgba(250,204,21,0.32)",
+          boxShadow: "inset 0 0 60px rgba(250,204,21,0.05)",
+        }}
+      >
+        <div
+          className="absolute inset-x-7 top-0 h-px"
+          style={{ background: "linear-gradient(90deg, transparent, rgba(250,204,21,0.8), transparent)" }}
+        />
+        <div className="relative flex flex-col gap-5 lg:flex-row lg:items-start">
+          <div className="flex items-center gap-4 lg:w-48 lg:flex-col lg:items-start">
+            <div>
+              <p className="text-6xl sm:text-7xl font-black leading-none tabular-nums" style={{ color: accent }}>
+                {overall}
+              </p>
+              <p className="text-xs uppercase tracking-[0.35em] font-extrabold text-white">OVR</p>
+            </div>
+            <div className="min-w-0">
+              <p className="text-lg font-black uppercase tracking-wide text-white">Cameron</p>
+              <p className="text-xs uppercase tracking-[0.2em]" style={{ color: "rgba(255,255,255,0.55)" }}>
+                Running Card
+              </p>
+            </div>
+          </div>
+
+          <div className="grid flex-1 gap-4">
+            {PLAYER_ATTRIBUTES.map((attr) => {
+              const value = playerRatingValue(rating, attr.key);
+              const width = Math.min(100, Math.max(0, (value / 99) * 100));
+              const barColor = playerRatingAccent(value);
+              return (
+                <div key={attr.key} className="grid gap-1.5">
+                  <div className="grid grid-cols-[42px_1fr_34px] items-center gap-3">
+                    <div>
+                      <p className="text-xs font-black tracking-wider text-white">{attr.label}</p>
+                      <p className="text-[10px] hidden sm:block" style={{ color: "rgba(255,255,255,0.45)" }}>
+                        {attr.name}
+                      </p>
+                    </div>
+                    <div className="h-2.5 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.10)" }}>
+                      <div
+                        className="h-full rounded-full"
+                        style={{
+                          width: `${width}%`,
+                          background: `linear-gradient(90deg, ${barColor}, rgba(255,255,255,0.88))`,
+                        }}
+                      />
+                    </div>
+                    <p className="text-sm font-black text-right tabular-nums text-white">{value}</p>
+                  </div>
+                  <p className="pl-[55px] text-[11px] leading-snug" style={{ color: "rgba(255,255,255,0.55)" }}>
+                    {playerAttributeExplanation(attr.key, activities, settings, planStart, today)}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -114,7 +317,7 @@ export default async function CalendarPage({
   // Stats always use the last 90 days regardless of displayed year
   const statsStart = new Date(today.getTime() - 90 * 24 * 60 * 60 * 1000);
 
-  const [userSettingsRow, yearActivities, statsActivities] = await Promise.all([
+  const [userSettingsRow, yearActivities, statsActivities, playerRating] = await Promise.all([
     prisma.userSettings.findUnique({ where: { id: 1 } }),
     prisma.activity.findMany({
       where: {
@@ -129,14 +332,25 @@ export default async function CalendarPage({
         date: { gte: statsStart, lt: startOfNextDayAEST(today) },
       },
       orderBy: { date: "asc" },
+      select: {
+        id: true,
+        date: true,
+        distanceKm: true,
+        avgPaceSecKm: true,
+        avgHeartRate: true,
+        maxHeartRate: true,
+        rating: true,
+        ratingBreakdown: true,
+        classifiedRunType: true,
+        activityType: true,
+      },
     }),
+    prisma.playerRating.findFirst({ orderBy: { updatedAt: "desc" } }),
   ]);
 
   const settings    = userSettingsRow ? dbSettingsToUserSettings(userSettingsRow) : DEFAULT_SETTINGS;
   const planStart     = getEffectivePlanStart(settings.planStartDate);
-  // ── Compute top-strip stats ──────────────────────────────────────────────
-  const runnerRating = calculateRunnerRating(statsActivities, trainingPlan, settings);
-  const hmReadiness  = calculateHMReadiness(statsActivities, trainingPlan, settings);
+  const injuryFreeWeeks = calculateInjuryFreeWeeks(statsActivities, planStart, today);
 
   // Derive stats strip values (Brisbane calendar day bounds)
   const todayMidnight = startOfDayAEST(today);
@@ -225,17 +439,7 @@ export default async function CalendarPage({
   }
 
   // ── Render ────────────────────────────────────────────────────────────────
-  const rrColor  = ratingColor(runnerRating.total);
-  const hmColor_ = hmColor(hmReadiness.total);
   const todayKey = toBrisbaneYmd(today);
-
-  const COMPONENT_LABELS: Array<{ key: keyof RunnerRatingResult & string; label: string; max: number }> = [
-    { key: "consistency", label: "Consistency", max: 20 },
-    { key: "progress",    label: "Progress",    max: 20 },
-    { key: "longRuns",    label: "Long Runs",   max: 25 },
-    { key: "injuryFree",  label: "Injury-free", max: 20 },
-    { key: "extras",      label: "Extras",      max: 15 },
-  ];
 
   return (
     <div className="space-y-5">
@@ -247,71 +451,13 @@ export default async function CalendarPage({
 
       {/* ── Top strip ───────────────────────────────────────────────────── */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-
-        {/* Panel 1: Runner Rating */}
-        <div
-          className="rounded-[10px] p-4 space-y-3"
-          style={{ background: "#181818", border: "1px solid rgba(255,255,255,0.08)" }}
-        >
-          <p className="text-xs uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>
-            Runner Rating
-          </p>
-          <div className="flex items-end gap-3">
-            <span
-              className="text-3xl sm:text-4xl md:text-5xl font-bold leading-none tabular-nums"
-              style={{ color: rrColor.text }}
-            >
-              {runnerRating.total}
-            </span>
-            <span className="text-sm mb-1" style={{ color: "var(--text-muted)" }}>
-              / 100
-            </span>
-          </div>
-          <div className="space-y-1.5 pt-1">
-            {COMPONENT_LABELS.map(({ key, label, max }) => (
-              <ComponentBar
-                key={key}
-                label={label}
-                value={runnerRating[key] as number}
-                max={max}
-                accent={rrColor.text}
-              />
-            ))}
-          </div>
-        </div>
-
-        {/* Panel 2: HM Readiness */}
-        <div
-          className="rounded-[10px] p-4 space-y-3"
-          style={{ background: "#181818", border: "1px solid rgba(255,255,255,0.08)" }}
-        >
-          <p className="text-xs uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>
-            HM Readiness
-          </p>
-          <div className="flex items-end gap-3">
-            <span
-              className="text-3xl sm:text-4xl md:text-5xl font-bold leading-none tabular-nums"
-              style={{ color: hmColor_.text }}
-            >
-              {hmReadiness.total}%
-            </span>
-          </div>
-          {/* Filled bar */}
-          <div
-            className="h-1.5 rounded-full overflow-hidden"
-            style={{ background: "rgba(255,255,255,0.08)" }}
-          >
-            <div
-              className="h-full rounded-full"
-              style={{ width: `${hmReadiness.total}%`, background: hmColor_.text }}
-            />
-          </div>
-          <div className="space-y-1.5 pt-1">
-            <SubBar label="Pace"        pct={hmReadiness.pace}        accent={hmColor_.text} />
-            <SubBar label="Consistency" pct={hmReadiness.consistency} accent={hmColor_.text} />
-            <SubBar label="Long Run"    pct={hmReadiness.longRun}     accent={hmColor_.text} />
-          </div>
-        </div>
+        <PlayerCard
+          rating={playerRating}
+          activities={statsActivities}
+          settings={settings}
+          planStart={planStart}
+          today={today}
+        />
 
         {/* Panel 3: Stats strip */}
         <div
@@ -323,7 +469,7 @@ export default async function CalendarPage({
           </p>
           <div className="space-y-3">
             {[
-              { label: "Injury-free streak",     value: `${runnerRating.injuryFreeWeeks} wks` },
+              { label: "Injury-free streak",     value: `${injuryFreeWeeks} wks` },
               { label: "Extra runs this month",   value: String(extraRunsThisMonth) },
               { label: "Long runs (last 6 wks)",  value: `${longDone}/${longPlanned}` },
               { label: "Sessions this month",     value: `${sessDone}/${sessPlanned}` },
