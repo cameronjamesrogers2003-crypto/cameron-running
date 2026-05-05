@@ -32,7 +32,7 @@ export default function TodayLabel({ day, enabled }: { day: Day; enabled: boolea
   const [today, setToday] = useState<number | null>(null);
 
   useEffect(() => {
-    let timeoutId: ReturnType<typeof window.setTimeout>;
+    let timeoutId: number | undefined;
 
     const updateToday = () => {
       setToday(getLocalToday());
@@ -42,7 +42,7 @@ export default function TodayLabel({ day, enabled }: { day: Day; enabled: boolea
     updateToday();
 
     return () => {
-      window.clearTimeout(timeoutId);
+      if (timeoutId !== undefined) window.clearTimeout(timeoutId);
     };
   }, []);
 
