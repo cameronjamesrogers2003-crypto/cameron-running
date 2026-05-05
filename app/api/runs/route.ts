@@ -26,19 +26,26 @@ export async function GET(req: NextRequest) {
   const where: Prisma.ActivityWhereInput = {
     activityType: { in: ["running", "trail_running"] },
   };
+  const dateFilter: Prisma.DateTimeFilter = {};
+  const distanceFilter: Prisma.FloatFilter = {};
+  const paceFilter: Prisma.IntFilter = {};
 
   if (search) where.name = { contains: search, mode: "insensitive" };
   if (dateFrom) {
-    where.date = { ...where.date, gte: brisbaneMidnightUtcForYmd(dateFrom) };
+    dateFilter.gte = brisbaneMidnightUtcForYmd(dateFrom);
   }
   if (dateTo) {
     const endExclusive = new Date(brisbaneMidnightUtcForYmd(dateTo).getTime() + 24 * 60 * 60 * 1000);
-    where.date = { ...where.date, lt: endExclusive };
+    dateFilter.lt = endExclusive;
   }
-  if (!isNaN(distMin)) where.distanceKm = { ...where.distanceKm, gte: distMin };
-  if (!isNaN(distMax)) where.distanceKm = { ...where.distanceKm, lte: distMax };
-  if (!isNaN(paceMin)) where.avgPaceSecKm = { ...where.avgPaceSecKm, gte: paceMin };
-  if (!isNaN(paceMax)) where.avgPaceSecKm = { ...where.avgPaceSecKm, lte: paceMax };
+  if (!isNaN(distMin)) distanceFilter.gte = distMin;
+  if (!isNaN(distMax)) distanceFilter.lte = distMax;
+  if (!isNaN(paceMin)) paceFilter.gte = paceMin;
+  if (!isNaN(paceMax)) paceFilter.lte = paceMax;
+
+  if (Object.keys(dateFilter).length > 0) where.date = dateFilter;
+  if (Object.keys(distanceFilter).length > 0) where.distanceKm = distanceFilter;
+  if (Object.keys(paceFilter).length > 0) where.avgPaceSecKm = paceFilter;
   const whereWithTypes: Prisma.ActivityWhereInput =
     types.length > 0
       ? { ...where, classifiedRunType: { in: types } }
