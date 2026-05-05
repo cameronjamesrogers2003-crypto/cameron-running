@@ -2,7 +2,7 @@
 
 Personal marathon training tracker — half marathon first, then the full 42.2.
 
-Built with Next.js 16, Tailwind CSS 4, Recharts, Prisma 5 + SQLite, and Strava API.
+Built with Next.js 16, Tailwind CSS 4, Recharts, Prisma 5 + PostgreSQL (Neon, Sydney region), and Strava API.
 
 ---
 
@@ -13,14 +13,14 @@ Built with Next.js 16, Tailwind CSS 4, Recharts, Prisma 5 + SQLite, and Strava A
 npm install
 
 # 2. Fill in Strava credentials in .env.local (see Strava Setup below)
-# DATABASE_URL is already set to file:./dev.db
+# DATABASE_URL must point to a Neon PostgreSQL connection string
 
 # 3. Create and seed the database
-DATABASE_URL=file:./dev.db npx prisma db push
+DATABASE_URL="postgresql://USER:PASSWORD@HOST.neon.tech/DB?sslmode=require" npx prisma db push
 node prisma/seed.js
 
 # 4. Run the dev server
-DATABASE_URL=file:./dev.db npm run dev
+DATABASE_URL="postgresql://USER:PASSWORD@HOST.neon.tech/DB?sslmode=require" npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000).
@@ -36,7 +36,7 @@ Open [http://localhost:3000](http://localhost:3000).
    STRAVA_CLIENT_ID=234494
    STRAVA_CLIENT_SECRET=your_client_secret
    STRAVA_REDIRECT_URI=http://localhost:3000/api/strava/callback
-   DATABASE_URL=file:./dev.db
+   DATABASE_URL=postgresql://USER:PASSWORD@HOST.neon.tech/DB?sslmode=require
    ```
 4. Visit the site and click **Connect Strava** to complete the OAuth flow
 5. Once connected, activities sync on page load and via the **Sync with Strava** button
@@ -70,7 +70,8 @@ Brisbane coordinates: lat `-27.4698`, lon `153.0251`.
    - `STRAVA_CLIENT_ID`
    - `STRAVA_CLIENT_SECRET`
    - `STRAVA_REDIRECT_URI` → `https://your-site.vercel.app/api/strava/callback`
-   - `DATABASE_URL` → `file:./dev.db`
+   - `DATABASE_URL` → Neon PostgreSQL connection string (Sydney region)
+   - `BACKFILL_SECRET` → secure random string for `/api/weather/backfill`
 4. Update your Strava app's callback domain to your Vercel domain
 5. Deploy — the build command runs `prisma generate && prisma db push && next build`
 
@@ -87,4 +88,4 @@ Both plans hardcoded from Hal Higdon, all distances in km (miles × 1.60934):
 
 ## Stack
 
-Next.js 16 · Tailwind CSS 4 · Recharts · Prisma 5 · SQLite · Strava API · Vercel
+Next.js 16 · Tailwind CSS 4 · Recharts · Prisma 5 · PostgreSQL (Neon, Sydney region) · Strava API · Vercel

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/db";
 import { persistActivityRating } from "@/lib/persistActivityRating";
+import { updatePlayerRating } from "@/lib/playerRating";
 
 export const dynamic = "force-dynamic";
 
@@ -25,6 +26,12 @@ export async function POST() {
     } catch {
       errors++;
     }
+  }
+
+  if (ok > 0) {
+    void updatePlayerRating(prisma, null).catch((err) => {
+      console.error("[player-rating] backfill update failed:", err);
+    });
   }
 
   return NextResponse.json({ updated: ok, errors, total: ids.length });

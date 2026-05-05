@@ -1,11 +1,17 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
 import { fetchHistoricalWeather, BRISBANE_LAT, BRISBANE_LON } from "@/lib/weather";
 
 const BATCH_SIZE    = 10;
 const BATCH_DELAY   = 1000; // ms between batches
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const secret = req.nextUrl.searchParams.get("secret");
+  const expectedSecret = process.env.BACKFILL_SECRET;
+  if (!expectedSecret || secret !== expectedSecret) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
+
   const activities = await prisma.activity.findMany({
     where:   { temperatureC: null },
     orderBy: { date: "desc" },

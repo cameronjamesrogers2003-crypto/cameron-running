@@ -179,6 +179,10 @@ function sportTypeToLabel(sportType: string): string {
   }
 }
 
+function isRunningActivityType(activityType: string): boolean {
+  return activityType === "running" || activityType === "trail_running";
+}
+
 export async function syncActivities(): Promise<{ synced: number; errors: number }> {
   const token = await getValidToken();
   if (!token) return { synced: 0, errors: 0 };
@@ -198,13 +202,20 @@ export async function syncActivities(): Promise<{ synced: number; errors: number
 
   let synced = 0;
   let errors = 0;
+  let latestRatedActivity: { id: string; activityType: string } | null = null;
 
   for (const act of activities) {
     try {
       const id = String(act.id);
       const existing = await prisma.activity.findUnique({ where: { id } });
       if (existing) {
-        await persistActivityRating(prisma, id).catch(() => {});
+        await persistActivityRating(prisma, id)
+          .then(() => {
+            if (isRunningActivityType(existing.activityType)) {
+              latestRatedActivity = { id, activityType: existing.activityType };
+            }
+          })
+          .catch(() => {});
         continue;
       }
 
@@ -255,15 +266,24 @@ export async function syncActivities(): Promise<{ synced: number; errors: number
         });
       }
 
-      await persistActivityRating(prisma, id).catch(() => {});
-      await updatePlayerRating(prisma, { id, activityType }).catch((err) => {
-        console.error("[player-rating] update failed:", err);
-      });
+      await persistActivityRating(prisma, id)
+        .then(() => {
+          if (isRunningActivityType(activityType)) {
+            latestRatedActivity = { id, activityType };
+          }
+        })
+        .catch(() => {});
 
       synced++;
     } catch {
       errors++;
     }
+  }
+
+  if (latestRatedActivity) {
+    void updatePlayerRating(prisma, latestRatedActivity).catch((err) => {
+      console.error("[player-rating] update failed:", err);
+    });
   }
 
   return { synced, errors };
