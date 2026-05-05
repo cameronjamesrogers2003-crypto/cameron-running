@@ -74,6 +74,23 @@ model UserSettings {
   updatedAt             DateTime  @updatedAt
 }
 
+model PlayerRating {
+  id               String   @id @default(cuid())
+  updatedAt        DateTime @updatedAt
+  overall          Float
+  speed            Float
+  endurance        Float
+  consistency      Float
+  hrEfficiency     Float
+  toughness        Float
+  prevOverall      Float
+  prevSpeed        Float
+  prevEndurance    Float
+  prevConsistency  Float
+  prevHrEfficiency Float
+  prevToughness    Float
+}
+
 model PlanInterruption {
   id               String    @id @default(cuid())
   reason           String

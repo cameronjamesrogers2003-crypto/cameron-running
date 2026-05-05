@@ -14,11 +14,17 @@ import { formatAEST, formatDistanceToNowAEST, sameDayAEST, startOfDayAEST } from
 import { inferRunType } from "@/lib/rating";
 import { dbSettingsToUserSettings, DEFAULT_SETTINGS } from "@/lib/settings";
 import { reconfigurePlan, type PlanInterruption, type InterruptionType } from "@/lib/interruptions";
+import {
+  buildPlayerRatingSummaryRows,
+  type PlayerRatingAttribute,
+  type PlayerRatingLike,
+} from "@/lib/playerRating";
 import WeeklyKmChart from "@/components/charts/WeeklyKmChart";
 import AvgPaceTrendChart from "@/components/charts/AvgPaceTrendChart";
 import TrainingLoadChart from "@/components/charts/TrainingLoadChart";
 import SyncButton from "@/components/SyncButton";
 import Logo from "@/components/Logo";
+import PlayerRatingDeltaPanel from "@/components/PlayerRatingDeltaPanel";
 
 export const dynamic = "force-dynamic";
 
@@ -61,6 +67,111 @@ function formatTargetPace(minPerKm: number): string {
   const mins = Math.floor(minPerKm);
   const secs = Math.round((minPerKm - mins) * 60);
   return `${mins}:${secs.toString().padStart(2, "0")} /km`;
+}
+
+const PLAYER_ATTRIBUTES: Array<{
+  key: Exclude<PlayerRatingAttribute, "overall">;
+  label: string;
+  name: string;
+}> = [
+  { key: "speed", label: "SPD", name: "Speed" },
+  { key: "endurance", label: "END", name: "Endurance" },
+  { key: "consistency", label: "CON", name: "Consistency" },
+  { key: "hrEfficiency", label: "EFF", name: "HR Efficiency" },
+  { key: "toughness", label: "TGH", name: "Toughness" },
+];
+
+function playerRatingAccent(score: number): string {
+  if (score >= 85) return "#22c55e";
+  if (score >= 70) return "#84cc16";
+  if (score >= 55) return "#facc15";
+  if (score >= 40) return "#fb923c";
+  return "#f87171";
+}
+
+function PlayerCard({ rating }: { rating: PlayerRatingLike | null }) {
+  if (!rating) {
+    return (
+      <Card className="p-5">
+        <SectionLabel>Player Card</SectionLabel>
+        <div className="mt-4 rounded-2xl p-5 text-center" style={{ background: "#0b1020" }}>
+          <p className="text-5xl font-black text-white tabular-nums">--</p>
+          <p className="text-xs uppercase tracking-[0.3em] font-bold" style={{ color: "var(--text-muted)" }}>
+            OVR
+          </p>
+          <p className="text-sm mt-4" style={{ color: "var(--text-muted)" }}>
+            Visit /api/player-rating/initialize after deployment to seed your first rating.
+          </p>
+        </div>
+      </Card>
+    );
+  }
+
+  const overall = Math.round(rating.overall);
+  const accent = playerRatingAccent(overall);
+
+  return (
+    <Card className="p-4 sm:p-5 overflow-hidden">
+      <div
+        className="relative rounded-3xl p-5 sm:p-6"
+        style={{
+          background:
+            "radial-gradient(circle at 22% 0%, rgba(250,204,21,0.25), transparent 32%), linear-gradient(145deg, #101827 0%, #0b1020 48%, #050816 100%)",
+          border: "1px solid rgba(250,204,21,0.32)",
+          boxShadow: "inset 0 0 60px rgba(250,204,21,0.05)",
+        }}
+      >
+        <div
+          className="absolute inset-x-7 top-0 h-px"
+          style={{ background: "linear-gradient(90deg, transparent, rgba(250,204,21,0.8), transparent)" }}
+        />
+        <div className="relative flex flex-col gap-5 md:flex-row md:items-center">
+          <div className="flex items-center gap-4 md:w-48 md:flex-col md:items-start">
+            <div>
+              <p className="text-6xl sm:text-7xl font-black leading-none tabular-nums" style={{ color: accent }}>
+                {overall}
+              </p>
+              <p className="text-xs uppercase tracking-[0.35em] font-extrabold text-white">OVR</p>
+            </div>
+            <div className="min-w-0">
+              <p className="text-lg font-black uppercase tracking-wide text-white">Cameron</p>
+              <p className="text-xs uppercase tracking-[0.2em]" style={{ color: "rgba(255,255,255,0.55)" }}>
+                Running Card
+              </p>
+            </div>
+          </div>
+
+          <div className="grid flex-1 gap-3">
+            {PLAYER_ATTRIBUTES.map((attr) => {
+              const value = Math.round(rating[attr.key]);
+              const width = Math.min(100, Math.max(0, (value / 99) * 100));
+              const barColor = playerRatingAccent(value);
+              return (
+                <div key={attr.key} className="grid grid-cols-[42px_1fr_34px] items-center gap-3">
+                  <div>
+                    <p className="text-xs font-black tracking-wider text-white">{attr.label}</p>
+                    <p className="text-[10px] hidden sm:block" style={{ color: "rgba(255,255,255,0.45)" }}>
+                      {attr.name}
+                    </p>
+                  </div>
+                  <div className="h-2.5 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.10)" }}>
+                    <div
+                      className="h-full rounded-full"
+                      style={{
+                        width: `${width}%`,
+                        background: `linear-gradient(90deg, ${barColor}, rgba(255,255,255,0.88))`,
+                      }}
+                    />
+                  </div>
+                  <p className="text-sm font-black text-right tabular-nums text-white">{value}</p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </Card>
+  );
 }
 
 // ── Card wrapper ─────────────────────────────────────────────────────────────
@@ -111,11 +222,15 @@ export default async function Dashboard({
   const today = new Date();
   const todayAESTMidnight = startOfDayAEST(today);
 
-  const [profile, userSettingsRow, lastSyncRow, interruptionRows] = await Promise.all([
+  const [profile, userSettingsRow, lastSyncRow, interruptionRows, playerRating] = await Promise.all([
     prisma.profile.findUnique({ where: { id: 1 } }),
     prisma.userSettings.findUnique({ where: { id: 1 } }),
-    prisma.activity.findFirst({ orderBy: { syncedAt: "desc" } }),
+    prisma.activity.findFirst({
+      where: { activityType: { in: ["running", "trail_running"] } },
+      orderBy: { syncedAt: "desc" },
+    }),
     prisma.planInterruption.findMany({ orderBy: { startDate: "asc" } }),
+    prisma.playerRating.findFirst({ orderBy: { updatedAt: "desc" } }),
   ]);
 
   const settings = userSettingsRow ? dbSettingsToUserSettings(userSettingsRow) : DEFAULT_SETTINGS;
@@ -335,6 +450,10 @@ export default async function Dashboard({
     : "Never refreshed";
 
   const todayPlanEntry = sessionChecklist.find((row) => sameDayAEST(row.date, today));
+  const playerRatingSummaryRows = playerRating
+    ? buildPlayerRatingSummaryRows(playerRating, lastSyncRow, settings)
+    : [];
+  const hasPlayerRatingDelta = playerRatingSummaryRows.some((row) => row.delta !== 0);
 
   // ─────────────────────────────────────────────────────────────────────────
   return (
@@ -364,6 +483,13 @@ export default async function Dashboard({
         {/* Logo icon + phase header */}
         <Logo size="md" showWordmark={false} />
 
+        {playerRating && hasPlayerRatingDelta && (
+          <PlayerRatingDeltaPanel
+            updatedAt={playerRating.updatedAt.toISOString()}
+            rows={playerRatingSummaryRows}
+          />
+        )}
+
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
           <div className="flex flex-wrap items-center gap-2 sm:gap-3 min-w-0">
             <span className="text-lg sm:text-xl md:text-2xl font-bold text-white shrink-0">Dashboard</span>
@@ -378,6 +504,8 @@ export default async function Dashboard({
             {formatAEST(today, "EEEE, d MMMM yyyy")}
           </p>
         </div>
+
+        <PlayerCard rating={playerRating} />
 
         {/* Today's plan — full width on small screens (sidebar is lg+) */}
         <div className="lg:hidden w-full">

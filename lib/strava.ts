@@ -1,5 +1,6 @@
 import prisma from "./db";
 import { persistActivityRating } from "./persistActivityRating";
+import { updatePlayerRating } from "./playerRating";
 import { fetchHistoricalWeather, BRISBANE_LAT, BRISBANE_LON } from "./weather";
 
 const STRAVA_AUTH_URL = "https://www.strava.com/oauth/authorize";
@@ -191,7 +192,9 @@ export async function syncActivities(): Promise<{ synced: number; errors: number
 
   if (!res.ok) return { synced: 0, errors: 1 };
 
-  const activities: StravaActivity[] = await res.json();
+  const activities: StravaActivity[] = (await res.json()).sort((a: StravaActivity, b: StravaActivity) =>
+    new Date(a.start_date).getTime() - new Date(b.start_date).getTime()
+  );
 
   let synced = 0;
   let errors = 0;
@@ -219,6 +222,8 @@ export async function syncActivities(): Promise<{ synced: number; errors: number
       const startLat = act.start_latlng?.[0] ?? null;
       const startLon = act.start_latlng?.[1] ?? null;
 
+      const activityType = sportTypeToLabel(act.sport_type || act.type);
+
       await prisma.activity.create({
         data: {
           id,
@@ -230,7 +235,7 @@ export async function syncActivities(): Promise<{ synced: number; errors: number
           avgHeartRate:   act.average_heartrate ? Math.round(act.average_heartrate) : null,
           maxHeartRate:   act.max_heartrate     ? Math.round(act.max_heartrate)     : null,
           calories,
-          activityType:   sportTypeToLabel(act.sport_type || act.type),
+          activityType,
           elevationGainM: act.total_elevation_gain ?? null,
           startLat,
           startLon,
@@ -251,6 +256,9 @@ export async function syncActivities(): Promise<{ synced: number; errors: number
       }
 
       await persistActivityRating(prisma, id).catch(() => {});
+      await updatePlayerRating(prisma, { id, activityType }).catch((err) => {
+        console.error("[player-rating] update failed:", err);
+      });
 
       synced++;
     } catch {
