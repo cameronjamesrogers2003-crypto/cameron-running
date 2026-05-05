@@ -76,6 +76,21 @@ const HR_ZONE_BOUNDS: Record<RunType, [number, number]> = {
   interval: [0.88, 0.96],
 };
 
+const DAY_MAP: Record<string, number> = {
+  SUN: 0,
+  MON: 1,
+  TUE: 2,
+  WED: 3,
+  THU: 4,
+  FRI: 5,
+  SAT: 6,
+};
+
+export function isToday(workoutDay: string): boolean {
+  const today = new Date().getDay();
+  return DAY_MAP[workoutDay?.toUpperCase()] === today;
+}
+
 function getZoneBadge(
   avgHR: number | null | undefined,
   runType: RunType,
@@ -393,7 +408,8 @@ export default async function ProgramPage() {
                         {planWeek.sessions.map((session) => {
                           const sessionDate = getSessionDate(planWeek.week, session.day, planStart);
                           const isPast      = sessionDate < todayMidnight;
-                          const isToday     = sameDayAEST(sessionDate, today);
+                          const dayLabel = { wed: "Wed", sat: "Sat", sun: "Sun" }[session.day];
+                          const isTodaySession = isToday(dayLabel);
                           const matchedAct  = activities.find((a) => {
                             const d = new Date(a.date);
                             return (
@@ -425,7 +441,6 @@ export default async function ProgramPage() {
                           }
 
                           const pill     = typePillStyle(session.type);
-                          const dayLabel = { wed: "Wed", sat: "Sat", sun: "Sun" }[session.day];
 
                           return (
                             <div
@@ -515,7 +530,7 @@ export default async function ProgramPage() {
                               )}
 
                               {/* Today label */}
-                              {isToday && (
+                              {isTodaySession && (
                                 <p
                                   className="text-[11px] font-semibold mt-1.5"
                                   style={{ color: "#a5b4fc" }}
