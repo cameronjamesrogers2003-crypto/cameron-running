@@ -15,6 +15,7 @@ import PhaseOverview from "./PhaseOverview";
 import ProgramSidePanel from "./ProgramSidePanel";
 import PlanAdjustments from "./PlanAdjustments";
 import RaceFlagBanner from "./RaceFlagBanner";
+import TodayLabel from "./TodayLabel";
 import Logo from "@/components/Logo";
 
 export const dynamic = "force-dynamic";
@@ -393,7 +394,6 @@ export default async function ProgramPage() {
                         {planWeek.sessions.map((session) => {
                           const sessionDate = getSessionDate(planWeek.week, session.day, planStart);
                           const isPast      = sessionDate < todayMidnight;
-                          const isToday     = sameDayAEST(sessionDate, today);
                           const matchedAct  = activities.find((a) => {
                             const d = new Date(a.date);
                             return (
@@ -515,14 +515,7 @@ export default async function ProgramPage() {
                               )}
 
                               {/* Today label */}
-                              {isToday && (
-                                <p
-                                  className="text-[11px] font-semibold mt-1.5"
-                                  style={{ color: "#a5b4fc" }}
-                                >
-                                  Today
-                                </p>
-                              )}
+                              <TodayLabel day={session.day} enabled={isCurrentWeek} />
                             </div>
                           );
                         })}
