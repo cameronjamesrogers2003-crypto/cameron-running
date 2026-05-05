@@ -453,7 +453,15 @@ export default async function Dashboard({
   const playerRatingSummaryRows = playerRating
     ? buildPlayerRatingSummaryRows(playerRating, lastSyncRow, settings)
     : [];
-  const hasPlayerRatingDelta = playerRatingSummaryRows.some((row) => row.delta !== 0);
+  const playerRatingUpdatedAt = playerRating ? new Date(playerRating.updatedAt) : null;
+  const showPlayerRatingSummary = Boolean(
+    playerRating
+      && lastSyncRow
+      && playerRatingSummaryRows.length > 0
+      && playerRatingUpdatedAt
+      && playerRatingUpdatedAt.getTime() >= lastSyncRow.syncedAt.getTime()
+      && playerRatingUpdatedAt.getTime() - lastSyncRow.syncedAt.getTime() <= 10 * 60 * 1000,
+  );
 
   // ─────────────────────────────────────────────────────────────────────────
   return (
@@ -483,7 +491,7 @@ export default async function Dashboard({
         {/* Logo icon + phase header */}
         <Logo size="md" showWordmark={false} />
 
-        {playerRating && hasPlayerRatingDelta && (
+        {playerRating && showPlayerRatingSummary && (
           <PlayerRatingDeltaPanel
             updatedAt={playerRating.updatedAt.toISOString()}
             rows={playerRatingSummaryRows}
