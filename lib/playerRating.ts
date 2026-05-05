@@ -1,0 +1,507 @@
+import type { PrismaClient } from "@prisma/client";
+import { buildTrainingPlan, type RunType } from "@/data/trainingPlan";
+import { reconfigurePlan, type InterruptionType, type PlanInterruption } from "@/lib/interruptions";
+import { sameDayAEST } from "@/lib/dateUtils";
+import {
+  getEffectivePlanStart,
+  getPlanWeekForDate,
+  getSessionDate,
+  getWeeklyTargetKm,
+  isActivityOnOrAfterPlanStart,
+} from "@/lib/planUtils";
+import { inferRunType, parseRatingBreakdown, type StatActivity } from "@/lib/rating";
+import { dbSettingsToUserSettings, DEFAULT_SETTINGS, type UserSettings } from "@/lib/settings";
+
+const RUNNING_TYPES = ["running", "trail_running"];
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+export type PlayerRatingAttribute =
+  | "overall"
+  | "speed"
+  | "endurance"
+  | "consistency"
+  | "hrEfficiency"
+  | "toughness";
+
+export type PlayerRatingScores = Record<PlayerRatingAttribute, number>;
+
+export type PlayerRatingDelta = Record<PlayerRatingAttribute, number>;
+
+export interface PlayerRatingSummaryRow {
+  key: PlayerRatingAttribute;
+  label: string;
+  before: number;
+  after: number;
+  delta: number;
+  reason: string;
+}
+
+export interface PlayerRatingLike extends PlayerRatingScores {
+  id: string;
+  updatedAt: Date | string;
+  prevOverall: number;
+  prevSpeed: number;
+  prevEndurance: number;
+  prevConsistency: number;
+  prevHrEfficiency: number;
+  prevToughness: number;
+}
+
+type RatingActivity = StatActivity & {
+  activityType: string;
+  ratingBreakdown?: string | null;
+};
+
+type SummaryActivity = StatActivity & {
+  activityType?: string | null;
+  ratingBreakdown?: string | null;
+};
+
+function clamp(n: number, lo: number, hi: number): number {
+  return Math.max(lo, Math.min(hi, n));
+}
+
+function scoreFromRaw(raw: number): number {
+  return clamp(Math.round(clamp(raw, 0, 1) * 98) + 1, 1, 99);
+}
+
+function scoreFromRange(value: number, minValue: number, maxValue: number): number {
+  return scoreFromRaw((value - minValue) / (maxValue - minValue));
+}
+
+function roundRating(n: number): number {
+  return clamp(Math.round(n), 1, 99);
+}
+
+function getRunType(a: RatingActivity | StatActivity, settings: UserSettings): RunType {
+  return inferRunType(a, settings);
+}
+
+function isRunningActivity(a: { activityType?: string | null }): boolean {
+  return RUNNING_TYPES.includes(a.activityType ?? "");
+}
+
+function calculateSpeed(activities: RatingActivity[], settings: UserSettings, now: Date): number {
+  const since = new Date(now.getTime() - 30 * MS_PER_DAY);
+  const qualifying = activities.filter((a) => {
+    const d = new Date(a.date);
+    if (d < since || d > now || a.avgPaceSecKm <= 0) return false;
+    const type = getRunType(a, settings);
+    return type === "tempo" || type === "interval";
+  });
+
+  if (qualifying.length === 0) return 1;
+
+  const bestPace = Math.min(...qualifying.map((a) => a.avgPaceSecKm));
+  const speedKmMin = (1 / bestPace) * 60;
+  const worldRecord = (1 / 173) * 60;
+  const slowest = (1 / 600) * 60;
+  return scoreFromRaw((speedKmMin - slowest) / (worldRecord - slowest));
+}
+
+function calculateEndurance(activities: RatingActivity[], now: Date): number {
+  const since30 = new Date(now.getTime() - 30 * MS_PER_DAY);
+  const since28 = new Date(now.getTime() - 28 * MS_PER_DAY);
+  const last30 = activities.filter((a) => {
+    const d = new Date(a.date);
+    return d >= since30 && d <= now;
+  });
+  const last28 = activities.filter((a) => {
+    const d = new Date(a.date);
+    return d >= since28 && d <= now;
+  });
+
+  const longestRun = last30.reduce((max, a) => Math.max(max, a.distanceKm), 0);
+  const avgWeeklyKm = last28.reduce((sum, a) => sum + a.distanceKm, 0) / 4;
+  const longScore = clamp((longestRun - 1) / (42.2 - 1), 0, 1);
+  const volScore = clamp((avgWeeklyKm - 1) / (160 - 1), 0, 1);
+  return scoreFromRaw((longScore + volScore) / 2);
+}
+
+function calculateConsistency(
+  activities: RatingActivity[],
+  settings: UserSettings,
+  interruptions: PlanInterruption[],
+  now: Date,
+): number {
+  const planStart = getEffectivePlanStart(settings.planStartDate);
+  const currentPlanWeek = Math.max(1, getPlanWeekForDate(now, planStart));
+  const basePlan = buildTrainingPlan(settings);
+  const normalWeeklyKm =
+    basePlan.reduce((sum, week) => sum + getWeeklyTargetKm(week), 0) / basePlan.length;
+  const { plan } = reconfigurePlan(basePlan, interruptions, {
+    isBeginnerCurve: true,
+    raceDate: settings.raceDate ? new Date(settings.raceDate) : null,
+    normalWeeklyKm,
+    planStart,
+  });
+
+  const firstWeek = Math.max(1, currentPlanWeek - 3);
+  let hits = 0;
+  for (let week = firstWeek; week <= currentPlanWeek; week++) {
+    const planWeek = plan.find((w) => w.week === week);
+    if (!planWeek) continue;
+
+    for (const session of planWeek.sessions) {
+      const sessionDate = getSessionDate(week, session.day, planStart);
+      const hit = activities.some((a) => {
+        const d = new Date(a.date);
+        return sameDayAEST(d, sessionDate) && isActivityOnOrAfterPlanStart(d, planStart);
+      });
+      if (hit) hits++;
+    }
+  }
+
+  return scoreFromRaw(clamp(hits, 0, 12) / 12);
+}
+
+function calculateHrEfficiency(
+  activities: RatingActivity[],
+  settings: UserSettings,
+  now: Date,
+): number {
+  const since = new Date(now.getTime() - 30 * MS_PER_DAY);
+  const ratios = activities
+    .filter((a) => {
+      const d = new Date(a.date);
+      return (
+        d >= since
+        && d <= now
+        && a.avgPaceSecKm > 0
+        && (a.avgHeartRate ?? 0) > 0
+        && getRunType(a, settings) === "easy"
+      );
+    })
+    .map((a) => {
+      const speedKmMin = (1 / a.avgPaceSecKm) * 60;
+      return speedKmMin / ((a.avgHeartRate ?? 0) / Math.max(1, settings.maxHR));
+    });
+
+  if (ratios.length === 0) return 1;
+
+  const avgRatio = ratios.reduce((sum, ratio) => sum + ratio, 0) / ratios.length;
+  const eliteRatio = 0.4545;
+  const beginnerRatio = 0.1667;
+  return scoreFromRaw((avgRatio - beginnerRatio) / (eliteRatio - beginnerRatio));
+}
+
+function conditionsComponentScore(a: RatingActivity): number {
+  const breakdown = parseRatingBreakdown(a.ratingBreakdown);
+  return breakdown?.components.conditions.score ?? 0.5;
+}
+
+function calculateToughness(activities: RatingActivity[], now: Date): number {
+  const since = new Date(now.getTime() - 30 * MS_PER_DAY);
+  const last30 = activities.filter((a) => {
+    const d = new Date(a.date);
+    return d >= since && d <= now;
+  });
+
+  if (last30.length === 0) return 1;
+
+  const avgConditionsScore =
+    last30.reduce((sum, a) => sum + conditionsComponentScore(a), 0) / last30.length;
+  return scoreFromRange(avgConditionsScore, 0.5, 1.0);
+}
+
+function calculateOverall(scores: Omit<PlayerRatingScores, "overall">): number {
+  return roundRating(
+    scores.speed * 0.25
+    + scores.endurance * 0.30
+    + scores.consistency * 0.25
+    + scores.hrEfficiency * 0.10
+    + scores.toughness * 0.10,
+  );
+}
+
+function calculateScores(
+  activities: RatingActivity[],
+  settings: UserSettings,
+  interruptions: PlanInterruption[],
+  now = new Date(),
+): PlayerRatingScores {
+  const runningActivities = activities.filter(isRunningActivity);
+  const scores = {
+    speed: calculateSpeed(runningActivities, settings, now),
+    endurance: calculateEndurance(runningActivities, now),
+    consistency: calculateConsistency(runningActivities, settings, interruptions, now),
+    hrEfficiency: calculateHrEfficiency(runningActivities, settings, now),
+    toughness: calculateToughness(runningActivities, now),
+  };
+
+  return {
+    overall: calculateOverall(scores),
+    ...scores,
+  };
+}
+
+function ratingData(scores: PlayerRatingScores, previous: PlayerRatingScores = scores) {
+  return {
+    overall: scores.overall,
+    speed: scores.speed,
+    endurance: scores.endurance,
+    consistency: scores.consistency,
+    hrEfficiency: scores.hrEfficiency,
+    toughness: scores.toughness,
+    prevOverall: previous.overall,
+    prevSpeed: previous.speed,
+    prevEndurance: previous.endurance,
+    prevConsistency: previous.consistency,
+    prevHrEfficiency: previous.hrEfficiency,
+    prevToughness: previous.toughness,
+  };
+}
+
+function previousScores(row: PlayerRatingLike): PlayerRatingScores {
+  return {
+    overall: row.overall,
+    speed: row.speed,
+    endurance: row.endurance,
+    consistency: row.consistency,
+    hrEfficiency: row.hrEfficiency,
+    toughness: row.toughness,
+  };
+}
+
+function deltaFrom(before: PlayerRatingScores, after: PlayerRatingScores): PlayerRatingDelta {
+  return {
+    overall: after.overall - before.overall,
+    speed: after.speed - before.speed,
+    endurance: after.endurance - before.endurance,
+    consistency: after.consistency - before.consistency,
+    hrEfficiency: after.hrEfficiency - before.hrEfficiency,
+    toughness: after.toughness - before.toughness,
+  };
+}
+
+async function loadSettings(prisma: PrismaClient): Promise<UserSettings> {
+  const settingsRow = await prisma.userSettings.findUnique({ where: { id: 1 } });
+  return settingsRow ? dbSettingsToUserSettings(settingsRow) : DEFAULT_SETTINGS;
+}
+
+async function loadInterruptions(prisma: PrismaClient): Promise<PlanInterruption[]> {
+  const rows = await prisma.planInterruption.findMany({ orderBy: { startDate: "asc" } });
+  return rows.map((row) => ({
+    id: row.id,
+    reason: row.reason,
+    type: row.type as InterruptionType,
+    startDate: new Date(row.startDate),
+    endDate: row.endDate ? new Date(row.endDate) : null,
+    weeklyKmEstimate: row.weeklyKmEstimate ?? null,
+    notes: row.notes ?? null,
+    weeksAffected: row.weeksAffected ?? null,
+  }));
+}
+
+async function loadActivities(prisma: PrismaClient): Promise<RatingActivity[]> {
+  return prisma.activity.findMany({
+    where: { activityType: { in: RUNNING_TYPES } },
+    orderBy: { date: "asc" },
+    select: {
+      id: true,
+      date: true,
+      distanceKm: true,
+      avgPaceSecKm: true,
+      avgHeartRate: true,
+      maxHeartRate: true,
+      rating: true,
+      ratingBreakdown: true,
+      classifiedRunType: true,
+      activityType: true,
+    },
+  });
+}
+
+export async function calculatePlayerRatingScores(
+  prisma: PrismaClient,
+  settingsOverride?: UserSettings,
+): Promise<PlayerRatingScores> {
+  const [settings, interruptions, activities] = await Promise.all([
+    settingsOverride ? Promise.resolve(settingsOverride) : loadSettings(prisma),
+    loadInterruptions(prisma),
+    loadActivities(prisma),
+  ]);
+
+  return calculateScores(activities, settings, interruptions);
+}
+
+export async function initializePlayerRating(prisma: PrismaClient) {
+  const scores = await calculatePlayerRatingScores(prisma);
+  const existing = await prisma.playerRating.findFirst({ orderBy: { updatedAt: "desc" } });
+  const data = ratingData(scores);
+
+  const row = existing
+    ? await prisma.playerRating.update({ where: { id: existing.id }, data })
+    : await prisma.playerRating.create({ data });
+
+  await prisma.playerRating.deleteMany({ where: { id: { not: row.id } } });
+  return row;
+}
+
+export async function recalculatePlayerRating(prisma: PrismaClient) {
+  const scores = await calculatePlayerRatingScores(prisma);
+  const existing = await prisma.playerRating.findFirst({ orderBy: { updatedAt: "desc" } });
+
+  if (!existing) {
+    return initializePlayerRating(prisma);
+  }
+
+  const before = previousScores(existing);
+  const row = await prisma.playerRating.update({
+    where: { id: existing.id },
+    data: ratingData(scores, before),
+  });
+
+  await prisma.playerRating.deleteMany({ where: { id: { not: row.id } } });
+  return row;
+}
+
+export async function updatePlayerRating(
+  prisma: PrismaClient,
+  newActivity: { id: string; activityType?: string | null } | null,
+  settingsOverride?: UserSettings,
+): Promise<{ rating: PlayerRatingLike; delta: PlayerRatingDelta } | null> {
+  if (newActivity && !isRunningActivity(newActivity)) return null;
+
+  const existing = await prisma.playerRating.findFirst({ orderBy: { updatedAt: "desc" } });
+  if (!existing) {
+    const rating = await initializePlayerRating(prisma);
+    return { rating, delta: deltaFrom(previousScores(rating), previousScores(rating)) };
+  }
+
+  const [settings, interruptions, activities] = await Promise.all([
+    settingsOverride ? Promise.resolve(settingsOverride) : loadSettings(prisma),
+    loadInterruptions(prisma),
+    loadActivities(prisma),
+  ]);
+  const before = previousScores(existing);
+  const scores = calculateScores(activities, settings, interruptions);
+  const rating = await prisma.playerRating.update({
+    where: { id: existing.id },
+    data: ratingData(scores, before),
+  });
+
+  await prisma.playerRating.deleteMany({ where: { id: { not: rating.id } } });
+  return { rating, delta: deltaFrom(before, scores) };
+}
+
+function prevValue(rating: PlayerRatingLike, key: PlayerRatingAttribute): number {
+  switch (key) {
+    case "overall":
+      return rating.prevOverall;
+    case "speed":
+      return rating.prevSpeed;
+    case "endurance":
+      return rating.prevEndurance;
+    case "consistency":
+      return rating.prevConsistency;
+    case "hrEfficiency":
+      return rating.prevHrEfficiency;
+    case "toughness":
+      return rating.prevToughness;
+  }
+}
+
+function currentValue(rating: PlayerRatingLike, key: PlayerRatingAttribute): number {
+  return rating[key];
+}
+
+function trendWord(delta: number): string {
+  return delta > 0 ? "improved" : "dipped";
+}
+
+function scheduledHitReason(run: StatActivity, settings: UserSettings): string {
+  const planStart = getEffectivePlanStart(settings.planStartDate);
+  if (!isActivityOnOrAfterPlanStart(new Date(run.date), planStart)) {
+    return "Before plan start";
+  }
+  const week = getPlanWeekForDate(new Date(run.date), planStart);
+  if (week <= 0) return "Before plan start";
+  const plan = buildTrainingPlan(settings);
+  const planWeek = plan.find((w) => w.week === week);
+  const matched = planWeek?.sessions.some((session) =>
+    sameDayAEST(new Date(run.date), getSessionDate(week, session.day, planStart)),
+  );
+  return matched ? "Scheduled session hit" : "Not a scheduled session";
+}
+
+function summaryReason(
+  key: PlayerRatingAttribute,
+  delta: number,
+  run: SummaryActivity | null,
+  settings: UserSettings,
+): string {
+  if (key === "overall") {
+    if (delta === 0) return "Attributes held steady";
+    return `Weighted attributes ${trendWord(delta)}`;
+  }
+
+  if (!run) {
+    return delta === 0 ? "No synced run context" : "Rolling window changed";
+  }
+
+  const runType = getRunType(run, settings);
+  if (key === "speed") {
+    if (runType === "tempo" || runType === "interval") {
+      return delta > 0
+        ? `Strong ${runType} pace`
+        : `${runType[0].toUpperCase()}${runType.slice(1)} pace left the 30-day benchmark lower`;
+    }
+    return delta === 0 ? "Speed work only" : "Older speed work rolled off";
+  }
+
+  if (key === "endurance") {
+    if (runType === "long") return delta >= 0 ? "Long run boosted endurance" : "Older volume rolled off";
+    return delta >= 0 ? "Weekly volume increased" : "Rolling volume decreased";
+  }
+
+  if (key === "consistency") {
+    const reason = scheduledHitReason(run, settings);
+    return delta === 0 ? reason : `${reason}; 4-week hit rate ${trendWord(delta)}`;
+  }
+
+  if (key === "hrEfficiency") {
+    const hasHr = (run.avgHeartRate ?? 0) > 0;
+    if ((runType === "easy" || runType === "long") && hasHr) {
+      return delta >= 0 ? "Easy HR efficiency improved" : "Easy HR efficiency dipped";
+    }
+    if (delta !== 0) return "Older easy HR data rolled off";
+    return hasHr ? "Easy runs only" : "No HR data";
+  }
+
+  const conditions = conditionsComponentScore({
+    ...run,
+    activityType: run.activityType ?? "running",
+  });
+  if (delta === 0) return conditions > 0.5 ? "Conditions already reflected" : "Mild conditions";
+  return conditions > 0.5 ? "Tough conditions added credit" : "Milder conditions lowered toughness";
+}
+
+export function buildPlayerRatingSummaryRows(
+  rating: PlayerRatingLike,
+  latestRun: SummaryActivity | null,
+  settings: UserSettings,
+): PlayerRatingSummaryRow[] {
+  const attrs: Array<{ key: PlayerRatingAttribute; label: string }> = [
+    { key: "overall", label: "OVR" },
+    { key: "speed", label: "SPD" },
+    { key: "endurance", label: "END" },
+    { key: "consistency", label: "CON" },
+    { key: "hrEfficiency", label: "EFF" },
+    { key: "toughness", label: "TGH" },
+  ];
+
+  return attrs.map(({ key, label }) => {
+    const before = Math.round(prevValue(rating, key));
+    const after = Math.round(currentValue(rating, key));
+    const delta = after - before;
+    return {
+      key,
+      label,
+      before,
+      after,
+      delta,
+      reason: summaryReason(key, delta, latestRun, settings),
+    };
+  });
+}
