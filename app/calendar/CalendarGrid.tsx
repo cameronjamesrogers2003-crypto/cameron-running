@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { formatPace } from "@/lib/strava";
+import { formatDuration, formatPace } from "@/lib/settings";
 import type { CalendarRun, CalendarData } from "./types";
 import { useMediaQuery } from "@/lib/useMediaQuery";
 import { formatAEST } from "@/lib/dateUtils";
@@ -38,18 +38,7 @@ function fmtDate(isoStr: string): string {
 }
 
 function fmtPaceMin(secPerKm: number): string {
-  if (!secPerKm) return "—";
-  const m = Math.floor(secPerKm / 60);
-  const s = secPerKm % 60;
-  return `${m}:${String(s).padStart(2, "0")} /km`;
-}
-
-function fmtDuration(secs: number): string {
-  const h = Math.floor(secs / 3600);
-  const m = Math.floor((secs % 3600) / 60);
-  const s = secs % 60;
-  if (h > 0) return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
-  return `${m}:${String(s).padStart(2, "0")}`;
+  return secPerKm > 0 ? `${formatPace(secPerKm)} /km` : "—";
 }
 
 // ── MonthCard ────────────────────────────────────────────────────────────────
@@ -278,7 +267,7 @@ function DetailPanel({
             {[
               { label: "Distance",  value: `${run.distanceKm.toFixed(2)} km` },
               { label: "Pace",      value: fmtPaceMin(run.avgPaceSecKm) },
-              { label: "Duration",  value: fmtDuration(run.durationSecs) },
+              { label: "Duration",  value: formatDuration(run.durationSecs) },
               { label: "Avg HR",    value: run.avgHeartRate ? `${run.avgHeartRate} bpm` : "—" },
               { label: "Cadence",   value: "—" },
               { label: "Temp",      value: run.temperatureC != null ? `${run.temperatureC}°C` : "—" },

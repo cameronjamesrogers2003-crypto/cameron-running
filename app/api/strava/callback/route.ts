@@ -8,8 +8,6 @@ export async function GET(req: NextRequest) {
   const error = searchParams.get("error");
   const scope = searchParams.get("scope");
 
-  console.log("[strava/callback] received", { error, hasCode: !!code, scope });
-
   if (error || !code) {
     const errorId = crypto.randomUUID();
     const reason = error ?? "no_code";
@@ -26,9 +24,7 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    console.log("[strava/callback] attempting token exchange...");
     const tokens = await exchangeStravaCode(code);
-    console.log("[strava/callback] token exchange succeeded, expires_at:", tokens.expires_at);
 
     const expiry = new Date(tokens.expires_at * 1000);
 
@@ -52,7 +48,6 @@ export async function GET(req: NextRequest) {
       },
     });
 
-    console.log("[strava/callback] profile saved — Strava connected");
     return NextResponse.redirect(new URL("/?synced=1", req.url));
   } catch (err) {
     const errorId = crypto.randomUUID();

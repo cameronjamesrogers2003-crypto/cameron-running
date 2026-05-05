@@ -1,6 +1,6 @@
-import type { PrismaClient } from "@prisma/client";
+import type { PlayerRating, PrismaClient } from "@prisma/client";
 import { buildTrainingPlan, type RunType } from "@/data/trainingPlan";
-import { reconfigurePlan, type InterruptionType, type PlanInterruption } from "@/lib/interruptions";
+import { parseInterruptionType, reconfigurePlan, type PlanInterruption } from "@/lib/interruptions";
 import { sameDayAEST, toAEST, toBrisbaneYmd } from "@/lib/dateUtils";
 import {
   getEffectivePlanStart,
@@ -47,6 +47,18 @@ export interface PlayerRatingLike extends PlayerRatingScores {
   prevToughness: number;
 }
 
+export const PLAYER_RATING_ATTRIBUTES: Array<{
+  key: Exclude<PlayerRatingAttribute, "overall">;
+  label: string;
+  name: string;
+}> = [
+  { key: "speed", label: "SPD", name: "Speed" },
+  { key: "endurance", label: "END", name: "Endurance" },
+  { key: "consistency", label: "CON", name: "Consistency" },
+  { key: "hrEfficiency", label: "EFF", name: "HR Efficiency" },
+  { key: "toughness", label: "TGH", name: "Toughness" },
+];
+
 type RatingActivity = StatActivity & {
   activityType: string;
   ratingBreakdown?: string | null;
@@ -57,30 +69,37 @@ type SummaryActivity = StatActivity & {
   ratingBreakdown?: string | null;
 };
 
+/** Clamps a number to a closed range and returns the bounded value. */
 function clamp(n: number, lo: number, hi: number): number {
   return Math.max(lo, Math.min(hi, n));
 }
 
+/** Converts a normalized 0-1 signal into a 1-99 player rating score. */
 function scoreFromRaw(raw: number): number {
   return clamp(Math.round(clamp(raw, 0, 1) * 98) + 1, 1, 99);
 }
 
+/** Maps a value from a min/max range into a 1-99 player rating score. */
 function scoreFromRange(value: number, minValue: number, maxValue: number): number {
   return scoreFromRaw((value - minValue) / (maxValue - minValue));
 }
 
+/** Rounds a numeric score and returns it inside the 1-99 player rating range. */
 function roundRating(n: number): number {
   return clamp(Math.round(n), 1, 99);
 }
 
+/** Resolves the canonical run type for a stored activity and user settings. */
 function getRunType(a: RatingActivity | StatActivity, settings: UserSettings): RunType {
   return inferRunType(a, settings);
 }
 
+/** Returns true when an activity is a running or trail-running activity. */
 function isRunningActivity(a: { activityType?: string | null }): boolean {
   return RUNNING_TYPES.includes(a.activityType ?? "");
 }
 
+/** Calculates the speed attribute from recent tempo and interval pace. */
 function calculateSpeed(activities: RatingActivity[], settings: UserSettings, now: Date): number {
   const since = new Date(now.getTime() - 30 * MS_PER_DAY);
   const qualifying = activities.filter((a) => {
@@ -99,6 +118,7 @@ function calculateSpeed(activities: RatingActivity[], settings: UserSettings, no
   return scoreFromRaw((speedKmMin - slowest) / (worldRecord - slowest));
 }
 
+/** Calculates the endurance attribute from recent longest run and weekly volume. */
 function calculateEndurance(activities: RatingActivity[], now: Date): number {
   const since30 = new Date(now.getTime() - 30 * MS_PER_DAY);
   const since28 = new Date(now.getTime() - 28 * MS_PER_DAY);
@@ -118,6 +138,7 @@ function calculateEndurance(activities: RatingActivity[], now: Date): number {
   return scoreFromRaw((longScore + volScore) / 2);
 }
 
+/** Calculates the consistency attribute from recent scheduled-day run hits. */
 function calculateConsistency(
   activities: RatingActivity[],
   _settings: UserSettings,
@@ -140,6 +161,7 @@ function calculateConsistency(
   return scoreFromRaw(clamp(hitDays.size, 0, 12) / 12);
 }
 
+/** Calculates the HR efficiency attribute from recent easy-run pace per heart-rate effort. */
 function calculateHrEfficiency(
   activities: RatingActivity[],
   settings: UserSettings,
@@ -171,11 +193,21 @@ function calculateHrEfficiency(
   return scoreFromRaw((avgRatio - beginnerRatio) / (eliteRatio - beginnerRatio));
 }
 
-function conditionsComponentScore(a: RatingActivity): number {
-  const breakdown = parseRatingBreakdown(a.ratingBreakdown);
-  return breakdown?.components.conditions.score ?? 0.5;
+/** Returns the display accent color for a 1-99 player rating score. */
+export function playerRatingAccent(score: number): string {
+  if (score >= 85) return "#22c55e";
+  if (score >= 70) return "#84cc16";
+  if (score >= 55) return "#facc15";
+  if (score >= 40) return "#fb923c";
+  return "#f87171";
 }
 
+/** Returns the stored run-rating conditions score, defaulting to neutral when absent. */
+export function ratingConditionsScore(ratingBreakdown: string | null | undefined): number {
+  return parseRatingBreakdown(ratingBreakdown)?.components.conditions.score ?? 0.5;
+}
+
+/** Calculates the toughness attribute from recent run-rating conditions scores. */
 function calculateToughness(activities: RatingActivity[], now: Date): number {
   const since = new Date(now.getTime() - 30 * MS_PER_DAY);
   const last30 = activities.filter((a) => {
@@ -186,10 +218,11 @@ function calculateToughness(activities: RatingActivity[], now: Date): number {
   if (last30.length === 0) return 1;
 
   const avgConditionsScore =
-    last30.reduce((sum, a) => sum + conditionsComponentScore(a), 0) / last30.length;
+    last30.reduce((sum, a) => sum + ratingConditionsScore(a.ratingBreakdown), 0) / last30.length;
   return scoreFromRange(avgConditionsScore, 0.5, 1.0);
 }
 
+/** Calculates the weighted overall player rating from individual attributes. */
 function calculateOverall(scores: Omit<PlayerRatingScores, "overall">): number {
   return roundRating(
     scores.speed * 0.25
@@ -200,6 +233,7 @@ function calculateOverall(scores: Omit<PlayerRatingScores, "overall">): number {
   );
 }
 
+/** Calculates all player rating attributes for a set of activities and settings. */
 function calculateScores(
   activities: RatingActivity[],
   settings: UserSettings,
@@ -221,6 +255,7 @@ function calculateScores(
   };
 }
 
+/** Builds the Prisma data payload for current and previous player rating scores. */
 function ratingData(scores: PlayerRatingScores, previous: PlayerRatingScores = scores) {
   return {
     overall: scores.overall,
@@ -238,6 +273,7 @@ function ratingData(scores: PlayerRatingScores, previous: PlayerRatingScores = s
   };
 }
 
+/** Extracts the current scores from a rating row for use as previous scores. */
 function previousScores(row: PlayerRatingLike): PlayerRatingScores {
   return {
     overall: row.overall,
@@ -249,6 +285,7 @@ function previousScores(row: PlayerRatingLike): PlayerRatingScores {
   };
 }
 
+/** Calculates per-attribute score deltas between two player rating snapshots. */
 function deltaFrom(before: PlayerRatingScores, after: PlayerRatingScores): PlayerRatingDelta {
   return {
     overall: after.overall - before.overall,
@@ -260,17 +297,19 @@ function deltaFrom(before: PlayerRatingScores, after: PlayerRatingScores): Playe
   };
 }
 
+/** Loads user settings from the database and returns defaults when no row exists. */
 async function loadSettings(prisma: PrismaClient): Promise<UserSettings> {
   const settingsRow = await prisma.userSettings.findUnique({ where: { id: 1 } });
   return settingsRow ? dbSettingsToUserSettings(settingsRow) : DEFAULT_SETTINGS;
 }
 
+/** Loads plan interruptions from the database and returns typed interruption objects. */
 async function loadInterruptions(prisma: PrismaClient): Promise<PlanInterruption[]> {
   const rows = await prisma.planInterruption.findMany({ orderBy: { startDate: "asc" } });
   return rows.map((row) => ({
     id: row.id,
     reason: row.reason,
-    type: row.type as InterruptionType,
+    type: parseInterruptionType(row.type),
     startDate: new Date(row.startDate),
     endDate: row.endDate ? new Date(row.endDate) : null,
     weeklyKmEstimate: row.weeklyKmEstimate ?? null,
@@ -279,6 +318,7 @@ async function loadInterruptions(prisma: PrismaClient): Promise<PlanInterruption
   }));
 }
 
+/** Loads running activities needed to calculate player rating scores. */
 async function loadActivities(prisma: PrismaClient): Promise<RatingActivity[]> {
   return prisma.activity.findMany({
     where: { activityType: { in: RUNNING_TYPES } },
@@ -298,6 +338,7 @@ async function loadActivities(prisma: PrismaClient): Promise<RatingActivity[]> {
   });
 }
 
+/** Calculates player rating scores from database state and returns all attributes. */
 export async function calculatePlayerRatingScores(
   prisma: PrismaClient,
   settingsOverride?: UserSettings,
@@ -311,7 +352,8 @@ export async function calculatePlayerRatingScores(
   return calculateScores(activities, settings, interruptions);
 }
 
-export async function initializePlayerRating(prisma: PrismaClient) {
+/** Creates or replaces the single player rating row and returns the saved row. */
+export async function initializePlayerRating(prisma: PrismaClient): Promise<PlayerRating> {
   const scores = await calculatePlayerRatingScores(prisma);
   const existing = await prisma.playerRating.findFirst({ orderBy: { updatedAt: "desc" } });
   const data = ratingData(scores);
@@ -324,7 +366,8 @@ export async function initializePlayerRating(prisma: PrismaClient) {
   return row;
 }
 
-export async function recalculatePlayerRating(prisma: PrismaClient) {
+/** Recalculates the player rating against existing history and returns the saved row. */
+export async function recalculatePlayerRating(prisma: PrismaClient): Promise<PlayerRating> {
   const scores = await calculatePlayerRatingScores(prisma);
   const existing = await prisma.playerRating.findFirst({ orderBy: { updatedAt: "desc" } });
 
@@ -342,6 +385,7 @@ export async function recalculatePlayerRating(prisma: PrismaClient) {
   return row;
 }
 
+/** Updates the player rating after a relevant activity change and returns the rating delta. */
 export async function updatePlayerRating(
   prisma: PrismaClient,
   newActivity: { id: string; activityType?: string | null } | null,
@@ -371,6 +415,7 @@ export async function updatePlayerRating(
   return { rating, delta: deltaFrom(before, scores) };
 }
 
+/** Reads a previous score value for a player rating attribute. */
 function prevValue(rating: PlayerRatingLike, key: PlayerRatingAttribute): number {
   switch (key) {
     case "overall":
@@ -388,14 +433,17 @@ function prevValue(rating: PlayerRatingLike, key: PlayerRatingAttribute): number
   }
 }
 
+/** Reads the current score value for a player rating attribute. */
 function currentValue(rating: PlayerRatingLike, key: PlayerRatingAttribute): number {
   return rating[key];
 }
 
+/** Converts a score delta into a short trend word. */
 function trendWord(delta: number): string {
   return delta > 0 ? "improved" : "dipped";
 }
 
+/** Explains whether a run matched a scheduled plan session. */
 function scheduledHitReason(run: StatActivity, settings: UserSettings): string {
   const planStart = getEffectivePlanStart(settings.planStartDate);
   if (!isActivityOnOrAfterPlanStart(new Date(run.date), planStart)) {
@@ -411,6 +459,7 @@ function scheduledHitReason(run: StatActivity, settings: UserSettings): string {
   return matched ? "Scheduled session hit" : "Not a scheduled session";
 }
 
+/** Builds a short explanation for a player rating attribute delta. */
 function summaryReason(
   key: PlayerRatingAttribute,
   delta: number,
@@ -455,14 +504,12 @@ function summaryReason(
     return hasHr ? "Easy runs only" : "No HR data";
   }
 
-  const conditions = conditionsComponentScore({
-    ...run,
-    activityType: run.activityType ?? "running",
-  });
+  const conditions = ratingConditionsScore(run.ratingBreakdown);
   if (delta === 0) return conditions > 0.5 ? "Conditions already reflected" : "Mild conditions";
   return conditions > 0.5 ? "Tough conditions added credit" : "Milder conditions lowered toughness";
 }
 
+/** Builds player rating summary rows for display and returns one row per attribute. */
 export function buildPlayerRatingSummaryRows(
   rating: PlayerRatingLike,
   latestRun: SummaryActivity | null,

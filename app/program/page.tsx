@@ -10,7 +10,7 @@ import {
 } from "@/lib/planUtils";
 import { sameDayAEST, startOfDayAEST } from "@/lib/dateUtils";
 import { dbSettingsToUserSettings, DEFAULT_SETTINGS } from "@/lib/settings";
-import { reconfigurePlan, type PlanInterruption, type InterruptionType } from "@/lib/interruptions";
+import { parseInterruptionType, reconfigurePlan, type PlanInterruption } from "@/lib/interruptions";
 import PhaseOverview from "./PhaseOverview";
 import ProgramSidePanel from "./ProgramSidePanel";
 import PlanAdjustments from "./PlanAdjustments";
@@ -196,7 +196,7 @@ export default async function ProgramPage() {
   const interruptions: PlanInterruption[] = interruptionRows.map(row => ({
     id:               row.id,
     reason:           row.reason,
-    type:             row.type as InterruptionType,
+    type:             parseInterruptionType(row.type),
     startDate:        new Date(row.startDate),
     endDate:          row.endDate ? new Date(row.endDate) : null,
     weeklyKmEstimate: row.weeklyKmEstimate ?? null,

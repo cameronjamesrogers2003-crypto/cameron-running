@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { INTERRUPTION_TYPE_LABEL, type InterruptionType } from "@/lib/interruptions";
+import { INTERRUPTION_TYPE_LABEL, parseInterruptionType, type InterruptionType } from "@/lib/interruptions";
 
 interface InterruptionRow {
   id: string;
@@ -22,9 +22,17 @@ const TYPE_OPTIONS: { value: InterruptionType; label: string }[] = [
   { value: "reduced_load", label: "Reduced load" },
 ];
 
-const BLANK_FORM = {
+const BLANK_FORM: {
+  reason: string;
+  type: InterruptionType;
+  startDate: string;
+  endDate: string;
+  weeksAffected: string;
+  weeklyKmEstimate: string;
+  notes: string;
+} = {
   reason:           "",
-  type:             "break" as InterruptionType,
+  type:             "break",
   startDate:        "",
   endDate:          "",
   weeksAffected:    "",
@@ -258,7 +266,7 @@ export default function InterruptionsForm() {
                       className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full"
                       style={{ background: "rgba(255,255,255,0.06)", color: "var(--text-muted)" }}
                     >
-                      {INTERRUPTION_TYPE_LABEL[row.type as InterruptionType]}
+                      {INTERRUPTION_TYPE_LABEL[parseInterruptionType(row.type)]}
                     </span>
                     <span className="text-xs text-white">{row.reason}</span>
                   </div>

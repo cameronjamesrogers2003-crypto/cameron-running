@@ -1,7 +1,7 @@
-import type { TrainingWeek, Session, Phase, RunType, Day } from "@/data/trainingPlan";
+import type { TrainingWeek, Phase, Day } from "@/data/trainingPlan";
 import { toAEST, toBrisbaneYmd } from "@/lib/dateUtils";
 
-// Default week anchor when UserSettings.planStartDate is null (sat+0, sun+1, wed+4 from this Saturday)
+// Default week anchor when UserSettings.planStartDate is null (sat+0, sun+1, wed+4 from this Saturday).
 export const PLAN_START_DATE = new Date("2026-05-01T14:00:00.000Z");
 
 /** Plan week anchor from settings ISO string, or {@link PLAN_START_DATE} if unset. */
@@ -29,13 +29,9 @@ export function getWeekStartForPlanWeek(weekNumber: number, planStart: Date): Da
   return new Date(ms);
 }
 
-/**
- * Returns the calendar date for a session day within a given week.
- * Week starts on Saturday (plan start date's weekday).
- *   sat → +0 days, sun → +1 day, wed → +4 days
- */
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
+/** Returns the session date for a plan week/day using the Saturday-anchored plan calendar. */
 export function getSessionDate(weekNumber: number, day: Day, planStart: Date): Date {
   const weekStart = getWeekStartForPlanWeek(weekNumber, planStart);
   const offsets: Record<Day, number> = { sat: 0, sun: 1, wed: 4 };
@@ -47,26 +43,6 @@ export function getSessionDate(weekNumber: number, day: Day, planStart: Date): D
 /** Total planned km across all sessions in a week. */
 export function getWeeklyTargetKm(week: TrainingWeek): number {
   return week.sessions.reduce((s, sess) => s + sess.targetDistanceKm, 0);
-}
-
-/**
- * Infers run type by matching day-of-week (in AEST) to a planned session.
- * Falls back to distance/pace heuristics when no match is found.
- */
-export function inferRunType(
-  activity: { distanceKm: number; avgPaceSecKm: number; date: Date | string },
-  sessions?: Session[]
-): RunType {
-  if (sessions) {
-    const dow = toAEST(new Date(activity.date)).getUTCDay(); // 0=Sun, 3=Wed, 6=Sat in AEST
-    const dowMap: Record<Day, number> = { sat: 6, sun: 0, wed: 3 };
-    const match = sessions.find((s) => dowMap[s.day] === dow);
-    if (match) return match.type;
-  }
-  if (activity.distanceKm >= 14) return "long";
-  if (activity.avgPaceSecKm <= 330) return "interval"; // < 5:30/km
-  if (activity.avgPaceSecKm <= 365) return "tempo";    // < 6:05/km
-  return "easy";
 }
 
 /** Returns true when `date` falls on a planned session AEST calendar day (on/after plan start). */

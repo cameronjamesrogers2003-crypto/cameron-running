@@ -1,5 +1,5 @@
 import prisma from "@/lib/db";
-import { formatPace } from "@/lib/strava";
+import { formatPace } from "@/lib/settings";
 import { buildTrainingPlan, trainingPlan, type Phase, type RunType, type Day } from "@/data/trainingPlan";
 import {
   PLAN_START_DATE,
@@ -13,10 +13,11 @@ import {
 import { formatAEST, formatDistanceToNowAEST, sameDayAEST, startOfDayAEST } from "@/lib/dateUtils";
 import { inferRunType } from "@/lib/rating";
 import { dbSettingsToUserSettings, DEFAULT_SETTINGS } from "@/lib/settings";
-import { reconfigurePlan, type PlanInterruption, type InterruptionType } from "@/lib/interruptions";
+import { parseInterruptionType, reconfigurePlan, type PlanInterruption } from "@/lib/interruptions";
 import {
   buildPlayerRatingSummaryRows,
-  type PlayerRatingAttribute,
+  PLAYER_RATING_ATTRIBUTES,
+  playerRatingAccent,
   type PlayerRatingLike,
 } from "@/lib/playerRating";
 import WeeklyKmChart from "@/components/charts/WeeklyKmChart";
@@ -67,26 +68,6 @@ function formatTargetPace(minPerKm: number): string {
   const mins = Math.floor(minPerKm);
   const secs = Math.round((minPerKm - mins) * 60);
   return `${mins}:${secs.toString().padStart(2, "0")} /km`;
-}
-
-const PLAYER_ATTRIBUTES: Array<{
-  key: Exclude<PlayerRatingAttribute, "overall">;
-  label: string;
-  name: string;
-}> = [
-  { key: "speed", label: "SPD", name: "Speed" },
-  { key: "endurance", label: "END", name: "Endurance" },
-  { key: "consistency", label: "CON", name: "Consistency" },
-  { key: "hrEfficiency", label: "EFF", name: "HR Efficiency" },
-  { key: "toughness", label: "TGH", name: "Toughness" },
-];
-
-function playerRatingAccent(score: number): string {
-  if (score >= 85) return "#22c55e";
-  if (score >= 70) return "#84cc16";
-  if (score >= 55) return "#facc15";
-  if (score >= 40) return "#fb923c";
-  return "#f87171";
 }
 
 function PlayerCard({ rating }: { rating: PlayerRatingLike | null }) {
@@ -142,7 +123,7 @@ function PlayerCard({ rating }: { rating: PlayerRatingLike | null }) {
           </div>
 
           <div className="grid flex-1 gap-3">
-            {PLAYER_ATTRIBUTES.map((attr) => {
+            {PLAYER_RATING_ATTRIBUTES.map((attr) => {
               const value = Math.round(rating[attr.key]);
               const width = Math.min(100, Math.max(0, (value / 99) * 100));
               const barColor = playerRatingAccent(value);
@@ -246,7 +227,7 @@ export default async function Dashboard({
   const interruptions: PlanInterruption[] = interruptionRows.map((row) => ({
     id:               row.id,
     reason:           row.reason,
-    type:             row.type as InterruptionType,
+    type:             parseInterruptionType(row.type),
     startDate:        new Date(row.startDate),
     endDate:          row.endDate ? new Date(row.endDate) : null,
     weeklyKmEstimate: row.weeklyKmEstimate ?? null,
@@ -699,7 +680,9 @@ export default async function Dashboard({
                         <p style={{ color: "var(--text-muted)" }}>dist</p>
                       </div>
                       <div className="min-w-0">
-                        <p className="text-white font-medium tabular-nums">{formatPace(run.avgPaceSecKm)}</p>
+                        <p className="text-white font-medium tabular-nums">
+                          {run.avgPaceSecKm > 0 ? `${formatPace(run.avgPaceSecKm)} /km` : "—"}
+                        </p>
                         <p style={{ color: "var(--text-muted)" }}>pace</p>
                       </div>
                     </div>

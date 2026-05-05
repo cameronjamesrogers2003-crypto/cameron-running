@@ -23,6 +23,15 @@ export const INTERRUPTION_TYPE_LABEL: Record<InterruptionType, string> = {
   injury:       "Injury",
 };
 
+export function isInterruptionType(type: string): type is InterruptionType {
+  return type in INTERRUPTION_TYPE_LABEL;
+}
+
+/** Parses a database interruption type string and returns a valid interruption type. */
+export function parseInterruptionType(type: string): InterruptionType {
+  return isInterruptionType(type) ? type : "break";
+}
+
 export function getWeeksOff(interruption: PlanInterruption): number {
   if (interruption.weeksAffected != null) return Math.max(0, interruption.weeksAffected);
   if (!interruption.endDate) return 0;

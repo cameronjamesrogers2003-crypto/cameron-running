@@ -64,10 +64,7 @@ export async function GET(req: NextRequest) {
 
   const settings = settingsRow ? dbSettingsToUserSettings(settingsRow) : DEFAULT_SETTINGS;
 
-  type ActivityRow = (typeof activities)[number] & { ratingBreakdown?: string | null };
-
-  const rows = activities.map((act) => {
-    const row = act as ActivityRow;
+  const rows = activities.map((row) => {
     const runType: RunType = inferRunType(row, settings);
     const rating = row.rating != null && !Number.isNaN(row.rating) ? row.rating : null;
 

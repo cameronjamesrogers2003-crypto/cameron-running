@@ -1,21 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { syncActivities } from "@/lib/strava";
 
-function getVerifyToken(): string | null {
-  if (process.env.STRAVA_WEBHOOK_VERIFY_TOKEN) {
-    return process.env.STRAVA_WEBHOOK_VERIFY_TOKEN;
-  }
-
-  return process.env.NODE_ENV === "development" ? "dev-verify-token" : null;
-}
-
 // Strava subscription verification handshake
 export async function GET(req: NextRequest) {
+  const verifyToken =
+    process.env.STRAVA_WEBHOOK_VERIFY_TOKEN
+    ?? (process.env.NODE_ENV === "development" ? "dev-verify-token" : null);
   const { searchParams } = new URL(req.url);
   const mode = searchParams.get("hub.mode");
   const token = searchParams.get("hub.verify_token");
   const challenge = searchParams.get("hub.challenge");
-  const verifyToken = getVerifyToken();
 
   if (!verifyToken) {
     console.error("[strava webhook] Missing STRAVA_WEBHOOK_VERIFY_TOKEN");
