@@ -1,7 +1,7 @@
 import type { PrismaClient } from "@prisma/client";
 import { buildTrainingPlan, type RunType } from "@/data/trainingPlan";
 import { reconfigurePlan, type InterruptionType, type PlanInterruption } from "@/lib/interruptions";
-import { sameDayAEST } from "@/lib/dateUtils";
+import { sameDayAEST, toAEST, toBrisbaneYmd } from "@/lib/dateUtils";
 import {
   getEffectivePlanStart,
   getPlanWeekForDate,
@@ -120,39 +120,24 @@ function calculateEndurance(activities: RatingActivity[], now: Date): number {
 
 function calculateConsistency(
   activities: RatingActivity[],
-  settings: UserSettings,
-  interruptions: PlanInterruption[],
+  _settings: UserSettings,
+  _interruptions: PlanInterruption[],
   now: Date,
 ): number {
-  const planStart = getEffectivePlanStart(settings.planStartDate);
-  const currentPlanWeek = Math.max(1, getPlanWeekForDate(now, planStart));
-  const basePlan = buildTrainingPlan(settings);
-  const normalWeeklyKm =
-    basePlan.reduce((sum, week) => sum + getWeeklyTargetKm(week), 0) / basePlan.length;
-  const { plan } = reconfigurePlan(basePlan, interruptions, {
-    isBeginnerCurve: true,
-    raceDate: settings.raceDate ? new Date(settings.raceDate) : null,
-    normalWeeklyKm,
-    planStart,
-  });
+  const since = new Date(now.getTime() - 28 * MS_PER_DAY);
+  const hitDays = new Set<string>();
 
-  const firstWeek = Math.max(1, currentPlanWeek - 3);
-  let hits = 0;
-  for (let week = firstWeek; week <= currentPlanWeek; week++) {
-    const planWeek = plan.find((w) => w.week === week);
-    if (!planWeek) continue;
+  for (const activity of activities) {
+    const d = new Date(activity.date);
+    if (d < since || d > now) continue;
 
-    for (const session of planWeek.sessions) {
-      const sessionDate = getSessionDate(week, session.day, planStart);
-      const hit = activities.some((a) => {
-        const d = new Date(a.date);
-        return sameDayAEST(d, sessionDate) && isActivityOnOrAfterPlanStart(d, planStart);
-      });
-      if (hit) hits++;
+    const dayOfWeek = toAEST(d).getUTCDay();
+    if (dayOfWeek === 0 || dayOfWeek === 3 || dayOfWeek === 6) {
+      hitDays.add(toBrisbaneYmd(d));
     }
   }
 
-  return scoreFromRaw(clamp(hits, 0, 12) / 12);
+  return scoreFromRaw(clamp(hitDays.size, 0, 12) / 12);
 }
 
 function calculateHrEfficiency(
@@ -161,6 +146,7 @@ function calculateHrEfficiency(
   now: Date,
 ): number {
   const since = new Date(now.getTime() - 30 * MS_PER_DAY);
+  const maxHR = Math.max(1, settings.maxHR);
   const ratios = activities
     .filter((a) => {
       const d = new Date(a.date);
@@ -174,14 +160,14 @@ function calculateHrEfficiency(
     })
     .map((a) => {
       const speedKmMin = (1 / a.avgPaceSecKm) * 60;
-      return speedKmMin / ((a.avgHeartRate ?? 0) / Math.max(1, settings.maxHR));
+      return speedKmMin / ((a.avgHeartRate ?? 0) / maxHR);
     });
 
   if (ratios.length === 0) return 1;
 
   const avgRatio = ratios.reduce((sum, ratio) => sum + ratio, 0) / ratios.length;
   const eliteRatio = 0.4545;
-  const beginnerRatio = 0.1667;
+  const beginnerRatio = 0.08;
   return scoreFromRaw((avgRatio - beginnerRatio) / (eliteRatio - beginnerRatio));
 }
 
