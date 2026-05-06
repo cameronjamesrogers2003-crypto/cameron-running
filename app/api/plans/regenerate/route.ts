@@ -24,21 +24,6 @@ function parseTrainingDays(raw: string | null): Day[] {
   }
 }
 
-function parseSessionAssignment(raw: string | null): Partial<Record<Day, RunType>> {
-  if (!raw) return {};
-  try {
-    const parsed = JSON.parse(raw) as unknown;
-    if (!parsed || typeof parsed !== "object") return {};
-    const out: Partial<Record<Day, RunType>> = {};
-    for (const [k, v] of Object.entries(parsed as Record<string, unknown>)) {
-      if (isDay(k) && isRunType(v)) out[k] = v;
-    }
-    return out;
-  } catch {
-    return {};
-  }
-}
-
 async function regenerateFromSettings(req: NextRequest) {
   const settingsRow = await prisma.userSettings.findUnique({ where: { id: 1 } });
   const settings = settingsRow ? dbSettingsToUserSettings(settingsRow) : DEFAULT_SETTINGS;
@@ -56,7 +41,18 @@ async function regenerateFromSettings(req: NextRequest) {
     goal: settings.goalRace === "FULL" ? "full" : "hm",
     weeks: (settings.planLengthWeeks ?? 16) as 12 | 16 | 20,
     days,
-    sessionAssignment: parseSessionAssignment(settings.sessionAssignment) as Record<Day, RunType>,
+    sessionAssignment: (() => {
+      try {
+        const parsed = settings.sessionAssignment ? JSON.parse(settings.sessionAssignment) as Record<string, unknown> : {};
+        const out: Partial<Record<Day, RunType>> = {};
+        for (const [k, v] of Object.entries(parsed)) {
+          if (isDay(k) && isRunType(v)) out[k] = v;
+        }
+        return out as Record<Day, RunType>;
+      } catch {
+        return {} as Record<Day, RunType>;
+      }
+    })(),
     vdot: settings.currentVdot ?? 33,
   };
 

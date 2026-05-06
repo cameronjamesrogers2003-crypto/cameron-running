@@ -15,6 +15,9 @@ type SettingsUpdate = {
   maxHR?: number;
   startingTempoPaceSec?: number;
   currentVdot?: number;
+  vdotRaceDistance?: string | null;
+  vdotRaceMinutes?: number | null;
+  vdotRaceSeconds?: number | null;
   targetHMTimeSec?: number;
   raceName?: string | null;
   raceDate?: Date | null;
@@ -42,6 +45,9 @@ export async function GET() {
         maxHR:                DEFAULT_SETTINGS.maxHR,
         startingTempoPaceSec: DEFAULT_SETTINGS.startingTempoPaceSec,
         currentVdot:          DEFAULT_SETTINGS.currentVdot,
+        vdotRaceDistance:     DEFAULT_SETTINGS.vdotRaceDistance,
+        vdotRaceMinutes:      DEFAULT_SETTINGS.vdotRaceMinutes,
+        vdotRaceSeconds:      DEFAULT_SETTINGS.vdotRaceSeconds,
         targetHMTimeSec:      DEFAULT_SETTINGS.targetHMTimeSec,
         distTargetEasyM:      DEFAULT_SETTINGS.distTargetEasyM,
         distTargetTempoM:     DEFAULT_SETTINGS.distTargetTempoM,
@@ -55,7 +61,7 @@ export async function GET() {
         intervalPaceMaxSec:   DEFAULT_SETTINGS.intervalPaceMaxSec,
         longPaceMinSec:       DEFAULT_SETTINGS.longPaceMinSec,
         longPaceMaxSec:       DEFAULT_SETTINGS.longPaceMaxSec,
-      },
+      } as never,
     });
     return NextResponse.json(dbSettingsToUserSettings(row));
   } catch (err) {
@@ -68,6 +74,7 @@ const ALLOWED_FIELDS = new Set([
   "planStartDate", "currentWeekOverride", "phaseOverride",
   "experienceLevel", "goalRace", "planLengthWeeks", "trainingDays", "sessionAssignment", "targetFinishTime",
   "maxHR", "startingTempoPaceSec", "currentVdot",
+  "vdotRaceDistance", "vdotRaceMinutes", "vdotRaceSeconds",
   "targetHMTimeSec", "raceName", "raceDate",
   "distTargetEasyM", "distTargetTempoM", "distTargetIntervalM", "distTargetLongM",
   "easyPaceMinSec", "easyPaceMaxSec",
@@ -123,6 +130,15 @@ function applySetting(update: SettingsUpdate, key: string, value: unknown): void
       return;
     case "currentVdot":
       if (typeof value === "number") update.currentVdot = value;
+      return;
+    case "vdotRaceDistance":
+      if (typeof value === "string" || value === null) update.vdotRaceDistance = value;
+      return;
+    case "vdotRaceMinutes":
+      if (typeof value === "number" || value === null) update.vdotRaceMinutes = value;
+      return;
+    case "vdotRaceSeconds":
+      if (typeof value === "number" || value === null) update.vdotRaceSeconds = value;
       return;
     case "targetHMTimeSec":
       if (typeof value === "number") update.targetHMTimeSec = value;
@@ -188,12 +204,15 @@ export async function PATCH(req: NextRequest) {
 
     const row = await prisma.userSettings.upsert({
       where:  { id: 1 },
-      update,
+      update: update as never,
       create: {
         id: 1,
         maxHR:                DEFAULT_SETTINGS.maxHR,
         startingTempoPaceSec: DEFAULT_SETTINGS.startingTempoPaceSec,
         currentVdot:          DEFAULT_SETTINGS.currentVdot,
+        vdotRaceDistance:     DEFAULT_SETTINGS.vdotRaceDistance,
+        vdotRaceMinutes:      DEFAULT_SETTINGS.vdotRaceMinutes,
+        vdotRaceSeconds:      DEFAULT_SETTINGS.vdotRaceSeconds,
         targetHMTimeSec:      DEFAULT_SETTINGS.targetHMTimeSec,
         distTargetEasyM:      DEFAULT_SETTINGS.distTargetEasyM,
         distTargetTempoM:     DEFAULT_SETTINGS.distTargetTempoM,
@@ -208,7 +227,7 @@ export async function PATCH(req: NextRequest) {
         longPaceMinSec:       DEFAULT_SETTINGS.longPaceMinSec,
         longPaceMaxSec:       DEFAULT_SETTINGS.longPaceMaxSec,
         ...update,
-      },
+      } as never,
     });
 
     return NextResponse.json(dbSettingsToUserSettings(row));

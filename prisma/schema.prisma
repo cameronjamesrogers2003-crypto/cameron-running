@@ -67,6 +67,9 @@ model UserSettings {
   maxHR                 Int       @default(198)
   startingTempoPaceSec  Int       @default(390)
   currentVdot           Int       @default(33)
+  vdotRaceDistance      String?
+  vdotRaceMinutes       Int?
+  vdotRaceSeconds       Int?
   targetHMTimeSec       Int       @default(6900)
   raceName              String?
   raceDate              DateTime?

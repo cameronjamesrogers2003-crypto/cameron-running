@@ -153,6 +153,12 @@ type PlanConfigSnapshot = {
   currentVdot: number;
 };
 
+type VdotCalculatorInput = {
+  distance: string;
+  minutes: number;
+  seconds: number;
+};
+
 function parseTrainingDaysValue(value: string | null | undefined): Day[] {
   if (!value) return [];
   try {
@@ -203,6 +209,11 @@ export default function SettingsForm() {
     parseSessionAssignmentValue(settings.sessionAssignment),
   );
   const [vdotUpdatedMsg, setVdotUpdatedMsg] = useState<string | null>(null);
+  const [vdotInput, setVdotInput] = useState<VdotCalculatorInput>({
+    distance: settings.vdotRaceDistance ?? "5",
+    minutes: settings.vdotRaceMinutes ?? 25,
+    seconds: settings.vdotRaceSeconds ?? 0,
+  });
   const [suggestedLevel, setSuggestedLevel] = useState<"BEGINNER" | "INTERMEDIATE" | "ADVANCED" | null>(null);
   const [showTooManyDaysWarning, setShowTooManyDaysWarning] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
@@ -339,6 +350,11 @@ export default function SettingsForm() {
     setSessionAssignment(parsedAssignment);
     setMaxHR(settings.maxHR);
     setVdot(settings.currentVdot);
+    setVdotInput({
+      distance: settings.vdotRaceDistance ?? "5",
+      minutes: settings.vdotRaceMinutes ?? 25,
+      seconds: settings.vdotRaceSeconds ?? 0,
+    });
     setStartTP(formatPace(settings.startingTempoPaceSec));
     setHmTime(formatDuration(settings.targetHMTimeSec));
     setRaceName(settings.raceName ?? "");
@@ -455,9 +471,33 @@ export default function SettingsForm() {
               Current VDOT: <span className="font-semibold">{vdot}</span>
             </p>
             <VdotCalculator
-              onApply={(value) => {
-                setVdot(value);
-                setVdotUpdatedMsg(`VDOT updated to ${value}`);
+              initialDistance={vdotInput.distance}
+              initialMinutes={vdotInput.minutes}
+              initialSeconds={vdotInput.seconds}
+              onApply={(nextVdot) => {
+                setVdot(nextVdot);
+                setInitialPlanSnapshot((prev) => prev ? { ...prev, currentVdot: nextVdot } : prev);
+                setVdotUpdatedMsg(`VDOT updated to ${nextVdot}`);
+              }}
+              onApplyDetails={async (payload) => {
+                try {
+                  setSaveError(null);
+                  const vdotPatchPayload = {
+                    currentVdot: payload.vdot,
+                    vdotRaceDistance: payload.distance,
+                    vdotRaceMinutes: payload.minutes,
+                    vdotRaceSeconds: payload.seconds,
+                  };
+                  console.info("[settings] PATCH /api/settings payload", vdotPatchPayload);
+                  await updateSettings(vdotPatchPayload);
+                  setVdotInput({
+                    distance: payload.distance,
+                    minutes: payload.minutes,
+                    seconds: payload.seconds,
+                  });
+                } catch {
+                  setSaveError("Failed to save VDOT. Please try again.");
+                }
               }}
               onLevelSuggested={(lvl) => setSuggestedLevel(lvl)}
             />
@@ -610,6 +650,9 @@ export default function SettingsForm() {
                   }
                   const nextAssignment = normalizeAssignmentForDays(sortedTrainingDays, sessionAssignment);
                   const snapshot = initialPlanSnapshot;
+                  const originalSessionAssignment = snapshot?.sessionAssignment ?? {};
+                  const sessionAssignmentChanged =
+                    JSON.stringify(nextAssignment) !== JSON.stringify(originalSessionAssignment);
                   const planAffectingChanged = snapshot
                     ? (
                       snapshot.experienceLevel !== experienceLevel
@@ -617,7 +660,7 @@ export default function SettingsForm() {
                       || snapshot.planLengthWeeks !== planLengthWeeks
                       || snapshot.currentVdot !== vdot
                       || JSON.stringify(snapshot.trainingDays) !== JSON.stringify(sortedTrainingDays)
-                      || JSON.stringify(snapshot.sessionAssignment) !== JSON.stringify(nextAssignment)
+                      || sessionAssignmentChanged
                     )
                     : false;
 
@@ -629,6 +672,7 @@ export default function SettingsForm() {
                     sessionAssignment: JSON.stringify(nextAssignment),
                     currentVdot: vdot,
                   };
+                  console.info("[settings] PATCH /api/settings payload", patchPayload);
                   await updateSettings(patchPayload);
                   setInitialPlanSnapshot({
                     experienceLevel,

@@ -7,24 +7,40 @@ import { formatPace } from "@/lib/settings";
 type Level = "BEGINNER" | "INTERMEDIATE" | "ADVANCED";
 
 const DISTANCES = [
-  { key: "1k", label: "1 km", metres: 1000 },
+  { key: "1", label: "1 km", metres: 1000 },
   { key: "1mile", label: "1 mile", metres: 1609.34 },
-  { key: "5k", label: "5 km", metres: 5000 },
-  { key: "10k", label: "10 km", metres: 10000 },
-  { key: "hm", label: "Half Marathon", metres: 21097.5 },
-  { key: "marathon", label: "Marathon", metres: 42195 },
+  { key: "5", label: "5 km", metres: 5000 },
+  { key: "10", label: "10 km", metres: 10000 },
+  { key: "21.1", label: "Half Marathon", metres: 21097.5 },
+  { key: "42.2", label: "Marathon", metres: 42195 },
 ] as const;
 
 export default function VdotCalculator({
   onApply,
+  onApplyDetails,
   onLevelSuggested,
+  initialDistance = "5",
+  initialMinutes = 25,
+  initialSeconds = 0,
 }: {
   onApply?: (vdot: number) => void;
+  onApplyDetails?: (payload: { vdot: number; level: Level; distance: string; minutes: number; seconds: number }) => void;
   onLevelSuggested?: (level: Level) => void;
+  initialDistance?: string;
+  initialMinutes?: number;
+  initialSeconds?: number;
 }) {
-  const [distanceKey, setDistanceKey] = useState<(typeof DISTANCES)[number]["key"]>("5k");
-  const [minutes, setMinutes] = useState<number>(25);
-  const [seconds, setSeconds] = useState<number>(0);
+  const normalizedInitialDistance =
+    initialDistance === "1k" ? "1"
+    : initialDistance === "5k" ? "5"
+    : initialDistance === "10k" ? "10"
+    : initialDistance === "hm" ? "21.1"
+    : initialDistance === "marathon" ? "42.2"
+    : initialDistance;
+  const defaultDistanceKey = DISTANCES.find((d) => d.key === normalizedInitialDistance)?.key ?? "5";
+  const [distanceKey, setDistanceKey] = useState<(typeof DISTANCES)[number]["key"]>(defaultDistanceKey);
+  const [minutes, setMinutes] = useState<number>(initialMinutes);
+  const [seconds, setSeconds] = useState<number>(initialSeconds);
 
   const result = useMemo(() => {
     const d = DISTANCES.find((x) => x.key === distanceKey);
@@ -113,6 +129,13 @@ export default function VdotCalculator({
             style={{ background: "rgba(45,212,191,0.18)", color: "#5eead4", border: "1px solid rgba(45,212,191,0.32)" }}
             onClick={() => {
               onApply?.(result.vdot);
+              onApplyDetails?.({
+                vdot: result.vdot,
+                level: result.level,
+                distance: distanceKey,
+                minutes,
+                seconds,
+              });
               onLevelSuggested?.(result.level);
             }}
           >

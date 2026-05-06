@@ -16,6 +16,9 @@ export interface UserSettings {
   maxHR: number;
   startingTempoPaceSec: number;
   currentVdot: number;
+  vdotRaceDistance: string | null;
+  vdotRaceMinutes: number | null;
+  vdotRaceSeconds: number | null;
   targetHMTimeSec: number;
   raceName: string | null;
   raceDate: string | null;
@@ -47,6 +50,9 @@ export const DEFAULT_SETTINGS: UserSettings = {
   maxHR: 198,
   startingTempoPaceSec: 390,
   currentVdot: 33,
+  vdotRaceDistance: "5",
+  vdotRaceMinutes: 25,
+  vdotRaceSeconds: 0,
   targetHMTimeSec: 6900,
   raceName: null,
   raceDate: null,
@@ -65,6 +71,11 @@ export const DEFAULT_SETTINGS: UserSettings = {
 };
 
 export function dbSettingsToUserSettings(row: PrismaUserSettings): UserSettings {
+  const rowWithVdot = row as PrismaUserSettings & {
+    vdotRaceDistance?: string | null;
+    vdotRaceMinutes?: number | null;
+    vdotRaceSeconds?: number | null;
+  };
   return {
     id: row.id,
     planStartDate:        row.planStartDate  ? new Date(row.planStartDate).toISOString()  : null,
@@ -79,6 +90,9 @@ export function dbSettingsToUserSettings(row: PrismaUserSettings): UserSettings 
     maxHR:                row.maxHR                ?? DEFAULT_SETTINGS.maxHR,
     startingTempoPaceSec: row.startingTempoPaceSec ?? DEFAULT_SETTINGS.startingTempoPaceSec,
     currentVdot:          row.currentVdot          ?? DEFAULT_SETTINGS.currentVdot,
+    vdotRaceDistance:     rowWithVdot.vdotRaceDistance     ?? DEFAULT_SETTINGS.vdotRaceDistance,
+    vdotRaceMinutes:      rowWithVdot.vdotRaceMinutes      ?? DEFAULT_SETTINGS.vdotRaceMinutes,
+    vdotRaceSeconds:      rowWithVdot.vdotRaceSeconds      ?? DEFAULT_SETTINGS.vdotRaceSeconds,
     targetHMTimeSec:      row.targetHMTimeSec       ?? DEFAULT_SETTINGS.targetHMTimeSec,
     raceName:             row.raceName              ?? null,
     raceDate:             row.raceDate ? new Date(row.raceDate).toISOString() : null,
