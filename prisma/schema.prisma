@@ -7,6 +7,12 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum ExperienceLevel {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+}
+
 model Activity {
   id                 String   @id
   name               String?
@@ -52,6 +58,10 @@ model UserSettings {
   planStartDate         DateTime?
   currentWeekOverride   Int?
   phaseOverride         String?
+  experienceLevel       ExperienceLevel?
+  planLengthWeeks       Int?
+  trainingDays          String?
+  sessionAssignment     String?
   maxHR                 Int       @default(198)
   startingTempoPaceSec  Int       @default(390)
   currentVdot           Int       @default(33)
@@ -102,4 +112,13 @@ model PlanInterruption {
   weeksAffected    Int?
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
+}
+
+model GeneratedPlan {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  planJson    String
+  configJson  String
+  lockedWeeks String?
 }

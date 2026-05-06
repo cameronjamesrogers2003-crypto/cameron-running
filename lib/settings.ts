@@ -5,6 +5,12 @@ export interface UserSettings {
   planStartDate: string | null;
   currentWeekOverride: number | null;
   phaseOverride: string | null;
+  experienceLevel: "BEGINNER" | "INTERMEDIATE" | "ADVANCED" | null;
+  planLengthWeeks: 12 | 16 | 20 | null;
+  /** JSON array string, e.g. ["mon","wed","sat"] */
+  trainingDays: string | null;
+  /** JSON object string, e.g. {"mon":"easy","wed":"interval","sat":"long"} */
+  sessionAssignment: string | null;
   maxHR: number;
   startingTempoPaceSec: number;
   currentVdot: number;
@@ -30,6 +36,10 @@ export const DEFAULT_SETTINGS: UserSettings = {
   planStartDate: null,
   currentWeekOverride: null,
   phaseOverride: null,
+  experienceLevel: null,
+  planLengthWeeks: null,
+  trainingDays: null,
+  sessionAssignment: null,
   maxHR: 198,
   startingTempoPaceSec: 390,
   currentVdot: 33,
@@ -56,6 +66,10 @@ export function dbSettingsToUserSettings(row: PrismaUserSettings): UserSettings 
     planStartDate:        row.planStartDate  ? new Date(row.planStartDate).toISOString()  : null,
     currentWeekOverride:  row.currentWeekOverride  ?? null,
     phaseOverride:        row.phaseOverride        ?? null,
+    experienceLevel:      (row.experienceLevel as UserSettings["experienceLevel"]) ?? null,
+    planLengthWeeks:      (row.planLengthWeeks as UserSettings["planLengthWeeks"]) ?? null,
+    trainingDays:         row.trainingDays ?? null,
+    sessionAssignment:    row.sessionAssignment ?? null,
     maxHR:                row.maxHR                ?? DEFAULT_SETTINGS.maxHR,
     startingTempoPaceSec: row.startingTempoPaceSec ?? DEFAULT_SETTINGS.startingTempoPaceSec,
     currentVdot:          row.currentVdot          ?? DEFAULT_SETTINGS.currentVdot,
