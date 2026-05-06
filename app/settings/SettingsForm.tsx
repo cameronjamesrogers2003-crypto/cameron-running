@@ -234,6 +234,39 @@ export default function SettingsForm() {
     });
   }
 
+  function normalizeAssignmentForDays(
+    days: Day[],
+    assignment: Partial<Record<Day, RunType>>,
+  ): Partial<Record<Day, RunType>> {
+    return Object.fromEntries(
+      days.map((day) => [day, assignment[day] ?? "easy"]),
+    ) as Partial<Record<Day, RunType>>;
+  }
+
+  function computeLockedWeeksFromPlan(plan: Array<{ week: number }>, planStartIso: string | null): number[] {
+    if (!planStartIso) return [];
+    const planStart = new Date(planStartIso);
+    const now = new Date();
+    const todayAestMidnight = new Date(now.getTime() + 10 * 60 * 60 * 1000);
+    const todayYmdUtc = Date.UTC(
+      todayAestMidnight.getUTCFullYear(),
+      todayAestMidnight.getUTCMonth(),
+      todayAestMidnight.getUTCDate(),
+    );
+    return plan
+      .map((w) => w.week)
+      .filter((weekNum) => {
+        const weekEnd = new Date(planStart.getTime() + weekNum * 7 * 24 * 60 * 60 * 1000);
+        const weekEndAest = new Date(weekEnd.getTime() + 10 * 60 * 60 * 1000);
+        const weekEndYmdUtc = Date.UTC(
+          weekEndAest.getUTCFullYear(),
+          weekEndAest.getUTCMonth(),
+          weekEndAest.getUTCDate(),
+        );
+        return weekEndYmdUtc < todayYmdUtc;
+      });
+  }
+
   useEffect(() => {
     fetch("/api/runs?perPage=100&sort=date&order=desc")
       .then(r => r.json())
@@ -509,14 +542,69 @@ export default function SettingsForm() {
             status={planConfigGroup.status}
             onClick={() =>
               planConfigGroup.save(async () => {
+                const nextAssignment = normalizeAssignmentForDays(trainingDays, sessionAssignment);
+                const prevAssignment = normalizeAssignmentForDays(
+                  JSON.parse(settings.trainingDays ?? JSON.stringify(["wed", "sat", "sun"])) as Day[],
+                  (settings.sessionAssignment ? JSON.parse(settings.sessionAssignment) : {}) as Partial<Record<Day, RunType>>,
+                );
+                const planAffectingChanged =
+                  settings.experienceLevel !== experienceLevel
+                  || settings.goalRace !== goalRace
+                  || settings.planLengthWeeks !== planLengthWeeks
+                  || settings.currentVdot !== vdot
+                  || JSON.stringify(trainingDays) !== JSON.stringify(
+                    (() => {
+                      try { return settings.trainingDays ? JSON.parse(settings.trainingDays) : []; } catch { return []; }
+                    })(),
+                  )
+                  || JSON.stringify(nextAssignment) !== JSON.stringify(prevAssignment);
+
                 await updateSettings({
                   experienceLevel,
                   goalRace,
                   planLengthWeeks,
                   trainingDays: JSON.stringify(trainingDays),
-                  sessionAssignment: JSON.stringify(sessionAssignment),
+                  sessionAssignment: JSON.stringify(nextAssignment),
                   currentVdot: vdot,
                 });
+
+                if (!planAffectingChanged) return;
+
+                const token = process.env.NEXT_PUBLIC_PLANS_API_TOKEN;
+                const currentResp = await fetch("/api/plans/current", {
+                  headers: token ? { Authorization: `Bearer ${token}` } : {},
+                });
+                const currentData = currentResp.ok ? await currentResp.json() as { plan?: Array<{ week: number }> } | null : null;
+                let lockedWeeks: number[] = [];
+                let shouldGenerate = true;
+                if (currentData?.plan && currentData.plan.length > 0) {
+                  lockedWeeks = computeLockedWeeksFromPlan(currentData.plan, settings.planStartDate);
+                  shouldGenerate = window.confirm(
+                    "Your training plan settings have changed.\nRegenerate your plan from the current week forward?\nCompleted weeks will be preserved.",
+                  );
+                }
+
+                if (shouldGenerate) {
+                  const config: PlanConfig = {
+                    level: experienceLevel,
+                    goal: goalRace === "FULL" ? "full" : "hm",
+                    weeks: planLengthWeeks,
+                    days: trainingDays,
+                    sessionAssignment: nextAssignment as Record<Day, RunType>,
+                    vdot,
+                  };
+                  await fetch("/api/plans/generate", {
+                    method: "POST",
+                    headers: {
+                      "Content-Type": "application/json",
+                      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                    },
+                    body: JSON.stringify({
+                      ...config,
+                      ...(lockedWeeks.length > 0 ? { lockedWeeks } : {}),
+                    }),
+                  });
+                }
               })
             }
           />

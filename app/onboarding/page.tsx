@@ -66,6 +66,21 @@ function CardOption({
   );
 }
 
+function computeLockedWeeksFromPlan(planStartIso: string | null, maxWeek: number): number[] {
+  if (!planStartIso || maxWeek <= 0) return [];
+  const planStart = new Date(planStartIso);
+  if (Number.isNaN(planStart.getTime())) return [];
+  const now = new Date();
+  const todayAestYmd = new Intl.DateTimeFormat("en-CA", { timeZone: "Australia/Brisbane" }).format(now);
+  const locked: number[] = [];
+  for (let week = 1; week <= maxWeek; week++) {
+    const weekEnd = new Date(planStart.getTime() + week * 7 * 24 * 60 * 60 * 1000);
+    const weekEndAestYmd = new Intl.DateTimeFormat("en-CA", { timeZone: "Australia/Brisbane" }).format(weekEnd);
+    if (weekEndAestYmd < todayAestYmd) locked.push(week);
+  }
+  return locked;
+}
+
 export default function OnboardingPage() {
   const router = useRouter();
   const { settings, updateSettings } = useSettings();
@@ -156,13 +171,25 @@ export default function OnboardingPage() {
       });
 
       const token = process.env.NEXT_PUBLIC_PLANS_API_TOKEN;
+      let lockedWeeks: number[] = [];
+      try {
+        const existingResp = await fetch("/api/plans/current", {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (existingResp.ok) {
+          const existing = await existingResp.json() as { plan?: Array<{ week: number }> } | null;
+          const maxWeek = existing?.plan?.reduce((m, w) => Math.max(m, w.week), 0) ?? 0;
+          lockedWeeks = computeLockedWeeksFromPlan(settings.planStartDate, maxWeek);
+        }
+      } catch {}
+
       await fetch("/api/plans/generate", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify(planConfig),
+        body: JSON.stringify({ ...planConfig, lockedWeeks }),
       });
 
       router.push("/dashboard");

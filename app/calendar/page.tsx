@@ -1,5 +1,6 @@
 import prisma from "@/lib/db";
 import { buildTrainingPlan } from "@/data/trainingPlan";
+import { loadGeneratedPlan } from "@/lib/planStorage";
 import { inferRunType, type StatActivity } from "@/lib/rating";
 import {
   PLAYER_RATING_ATTRIBUTES,
@@ -300,7 +301,7 @@ export default async function CalendarPage({
   // Stats always use the last 90 days regardless of displayed year
   const statsStart = new Date(today.getTime() - 90 * 24 * 60 * 60 * 1000);
 
-  const [userSettingsRow, yearActivities, statsActivities, playerRating] = await Promise.all([
+  const [userSettingsRow, yearActivities, statsActivities, playerRating, storedGenerated] = await Promise.all([
     prisma.userSettings.findUnique({ where: { id: 1 } }),
     prisma.activity.findMany({
       where: {
@@ -329,11 +330,12 @@ export default async function CalendarPage({
       },
     }),
     prisma.playerRating.findFirst({ orderBy: { updatedAt: "desc" } }),
+    loadGeneratedPlan(),
   ]);
 
   const settings    = userSettingsRow ? dbSettingsToUserSettings(userSettingsRow) : DEFAULT_SETTINGS;
   const planStart     = getEffectivePlanStart(settings.planStartDate);
-  const plan = buildTrainingPlan(settings);
+  const plan = storedGenerated?.plan?.length ? storedGenerated.plan : buildTrainingPlan(settings);
   const injuryFreeWeeks = calculateInjuryFreeWeeks(statsActivities, plan, planStart, today);
 
   // Derive stats strip values (Brisbane calendar day bounds)
