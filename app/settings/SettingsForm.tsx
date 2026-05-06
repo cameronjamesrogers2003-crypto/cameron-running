@@ -218,8 +218,6 @@ export default function SettingsForm() {
   const [showTooManyDaysWarning, setShowTooManyDaysWarning] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [showRegenerateModal, setShowRegenerateModal] = useState(false);
-  const [isRegenerating, setIsRegenerating] = useState(false);
   const [initialPlanSnapshot, setInitialPlanSnapshot] = useState<PlanConfigSnapshot | null>(null);
   const planConfigGroup = useSaveGroup();
 
@@ -388,6 +386,39 @@ export default function SettingsForm() {
     if (sug.type === "tempo")    { setTempoMin(mn);    setTempoMax(mx); }
     if (sug.type === "interval") { setIntervalMin(mn); setIntervalMax(mx); }
     if (sug.type === "long")     { setLongMin(mn);     setLongMax(mx); }
+  }
+
+  async function handlePlanSave() {
+    const res = await fetch("/api/settings", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        experienceLevel,
+        goalRace,
+        planLengthWeeks,
+        trainingDays: JSON.stringify(sortedTrainingDays),
+        sessionAssignment: JSON.stringify(sessionAssignment),
+        currentVdot: vdot,
+      }),
+    });
+    if (!res.ok) {
+      alert("Failed to save settings");
+      throw new Error("Failed to save settings");
+    }
+
+    const regenRes = await fetch("/api/plans/regenerate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+    });
+
+    console.log("REGENERATE RESPONSE STATUS:", regenRes.status);
+
+    if (!regenRes.ok) {
+      alert("Settings saved but plan failed to regenerate");
+      throw new Error("Plan regeneration failed");
+    }
+
+    window.location.href = "/program";
   }
 
   if (loading) {
@@ -640,81 +671,7 @@ export default function SettingsForm() {
         <div className="flex justify-stretch sm:justify-end pt-1">
           <SaveButton
             status={planConfigGroup.status}
-            onClick={() =>
-              planConfigGroup.save(async () => {
-                try {
-                  setSaveError(null);
-                  setSaveMessage(null);
-                  if (sortedTrainingDays.length < 2) {
-                    throw new Error("Select at least 2 training days.");
-                  }
-                  const nextAssignment = normalizeAssignmentForDays(sortedTrainingDays, sessionAssignment);
-                  const snapshot = initialPlanSnapshot;
-                  const originalSessionAssignment = snapshot?.sessionAssignment ?? {};
-                  const sessionAssignmentChanged =
-                    JSON.stringify(nextAssignment) !== JSON.stringify(originalSessionAssignment);
-                  const planAffectingChanged = snapshot
-                    ? (
-                      snapshot.experienceLevel !== experienceLevel
-                      || snapshot.goalRace !== goalRace
-                      || snapshot.planLengthWeeks !== planLengthWeeks
-                      || snapshot.currentVdot !== vdot
-                      || JSON.stringify(snapshot.trainingDays) !== JSON.stringify(sortedTrainingDays)
-                      || sessionAssignmentChanged
-                    )
-                    : false;
-                  const willShowModal = Boolean(planAffectingChanged);
-                  console.log("SETTINGS SAVE TRIGGERED", {
-                    planAffectingChanged,
-                    sessionAssignment: JSON.stringify(sessionAssignment),
-                    willShowModal,
-                  });
-
-                  const patchPayload = {
-                    experienceLevel,
-                    goalRace,
-                    planLengthWeeks,
-                    trainingDays: JSON.stringify(sortedTrainingDays),
-                    sessionAssignment: JSON.stringify(nextAssignment),
-                    currentVdot: vdot,
-                  };
-                  console.info("[settings] PATCH /api/settings payload", patchPayload);
-                  await updateSettings(patchPayload);
-                  setInitialPlanSnapshot({
-                    experienceLevel,
-                    goalRace,
-                    planLengthWeeks,
-                    trainingDays: sortedTrainingDays,
-                    sessionAssignment: nextAssignment,
-                    currentVdot: vdot,
-                  });
-                  if (!planAffectingChanged) {
-                    setSaveMessage("Settings saved");
-                    setTimeout(() => setSaveMessage(null), 2000);
-                    return;
-                  }
-
-                  const token = process.env.NEXT_PUBLIC_PLANS_API_TOKEN;
-                  const currentResp = await fetch("/api/plans/current", {
-                    cache: "no-store",
-                    headers: token ? { Authorization: `Bearer ${token}` } : {},
-                  });
-                  if (!currentResp.ok) {
-                    throw new Error("Unable to check current plan. Please try again.");
-                  }
-                  const currentData = await currentResp.json() as { plan?: Array<{ week: number }> } | null;
-                  if (currentData?.plan && currentData.plan.length > 0) {
-                    setShowRegenerateModal(true);
-                    return;
-                  }
-                  setSaveMessage("Settings saved");
-                  setTimeout(() => setSaveMessage(null), 2000);
-                } catch (error) {
-                  setSaveError(error instanceof Error ? error.message : "Failed to save settings.");
-                  throw error;
-                }
-              })
-            }
+            onClick={() => planConfigGroup.save(handlePlanSave)}
           />
         </div>
         {saveMessage && <p className="text-xs text-green-300 mt-2">{saveMessage}</p>}
@@ -930,60 +887,6 @@ export default function SettingsForm() {
       {/* Plan Interruptions */}
       <InterruptionsForm />
 
-      {showRegenerateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
-          <div
-            className="w-full max-w-md rounded-xl p-5 space-y-4"
-            style={{ background: "#181818", border: "1px solid rgba(255,255,255,0.12)" }}
-          >
-            <div>
-              <p className="text-base font-semibold text-white">Regenerate training plan?</p>
-              <p className="text-sm mt-2" style={{ color: "var(--text-muted)" }}>
-                Plan settings changed. Regenerate now to apply updates to your stored GeneratedPlan.
-              </p>
-              {saveError && (
-                <p className="text-xs mt-2 text-red-300">{saveError}</p>
-              )}
-            </div>
-            <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
-              <button
-                type="button"
-                className="min-h-11 px-4 py-2 rounded-md text-sm"
-                style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", color: "white" }}
-                disabled={isRegenerating}
-                onClick={() => setShowRegenerateModal(false)}
-              >
-                Later
-              </button>
-              <button
-                type="button"
-                className="min-h-11 px-4 py-2 rounded-md text-sm font-medium"
-                style={{ background: "rgba(45,212,191,0.2)", border: "1px solid rgba(45,212,191,0.35)", color: "#5eead4" }}
-                disabled={isRegenerating}
-                onClick={async () => {
-                  try {
-                    console.log("REGENERATE BUTTON CLICKED");
-                    setSaveError(null);
-                    setIsRegenerating(true);
-                    const regenerateResp = await fetch("/api/plans/regenerate", { method: "POST" });
-                    if (!regenerateResp.ok) {
-                      throw new Error("Regenerate request failed");
-                    }
-                    setShowRegenerateModal(false);
-                    router.push("/program");
-                  } catch {
-                    setSaveError("Failed to regenerate plan. Please try again.");
-                  } finally {
-                    setIsRegenerating(false);
-                  }
-                }}
-              >
-                {isRegenerating ? "Regenerating…" : "Regenerate Plan"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

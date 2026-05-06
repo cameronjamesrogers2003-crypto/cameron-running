@@ -61,7 +61,11 @@ async function regenerateFromSettings(req: NextRequest) {
   const plan = generatePlan(config);
   await saveGeneratedPlan(config, plan);
 
-  return NextResponse.redirect(new URL("/", req.url), { status: 303 });
+  return NextResponse.json({
+    success: true,
+    weeks: plan.length,
+    days: config.days,
+  });
 }
 
 export async function GET(req: NextRequest) {
