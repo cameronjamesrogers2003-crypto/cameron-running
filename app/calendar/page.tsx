@@ -139,8 +139,9 @@ function playerAttributeExplanation(
         .filter((a) => isActivityOnOrAfterPlanStart(new Date(a.date), planStart))
         .map((a) => toBrisbaneYmd(a.date)),
     );
+    const plan = buildTrainingPlan(settings);
     for (let week = firstWeek; week <= currentWeek; week++) {
-      const planWeek = trainingPlan.find((w) => w.week === week);
+      const planWeek = plan.find((w) => w.week === week);
       if (!planWeek) continue;
       for (const session of planWeek.sessions) {
         if (runKeys.has(toBrisbaneYmd(getSessionDate(week, session.day, planStart)))) hits++;
