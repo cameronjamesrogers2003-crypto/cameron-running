@@ -1,6 +1,6 @@
 import prisma from "@/lib/db";
 import { formatPace } from "@/lib/settings";
-import { buildTrainingPlan, trainingPlan, type Phase, type RunType, type Day } from "@/data/trainingPlan";
+import { buildTrainingPlan, type Phase, type RunType, type Day } from "@/data/trainingPlan";
 import {
   PLAN_START_DATE,
   getEffectivePlanStart,
@@ -48,10 +48,20 @@ function ratingStatColor(score: number): string {
 
 function phaseStyle(phase: Phase): { background: string; color: string } {
   switch (phase) {
-    case "Base":                return { background: "#1e3a5f", color: "#93c5fd" };
-    case "Half Marathon Build": return { background: "#14532d", color: "#86efac" };
-    case "Marathon Build":      return { background: "#3b0764", color: "#d8b4fe" };
-    case "Recovery":            return { background: "#1a1133", color: "#a78bfa" };
+    case "Base":
+    case "Beginner Base":
+    case "Intermediate Base":
+    case "Advanced Base":
+      return { background: "#1e3a5f", color: "#93c5fd" };
+    case "Half Marathon Build":
+    case "Race Specific":
+      return { background: "#14532d", color: "#86efac" };
+    case "Marathon Build":
+      return { background: "#3b0764", color: "#d8b4fe" };
+    case "Taper":
+      return { background: "#3f3f46", color: "#e4e4e7" };
+    case "Recovery":
+      return { background: "#1a1133", color: "#a78bfa" };
   }
 }
 
@@ -241,7 +251,7 @@ export default async function Dashboard({
     planStart,
   });
 
-  const lastPlanWeekNum = planToRender[planToRender.length - 1]?.week ?? trainingPlan.length;
+  const lastPlanWeekNum = planToRender[planToRender.length - 1]?.week ?? basePlan.length;
   const rawCalendarWeek = getPlanWeekForDate(today, scheduleAnchor);
   const currentWeek =
     rawCalendarWeek > 0 ? Math.min(lastPlanWeekNum, rawCalendarWeek) : 1;
@@ -396,10 +406,9 @@ export default async function Dashboard({
   const upcomingSessions = upcomingCandidates.slice(0, 5);
 
   // ── Sidebar checklist: same week + sessions as Program page (planToRender) ─
-  const CHECKLIST_DAY_ORDER: Day[] = ["wed", "sat", "sun"];
-  const DAY_LABEL: Record<Day, string> = { wed: "Wed", sat: "Sat", sun: "Sun" };
+  const CHECKLIST_DAY_ORDER: Day[] = ["sat", "sun", "mon", "tue", "wed", "thu", "fri"]; // matches Saturday-anchored scheduling
+  const DAY_LABEL: Record<Day, string> = { mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat", sun: "Sun" };
   const sessionChecklist = [...(currentPlanWeek?.sessions ?? [])]
-    .filter((s) => CHECKLIST_DAY_ORDER.includes(s.day))
     .sort((a, b) => CHECKLIST_DAY_ORDER.indexOf(a.day) - CHECKLIST_DAY_ORDER.indexOf(b.day))
     .map((session) => {
       const date = getSessionDate(currentWeek, session.day, scheduleAnchor);

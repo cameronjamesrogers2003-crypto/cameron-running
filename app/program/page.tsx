@@ -57,13 +57,23 @@ const WEEK_FOCUS: Record<number, string> = {
   18: "Taper — trust your training",
 };
 
-const PHASE_OVERVIEW: Record<Phase, string> = {
+const PHASE_OVERVIEW: Partial<Record<Phase, string>> = {
   "Base":
     "The base phase builds your aerobic engine. Every run is at Zone 2 or below except Wednesday intervals, which introduce speed work gradually. By the end of week 6 you should be able to run 16 km comfortably at an easy pace. Do not rush this phase — aerobic base takes weeks to build and cannot be shortcut.",
+  "Beginner Base":
+    "The base phase builds your aerobic engine. Keep easy sessions truly easy and focus on consistency. Aerobic base takes weeks to build and cannot be shortcut.",
+  "Intermediate Base":
+    "The base phase builds your aerobic engine while introducing controlled intensity. Keep easy days easy so hard sessions can be high quality.",
+  "Advanced Base":
+    "The base phase builds aerobic strength while maintaining speed. Resist the urge to overcook intensity early — save your biggest efforts for the build.",
   "Half Marathon Build":
     "This phase shifts focus to half marathon-specific fitness. Long runs push toward 21 km, tempo runs get longer, and intervals increase in volume and intensity. Your body is under significant load in weeks 9–11 and 13–14 — sleep and nutrition matter more than ever here. The cutback weeks in weeks 8 and 12 are essential.",
   "Marathon Build":
     "The peak phase maintains the fitness you've built and prepares you to race. Week 18 is a taper — volume drops sharply but intensity stays. This is normal and intentional. Resist the urge to add extra runs during taper week. Trust the plan.",
+  "Race Specific":
+    "This phase focuses on race-specific fitness. Long runs and quality sessions sharpen endurance and threshold while keeping easy days genuinely easy.",
+  "Taper":
+    "Taper reduces volume so you arrive fresh on race day. Keep intensity controlled, prioritize sleep, and resist the urge to add extra runs.",
   "Recovery":
     "These weeks are designed to safely return you to training after a break. Volume is deliberately low and every session is at easy effort. Do not rush or substitute harder runs — connective tissue heals slower than cardiovascular fitness, and starting too hard here leads to re-injury.",
 };
@@ -129,10 +139,20 @@ function typePillStyle(type: RunType): { background: string; color: string } {
 
 function phaseChipStyle(phase: Phase): { background: string; color: string } {
   switch (phase) {
-    case "Base":                return { background: "#1e3a5f", color: "#93c5fd" };
-    case "Half Marathon Build": return { background: "#14532d", color: "#86efac" };
-    case "Marathon Build":      return { background: "#3b0764", color: "#d8b4fe" };
-    case "Recovery":            return { background: "#1a1133", color: "#a78bfa" };
+    case "Base":
+    case "Beginner Base":
+    case "Intermediate Base":
+    case "Advanced Base":
+      return { background: "#1e3a5f", color: "#93c5fd" };
+    case "Half Marathon Build":
+    case "Race Specific":
+      return { background: "#14532d", color: "#86efac" };
+    case "Marathon Build":
+      return { background: "#3b0764", color: "#d8b4fe" };
+    case "Taper":
+      return { background: "#3f3f46", color: "#e4e4e7" };
+    case "Recovery":
+      return { background: "#1a1133", color: "#a78bfa" };
   }
 }
 
@@ -337,8 +357,8 @@ export default async function ProgramPage() {
               )}
 
               {/* Phase overview card — only for non-recovery sections */}
-              {!section.isRecovery && (
-                <PhaseOverview description={PHASE_OVERVIEW[section.phase]} />
+              {!section.isRecovery && PHASE_OVERVIEW[section.phase] && (
+                <PhaseOverview description={PHASE_OVERVIEW[section.phase] as string} />
               )}
 
               {/* Week rows */}
@@ -425,7 +445,15 @@ export default async function ProgramPage() {
                           }
 
                           const pill     = typePillStyle(session.type);
-                          const dayLabel = { wed: "Wed", sat: "Sat", sun: "Sun" }[session.day];
+                          const dayLabel = {
+                            mon: "Mon",
+                            tue: "Tue",
+                            wed: "Wed",
+                            thu: "Thu",
+                            fri: "Fri",
+                            sat: "Sat",
+                            sun: "Sun",
+                          }[session.day];
 
                           return (
                             <div

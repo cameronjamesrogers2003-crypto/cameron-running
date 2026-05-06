@@ -1,5 +1,5 @@
 import prisma from "@/lib/db";
-import { trainingPlan } from "@/data/trainingPlan";
+import { buildTrainingPlan } from "@/data/trainingPlan";
 import { inferRunType, type StatActivity } from "@/lib/rating";
 import {
   PLAYER_RATING_ATTRIBUTES,
@@ -50,14 +50,15 @@ function formatKm(value: number): string {
 
 function calculateInjuryFreeWeeks(
   activities: CalendarRatingActivity[],
+  plan: ReturnType<typeof buildTrainingPlan>,
   planStart: Date,
   today: Date,
 ): number {
   const todayMidnight = startOfDayAEST(today);
-  const dayOrder: Record<string, number> = { sat: 0, sun: 1, wed: 2 };
+  const dayOrder: Record<string, number> = { mon: 0, tue: 1, wed: 2, thu: 3, fri: 4, sat: 5, sun: 6 };
   const sessions: Array<{ weekNum: number; done: boolean }> = [];
 
-  for (const planWeek of trainingPlan) {
+  for (const planWeek of plan) {
     const sorted = [...planWeek.sessions].sort((a, b) => dayOrder[a.day] - dayOrder[b.day]);
     for (const session of sorted) {
       const sessionDate = getSessionDate(planWeek.week, session.day, planStart);
@@ -331,7 +332,8 @@ export default async function CalendarPage({
 
   const settings    = userSettingsRow ? dbSettingsToUserSettings(userSettingsRow) : DEFAULT_SETTINGS;
   const planStart     = getEffectivePlanStart(settings.planStartDate);
-  const injuryFreeWeeks = calculateInjuryFreeWeeks(statsActivities, planStart, today);
+  const plan = buildTrainingPlan(settings);
+  const injuryFreeWeeks = calculateInjuryFreeWeeks(statsActivities, plan, planStart, today);
 
   // Derive stats strip values (Brisbane calendar day bounds)
   const todayMidnight = startOfDayAEST(today);
@@ -357,7 +359,7 @@ export default async function CalendarPage({
   let longDone    = 0;
   const statsKeys = new Set(statsActivities.map((r) => aestKey(new Date(r.date))));
 
-  for (const pw of trainingPlan) {
+  for (const pw of plan) {
     const ls = pw.sessions.find((s) => s.type === "long");
     if (!ls) continue;
     const sd = getSessionDate(pw.week, ls.day, planStart);
@@ -369,7 +371,7 @@ export default async function CalendarPage({
   // All plan sessions this month
   let sessPlanned = 0;
   let sessDone    = 0;
-  for (const pw of trainingPlan) {
+  for (const pw of plan) {
     for (const sess of pw.sessions) {
       const sd = getSessionDate(pw.week, sess.day, planStart);
       if (sd < monthStart || sd >= todayEnd) continue;
@@ -413,7 +415,7 @@ export default async function CalendarPage({
       activityType: act.activityType,
       rating,
       runType,
-      isPlanned: isPlannedRun(new Date(act.date), trainingPlan, planStart),
+      isPlanned: isPlannedRun(new Date(act.date), plan, planStart),
     };
 
     calendarData[dateKey].push(run);
