@@ -32,6 +32,25 @@ export const dynamic = "force-dynamic";
 
 // ── Style helpers ─────────────────────────────────────────────────────────────
 
+const DAY_OFFSET_FROM_MONDAY: Record<Day, number> = {
+  mon: 0,
+  tue: 1,
+  wed: 2,
+  thu: 3,
+  fri: 4,
+  sat: 5,
+  sun: 6,
+};
+
+function getMondayAnchoredSessionDate(week: number, day: Day, planStart: Date): Date {
+  const planStartDay = startOfDayAEST(planStart);
+  const dowAest = (new Date(planStartDay.getTime() + 10 * 60 * 60 * 1000).getUTCDay() + 6) % 7; // Mon=0..Sun=6
+  const mondayOfPlanWeek0 = new Date(planStartDay.getTime() - dowAest * 24 * 60 * 60 * 1000);
+  return new Date(
+    mondayOfPlanWeek0.getTime() + ((week - 1) * 7 + DAY_OFFSET_FROM_MONDAY[day]) * 24 * 60 * 60 * 1000,
+  );
+}
+
 function ratingBadgeStyle(score: number): { background: string; color: string } {
   if (score >= 9)   return { background: "#2e1065", color: "#c4b5fd" };
   if (score >= 7.5) return { background: "#052e16", color: "#4ade80" };
