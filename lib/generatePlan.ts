@@ -185,86 +185,100 @@ function taperWeeklyKm(config: PlanConfig, peak: number, week: number): number {
 function chooseSessionAssignment(config: PlanConfig): Record<Day, RunType> {
   const days = uniqDays(config.days);
   const trainingSet = new Set(days);
+  const locked: Partial<Record<Day, RunType>> = {};
+  for (const d of days) {
+    const t = config.sessionAssignment?.[d];
+    if (t === "easy" || t === "tempo" || t === "interval" || t === "long") {
+      locked[d] = t;
+    }
+  }
+  const lockedDays = new Set(Object.keys(locked) as Day[]);
 
   // Two-day rule override.
   if (days.length === 2) {
     const sorted = daysSorted(days);
-    // Prefer existing assignment where possible.
-    const provided0 = config.sessionAssignment?.[sorted[0]];
-    const provided1 = config.sessionAssignment?.[sorted[1]];
     const out: Record<Day, RunType> = {} as Record<Day, RunType>;
+    for (const d of sorted) {
+      if (locked[d]) out[d] = locked[d]!;
+    }
 
     const beginner = config.level === "BEGINNER";
     const secondType: RunType = beginner ? "easy" : "tempo";
 
-    // Ensure exactly one long.
-    if (provided0 === "long" || provided1 === "long") {
-      out[sorted[0]] = provided0 === "long" ? "long" : secondType;
-      out[sorted[1]] = provided1 === "long" ? "long" : secondType;
+    // Fill only unassigned days; explicit assignments remain untouched.
+    const explicitLong = sorted.find((d) => out[d] === "long");
+    if (explicitLong) {
+      for (const d of sorted) {
+        if (!out[d]) out[d] = secondType;
+      }
     } else {
-      // Put long on the day with more surrounding rest.
-      const longDay = restNeighborsScore(sorted[0], trainingSet) >= restNeighborsScore(sorted[1], trainingSet)
-        ? sorted[0]
-        : sorted[1];
-      out[longDay] = "long";
-      out[longDay === sorted[0] ? sorted[1] : sorted[0]] = secondType;
+      const unlocked = sorted.filter((d) => !out[d]);
+      if (unlocked.length > 0) {
+        const longDay = restNeighborsScore(unlocked[0], trainingSet) >= restNeighborsScore(unlocked[unlocked.length - 1], trainingSet)
+          ? unlocked[0]
+          : unlocked[unlocked.length - 1];
+        out[longDay] = "long";
+        for (const d of unlocked) {
+          if (!out[d]) out[d] = secondType;
+        }
+      }
     }
 
-    // No intervals on 2-day plans.
+    // No intervals on 2-day plans unless explicitly locked by runner.
     for (const d of sorted) {
-      if (out[d] === "interval") out[d] = secondType;
+      if (!lockedDays.has(d) && out[d] === "interval") out[d] = secondType;
     }
     return out;
   }
 
-  // Start with whatever was provided (only for chosen days).
+  // Start with locked runner-provided assignment (only for chosen days).
   const out: Partial<Record<Day, RunType>> = {};
-  for (const d of days) {
-    const t = config.sessionAssignment?.[d];
-    if (t === "easy" || t === "tempo" || t === "interval" || t === "long") out[d] = t;
-  }
+  for (const d of days) if (locked[d]) out[d] = locked[d]!;
 
   // Fallback algorithm to fill gaps.
   const missing = days.filter((d) => !out[d]);
   if (missing.length > 0) {
-    // 1) Long on day with most rest around it.
+    // 1) Long on day with most rest around it (only if no explicit long exists).
     if (!Object.values(out).includes("long")) {
-      let best = days[0];
-      for (const d of days) {
-        if (restNeighborsScore(d, trainingSet) > restNeighborsScore(best, trainingSet)) best = d;
+      const unlocked = days.filter((d) => !lockedDays.has(d));
+      if (unlocked.length > 0) {
+        let best = unlocked[0];
+        for (const d of unlocked) {
+          if (restNeighborsScore(d, trainingSet) > restNeighborsScore(best, trainingSet)) best = d;
+        }
+        out[best] = "long";
       }
-      out[best] = "long";
     }
 
-    // 2) Interval (or Tempo for beginners) far from long (48h+).
-    const longDay = days.find((d) => out[d] === "long")!;
+    // 2) Interval (or Tempo for beginners) far from long (48h+), only for unlocked days.
+    const longDay = days.find((d) => out[d] === "long");
     const beginner = config.level === "BEGINNER";
     const hard1: RunType = beginner ? "tempo" : "interval";
-    if (!Object.values(out).includes(hard1)) {
+    if (longDay && !Object.values(out).includes(hard1)) {
       const candidates = days
-        .filter((d) => !out[d])
+        .filter((d) => !out[d] && !lockedDays.has(d))
         .filter((d) => nearestTrainingDayDistance(d, new Set([longDay])) >= 2)
         .sort((a, b) => dayDistance(b, longDay) - dayDistance(a, longDay));
       if (candidates[0]) out[candidates[0]] = hard1;
     }
 
-    // 3) Tempo far from interval/hard1.
+    // 3) Tempo far from interval/hard1, only for unlocked days.
     if (!Object.values(out).includes("tempo")) {
       const hardDay = days.find((d) => out[d] === "interval" || out[d] === "tempo");
       const candidates = days
-        .filter((d) => !out[d])
+        .filter((d) => !out[d] && !lockedDays.has(d))
         .filter((d) => !hardDay || nearestTrainingDayDistance(d, new Set([hardDay])) >= 2)
         .sort((a, b) => (hardDay ? dayDistance(b, hardDay) - dayDistance(a, hardDay) : 0));
       if (candidates[0]) out[candidates[0]] = "tempo";
     }
 
-    // Remaining => easy.
+    // Remaining unlocked => easy.
     for (const d of days) {
-      if (!out[d]) out[d] = "easy";
+      if (!out[d] && !lockedDays.has(d)) out[d] = "easy";
     }
   }
 
-  // Enforce no consecutive hard sessions.
+  // Enforce no consecutive hard sessions only on unlocked days.
   const sorted = daysSorted(days);
   for (let i = 1; i < sorted.length; i++) {
     const prev = sorted[i - 1];
@@ -272,30 +286,42 @@ function chooseSessionAssignment(config: PlanConfig): Record<Day, RunType> {
     if (Math.abs(DAY_INDEX[curr] - DAY_INDEX[prev]) === 1) {
       const pt = out[prev]!;
       const ct = out[curr]!;
-      if (isHard(pt) && isHard(ct)) {
+      if (isHard(pt) && isHard(ct) && !lockedDays.has(curr)) {
         out[curr] = "easy";
       }
     }
   }
 
-  // Ensure only one long.
+  // Ensure only one long, but never move/remove explicit long.
+  const explicitLongDays = days.filter((d) => locked[d] === "long");
   const longs = days.filter((d) => out[d] === "long");
-  if (longs.length > 1) {
-    // keep the best rest-scored day as long, downgrade others to easy
-    let keep = longs[0];
+  if (explicitLongDays.length > 0) {
+    const keep = explicitLongDays[0];
     for (const d of longs) {
-      if (restNeighborsScore(d, trainingSet) > restNeighborsScore(keep, trainingSet)) keep = d;
+      if (d !== keep && !lockedDays.has(d)) out[d] = "easy";
     }
-    for (const d of longs) {
-      if (d !== keep) out[d] = "easy";
+  } else {
+    if (longs.length > 1) {
+      // keep the best rest-scored day as long, downgrade others to easy
+      let keep = longs[0];
+      for (const d of longs) {
+        if (restNeighborsScore(d, trainingSet) > restNeighborsScore(keep, trainingSet)) keep = d;
+      }
+      for (const d of longs) {
+        if (d !== keep && !lockedDays.has(d)) out[d] = "easy";
+      }
     }
-  }
-  if (longs.length === 0) {
-    let best = days[0];
-    for (const d of days) {
-      if (restNeighborsScore(d, trainingSet) > restNeighborsScore(best, trainingSet)) best = d;
+    const noLong = days.every((d) => out[d] !== "long");
+    if (noLong) {
+      const unlocked = days.filter((d) => !lockedDays.has(d));
+      if (unlocked.length > 0) {
+        let best = unlocked[0];
+        for (const d of unlocked) {
+          if (restNeighborsScore(d, trainingSet) > restNeighborsScore(best, trainingSet)) best = d;
+        }
+        out[best] = "long";
+      }
     }
-    out[best] = "long";
   }
 
   return out as Record<Day, RunType>;
@@ -307,7 +333,7 @@ export function recommendSessionAssignment(
   current: Partial<Record<Day, RunType>> = {},
 ): Record<Day, RunType> {
   const normalizedDays = uniqDays(days);
-  return chooseSessionAssignment({
+  const result = chooseSessionAssignment({
     level,
     goal: "hm",
     weeks: 16,
@@ -315,6 +341,14 @@ export function recommendSessionAssignment(
     sessionAssignment: current as Record<Day, RunType>,
     vdot: 33,
   });
+  for (const day of normalizedDays) {
+    const explicit = current[day];
+    if (!explicit) continue;
+    if (result[day] !== explicit) {
+      throw new Error(`recommendSessionAssignment overrode explicit assignment for day ${day}`);
+    }
+  }
+  return result;
 }
 
 function gateSessionType(
