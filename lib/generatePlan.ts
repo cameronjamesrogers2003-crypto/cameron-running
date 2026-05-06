@@ -351,6 +351,14 @@ export function recommendSessionAssignment(
   return result;
 }
 
+function getDefaultSessionType(day: Day, config: PlanConfig): RunType {
+  // Default used only when runner has not explicitly assigned a day.
+  if (day === "sat") return "long";
+  if (config.level === "BEGINNER") return "easy";
+  if (config.level === "INTERMEDIATE") return day === "wed" ? "tempo" : "easy";
+  return day === "wed" ? "interval" : "easy";
+}
+
 function gateSessionType(
   config: PlanConfig,
   type: RunType,
@@ -545,7 +553,6 @@ export function generatePlan(config: PlanConfig): TrainingWeek[] {
     throw new Error("PlanConfig.days must include at least 2 training days");
   }
 
-  const assignment = recommendSessionAssignment(config.level, days, config.sessionAssignment);
   const { weeklyKm, isCutback, peakKm } = buildWeeklyVolumes({ ...config, days });
   const longKm = buildLongRuns({ ...config, days }, weeklyKm, isCutback);
 
@@ -564,22 +571,21 @@ export function generatePlan(config: PlanConfig): TrainingWeek[] {
     // Week sessions: one per chosen training day.
     const dayList = daysSorted(days);
 
-    // Determine the actual session types for this week after gating rules.
-    const typesForWeek: Record<Day, RunType> = {} as Record<Day, RunType>;
-    for (const d of dayList) {
-      const raw = assignment[d] ?? "easy";
-      typesForWeek[d] = gateSessionType(config, raw, w, phase);
+    // Determine final session types: explicit assignment is always final.
+    const finalAssignment: Record<Day, RunType> = {} as Record<Day, RunType>;
+    for (const day of dayList) {
+      const explicit = config.sessionAssignment?.[day];
+      if (explicit === "easy" || explicit === "tempo" || explicit === "interval" || explicit === "long") {
+        finalAssignment[day] = explicit;
+      } else {
+        finalAssignment[day] = getDefaultSessionType(day, config);
+      }
     }
 
-    // Ensure no consecutive hard sessions after gating (downgrade later one).
-    for (let i = 1; i < dayList.length; i++) {
-      const prev = dayList[i - 1];
-      const curr = dayList[i];
-      if (Math.abs(DAY_INDEX[curr] - DAY_INDEX[prev]) === 1) {
-        if (isHard(typesForWeek[prev]) && isHard(typesForWeek[curr])) {
-          typesForWeek[curr] = "easy";
-        }
-      }
+    // Use fixed assignment for all weeks; no recommendation overrides in generator.
+    const typesForWeek: Record<Day, RunType> = {} as Record<Day, RunType>;
+    for (const d of dayList) {
+      typesForWeek[d] = finalAssignment[d];
     }
 
     const weekKm = weeklyKm[w - 1] ?? peakKm;
