@@ -55,6 +55,7 @@ async function regenerateFromSettings(req: NextRequest) {
     })(),
     vdot: settings.currentVdot ?? 33,
   };
+  console.log("REGENERATE CONFIG:", JSON.stringify(config, null, 2));
 
   const plan = generatePlan(config);
   await saveGeneratedPlan(config, plan);
