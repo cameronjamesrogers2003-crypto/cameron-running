@@ -507,10 +507,18 @@ export default async function Dashboard({
   const upcomingSessions = upcomingCandidates.slice(0, 5);
 
   // ── Sidebar checklist: same week + sessions as Program page (planToRender) ─
-  const CHECKLIST_DAY_ORDER: Day[] = ["sat", "sun", "mon", "tue", "wed", "thu", "fri"]; // matches Saturday-anchored scheduling
+  const CHECKLIST_DAY_ORDER: Record<Day, number> = {
+    mon: 0,
+    tue: 1,
+    wed: 2,
+    thu: 3,
+    fri: 4,
+    sat: 5,
+    sun: 6,
+  };
   const DAY_LABEL: Record<Day, string> = { mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat", sun: "Sun" };
   const sessionChecklist = [...(currentPlanWeek?.sessions ?? [])]
-    .sort((a, b) => CHECKLIST_DAY_ORDER.indexOf(a.day) - CHECKLIST_DAY_ORDER.indexOf(b.day))
+    .sort((a, b) => CHECKLIST_DAY_ORDER[a.day] - CHECKLIST_DAY_ORDER[b.day])
     .map((session) => {
       const date = getSessionDate(currentWeek, session.day, planStart);
       const completed = weekActivities.some((a) => {
