@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import type { Day, PlanConfig, RunType } from "@/data/trainingPlan";
 import { useSettings } from "@/context/SettingsContext";
 import { recommendSessionAssignment, hasConsecutiveHardSessions } from "@/lib/generatePlan";
+import VdotCalculator from "@/components/VdotCalculator";
 
 type Level = "BEGINNER" | "INTERMEDIATE" | "ADVANCED";
 type GoalRace = "HALF" | "FULL";
@@ -73,6 +74,9 @@ export default function OnboardingPage() {
   const [goalRace, setGoalRace] = useState<GoalRace | null>((settings.goalRace as GoalRace | null) ?? null);
   const [level, setLevel] = useState<Level | null>((settings.experienceLevel as Level | null) ?? null);
   const [planLengthWeeks, setPlanLengthWeeks] = useState<12 | 16 | 20>((settings.planLengthWeeks as 12 | 16 | 20 | null) ?? 16);
+  const [calculatedVdot, setCalculatedVdot] = useState<number | null>(null);
+  const [suggestedLevel, setSuggestedLevel] = useState<Level | null>(null);
+  const [skipFitnessStep, setSkipFitnessStep] = useState(false);
   const [targetHours, setTargetHours] = useState<number>(1);
   const [targetMinutes, setTargetMinutes] = useState<number>(55);
   const [skipFinishTime, setSkipFinishTime] = useState(false);
@@ -92,7 +96,13 @@ export default function OnboardingPage() {
   });
   const [saving, setSaving] = useState(false);
 
-  const recommendedLength = level === "BEGINNER" ? 20 : level === "ADVANCED" ? 12 : 16;
+  const effectiveLevelForRecommendation = level ?? vdotSuggestedLevel;
+  const recommendedLength =
+    effectiveLevelForRecommendation === "BEGINNER"
+      ? 20
+      : effectiveLevelForRecommendation === "ADVANCED"
+        ? 12
+        : 16;
 
   const assignmentEffective = useMemo<Partial<Record<Day, RunType>>>(() => {
     if (!level || trainingDays.length < 2) return {};
@@ -108,9 +118,10 @@ export default function OnboardingPage() {
     if (step === 1) return goalRace != null;
     if (step === 2) return level != null;
     if (step === 3) return [12, 16, 20].includes(planLengthWeeks);
-    if (step === 4) return skipFinishTime || (targetHours >= 0 && targetMinutes >= 0 && targetMinutes < 60);
-    if (step === 5) return trainingDays.length >= 2 && trainingDays.length <= 6;
-    if (step === 6) return trainingDays.length >= 2;
+    if (step === 4) return skipFitnessStep || calculatedVdot != null;
+    if (step === 5) return skipFinishTime || (targetHours >= 0 && targetMinutes >= 0 && targetMinutes < 60);
+    if (step === 6) return trainingDays.length >= 2 && trainingDays.length <= 6;
+    if (step === 7) return trainingDays.length >= 2;
     return true;
   })();
 
@@ -132,7 +143,7 @@ export default function OnboardingPage() {
       weeks: planLengthWeeks,
       days: trainingDays,
       sessionAssignment: assignmentEffective as Record<Day, RunType>,
-      vdot: settings.currentVdot,
+      vdot: calculatedVdot ?? settings.currentVdot,
     };
     try {
       await updateSettings({
@@ -162,8 +173,8 @@ export default function OnboardingPage() {
 
   return (
     <div className="max-w-3xl mx-auto space-y-4">
-      <p className="text-xs uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>
-        Step {Math.min(step, 6)} of 6
+      <p className="text-[11px] sm:text-xs uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>
+        Step {Math.min(step, 7)} of 7
       </p>
       {step === 1 && (
         <section className="space-y-3">
@@ -203,6 +214,39 @@ export default function OnboardingPage() {
       )}
       {step === 4 && (
         <section className="space-y-3">
+          <h1 className="text-2xl font-bold text-white">What&apos;s your current fitness level?</h1>
+          <p className="text-sm" style={{ color: "var(--text-muted)" }}>
+            Enter a recent race time or timed 5K to calculate your VDOT score.
+          </p>
+          <VdotCalculator
+            onVdotCalculated={(nextVdot) => {
+              setCalculatedVdot(nextVdot);
+            }}
+            onLevelSuggested={(nextLevel) => {
+              setSuggestedLevel(nextLevel);
+            }}
+          />
+          {suggestedLevel && (
+            <div className="rounded-md border border-teal-400/30 bg-teal-400/10 p-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm text-teal-100">
+                Based on your time, we suggest: <strong>{suggestedLevel}</strong>
+              </p>
+              <button
+                type="button"
+                className="min-h-11 rounded-md px-3 py-2 text-sm font-semibold bg-teal-600 text-white"
+                onClick={() => setLevel(suggestedLevel)}
+              >
+                Apply to experience level
+              </button>
+            </div>
+          )}
+          <button className="text-sm underline" onClick={() => setSkipFitnessStep(true)} type="button">
+            Skip — I&apos;ll enter my VDOT manually
+          </button>
+        </section>
+      )}
+      {step === 5 && (
+        <section className="space-y-3">
           <h1 className="text-2xl font-bold text-white">What&apos;s your goal finish time?</h1>
           <p className="text-sm" style={{ color: "var(--text-muted)" }}>
             Don&apos;t worry if you&apos;re unsure — you can update this later in Settings.
@@ -216,10 +260,10 @@ export default function OnboardingPage() {
           <button className="text-sm underline" onClick={() => setSkipFinishTime(true)} type="button">Skip for now</button>
         </section>
       )}
-      {step === 5 && (
+      {step === 6 && (
         <section className="space-y-3">
           <h1 className="text-2xl font-bold text-white">Which days can you train?</h1>
-          <div className="grid grid-cols-7 gap-2">
+          <div className="grid grid-cols-7 gap-1.5 sm:gap-2">
             {DAYS.map((day) => {
               const selected = trainingDays.includes(day);
               return (
@@ -227,7 +271,7 @@ export default function OnboardingPage() {
                   type="button"
                   key={day}
                   onClick={() => toggleDay(day)}
-                  className="rounded-md py-2 text-sm border"
+                  className="rounded-md min-h-11 py-2 text-[11px] sm:text-sm border"
                   style={{
                     borderColor: selected ? "rgba(45,212,191,0.45)" : "rgba(255,255,255,0.12)",
                     background: selected ? "rgba(45,212,191,0.15)" : "rgba(255,255,255,0.03)",
@@ -243,15 +287,15 @@ export default function OnboardingPage() {
           {trainingDays.length < 2 && <p className="text-xs text-orange-300">Select at least 2 training days.</p>}
         </section>
       )}
-      {step === 6 && (
+      {step === 7 && (
         <section className="space-y-3">
           <h1 className="text-2xl font-bold text-white">What will you do on each day?</h1>
           <div className="space-y-2">
             {trainingDays.map((day) => (
-              <div key={day} className="flex items-center justify-between rounded-lg p-3 border border-white/10 bg-white/5">
+              <div key={day} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 rounded-lg p-3 border border-white/10 bg-white/5">
                 <span className="text-sm text-white">{day.charAt(0).toUpperCase() + day.slice(1)}</span>
                 <select
-                  className="rounded px-3 py-2 bg-black/20 border border-white/10 text-white"
+                  className="rounded min-h-11 px-3 py-2 bg-black/20 border border-white/10 text-white w-full sm:w-auto"
                   value={assignmentEffective[day] ?? "easy"}
                   onChange={(e) => setSessionAssignment((prev) => ({ ...prev, [day]: e.target.value as RunType }))}
                 >
@@ -270,7 +314,7 @@ export default function OnboardingPage() {
           )}
         </section>
       )}
-      {step > 6 && (
+      {step > 7 && (
         <section className="space-y-3">
           <h1 className="text-2xl font-bold text-white">Your plan is ready.</h1>
           <div className="rounded-xl border border-white/10 bg-white/5 p-4 text-sm space-y-1">
@@ -291,20 +335,20 @@ export default function OnboardingPage() {
         </section>
       )}
 
-      <div className="flex justify-between pt-3">
+      <div className="flex flex-col sm:flex-row justify-between gap-2 pt-3">
         <button
           type="button"
           onClick={() => setStep((s) => Math.max(1, s - 1))}
           disabled={step === 1}
-          className="rounded-md px-4 py-2 border border-white/15 text-sm disabled:opacity-50"
+          className="rounded-md min-h-11 px-4 py-2 border border-white/15 text-sm disabled:opacity-50 w-full sm:w-auto"
         >
           Back
         </button>
         <button
           type="button"
-          onClick={() => setStep((s) => Math.min(7, s + 1))}
-          disabled={!canNext || step > 6}
-          className="rounded-md px-4 py-2 bg-white/10 text-sm disabled:opacity-50"
+          onClick={() => setStep((s) => Math.min(8, s + 1))}
+          disabled={!canNext || step > 7}
+          className="rounded-md min-h-11 px-4 py-2 bg-white/10 text-sm disabled:opacity-50 w-full sm:w-auto"
         >
           Next
         </button>
