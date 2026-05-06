@@ -473,16 +473,34 @@ export default async function Dashboard({
     session: (typeof planToRender)[0]["sessions"][0];
     date: Date;
     week: number;
+    dayLabel: string;
   };
   const upcomingCandidates: UpcomingRow[] = [];
-  for (let w = currentWeek; w <= lastPlanWeekNum; w++) {
-    const pw = planToRender.find((x) => x.week === w);
-    if (!pw) continue;
-    for (const session of pw.sessions) {
-      const date = getSessionDate(w, session.day, planStart);
-      if (date <= todayAESTMidnight) continue;
-      if (hasRunOnCalendarDay(runsPlanForward, date)) continue;
-      upcomingCandidates.push({ session, date, week: w });
+  const upcomingStored = stored ?? (await loadGeneratedPlan());
+  const dayOffsets: Record<Day, number> = { mon: 0, tue: 1, wed: 2, thu: 3, fri: 4, sat: 5, sun: 6 };
+  const dayLabels: Record<Day, string> = { mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat", sun: "Sun" };
+  const brisbaneToday = startOfDayAEST(today);
+  if (upcomingStored?.plan?.length && settings.planStartDate) {
+    const d = new Date(settings.planStartDate);
+    const day = d.getUTCDay(); // 0=Sun,1=Mon...6=Sat
+    const mondayOffset = day === 0 ? -6 : 1 - day;
+    const monday = new Date(d);
+    monday.setUTCDate(d.getUTCDate() + mondayOffset);
+
+    for (const week of upcomingStored.plan) {
+      for (const session of week.sessions) {
+        const offset = dayOffsets[session.day];
+        const sessionDate = new Date(monday);
+        sessionDate.setUTCDate(monday.getUTCDate() + ((week.week - 1) * 7) + offset);
+        if (sessionDate <= brisbaneToday) continue;
+        if (hasRunOnCalendarDay(runsPlanForward, sessionDate)) continue;
+        upcomingCandidates.push({
+          session,
+          date: sessionDate,
+          week: week.week,
+          dayLabel: dayLabels[session.day],
+        });
+      }
     }
   }
   upcomingCandidates.sort((a, b) => a.date.getTime() - b.date.getTime());
@@ -809,7 +827,7 @@ export default async function Dashboard({
                         className="w-11 h-11 shrink-0 rounded-lg flex items-center justify-center text-xs font-bold"
                         style={{ background: "rgba(255,255,255,0.06)", color: "var(--text-muted)" }}
                       >
-                        {formatAEST(row.date, "EEE")}
+                        {row.dayLabel}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
@@ -819,7 +837,7 @@ export default async function Dashboard({
                           </span>
                         </div>
                         <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
-                          {formatAEST(row.date, "EEE d MMM yyyy")}
+                          {row.dayLabel} {formatAEST(row.date, "d MMM yyyy")}
                         </p>
                       </div>
                     </div>
