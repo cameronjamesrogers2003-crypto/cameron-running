@@ -211,8 +211,6 @@ export default function SettingsForm() {
   const zonesGroup = useSaveGroup();
 
   const [suggestions, setSuggestions] = useState<ZoneSuggestion[]>([]);
-  const planConfigGroup = useSaveGroup();
-  const [showTooManyDaysWarning, setShowTooManyDaysWarning] = useState(false);
   const assignmentEffective = useMemo<Partial<Record<Day, RunType>>>(() => {
     return recommendSessionAssignment(experienceLevel, trainingDays, sessionAssignment);
   }, [experienceLevel, trainingDays, sessionAssignment]);
