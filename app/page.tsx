@@ -1,6 +1,6 @@
 import prisma from "@/lib/db";
 import { formatPace } from "@/lib/settings";
-import { buildTrainingPlan, type Phase, type RunType, type Day } from "@/data/trainingPlan";
+import { buildTrainingPlan, type Phase, type RunType, type Day, type PlanConfig } from "@/data/trainingPlan";
 import {
   getEffectivePlanStart,
   getPlanWeekForDate,
@@ -13,7 +13,8 @@ import { formatAEST, formatDistanceToNowAEST, sameDayAEST, startOfDayAEST } from
 import { inferRunType } from "@/lib/rating";
 import { dbSettingsToUserSettings, DEFAULT_SETTINGS } from "@/lib/settings";
 import { parseInterruptionType, reconfigurePlan, type PlanInterruption } from "@/lib/interruptions";
-import { loadGeneratedPlan } from "@/lib/planStorage";
+import { loadGeneratedPlan, saveGeneratedPlan } from "@/lib/planStorage";
+import { generatePlan } from "@/lib/generatePlan";
 import {
   buildPlayerRatingSummaryRows,
   PLAYER_RATING_ATTRIBUTES,
@@ -29,6 +30,39 @@ import PlayerRatingDeltaPanel from "@/components/PlayerRatingDeltaPanel";
 import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
+
+function parseSettingsDays(trainingDaysJson: string | null): Day[] {
+  if (!trainingDaysJson) return [];
+  try {
+    const parsed = JSON.parse(trainingDaysJson) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((d): d is Day =>
+      d === "mon" || d === "tue" || d === "wed" || d === "thu" || d === "fri" || d === "sat" || d === "sun",
+    );
+  } catch {
+    return [];
+  }
+}
+
+function parseSettingsAssignment(value: string | null): Partial<Record<Day, RunType>> {
+  if (!value) return {};
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    if (!parsed || typeof parsed !== "object") return {};
+    const out: Partial<Record<Day, RunType>> = {};
+    for (const [k, v] of Object.entries(parsed as Record<string, unknown>)) {
+      if (
+        (k === "mon" || k === "tue" || k === "wed" || k === "thu" || k === "fri" || k === "sat" || k === "sun")
+        && (v === "easy" || v === "tempo" || v === "interval" || v === "long")
+      ) {
+        out[k] = v;
+      }
+    }
+    return out;
+  } catch {
+    return {};
+  }
+}
 
 // ── Style helpers ─────────────────────────────────────────────────────────────
 
@@ -253,6 +287,32 @@ export default async function Dashboard({
 
   // Prefer generated plan from DB; fallback to legacy pipeline.
   const stored = await loadGeneratedPlan();
+  const settingsDays = parseSettingsDays(settings.trainingDays);
+  if (stored?.plan?.length && settings.experienceLevel && settingsDays.length > 0) {
+    const storedDays = new Set<Day>();
+    for (const week of stored.plan) {
+      for (const session of week.sessions) {
+        storedDays.add(session.day);
+      }
+    }
+    const settingsDaySet = new Set(settingsDays);
+    const hasDrift =
+      [...storedDays].some((d) => !settingsDaySet.has(d))
+      || [...settingsDaySet].some((d) => !storedDays.has(d));
+    if (hasDrift) {
+      const config: PlanConfig = {
+        level: settings.experienceLevel,
+        goal: settings.goalRace === "FULL" ? "full" : "hm",
+        weeks: (settings.planLengthWeeks ?? 16) as 12 | 16 | 20,
+        days: settingsDays,
+        sessionAssignment: parseSettingsAssignment(settings.sessionAssignment) as Record<Day, RunType>,
+        vdot: settings.currentVdot ?? 33,
+      };
+      const regenerated = generatePlan(config);
+      await saveGeneratedPlan(config, regenerated);
+      redirect("/");
+    }
+  }
   let planToRender = stored?.plan ?? [];
   if (!planToRender.length) {
     const basePlan = buildTrainingPlan(settings);
