@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { format } from "date-fns";
 
 interface SyncButtonProps {
@@ -11,6 +11,15 @@ interface SyncButtonProps {
 export default function SyncButton({ lastSynced, stravaConnected }: SyncButtonProps) {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<string | null>(null);
+  const [warning, setWarning] = useState<string | null>(null);
+
+  useEffect(() => {
+    const storedWarning = window.sessionStorage.getItem("syncPlayerRatingWarning");
+    if (!storedWarning) return;
+    window.sessionStorage.removeItem("syncPlayerRatingWarning");
+    setResult("Sync completed");
+    setWarning(storedWarning);
+  }, []);
 
   async function handleSync() {
     if (!stravaConnected) {
@@ -19,11 +28,19 @@ export default function SyncButton({ lastSynced, stravaConnected }: SyncButtonPr
     }
     setLoading(true);
     setResult(null);
+    setWarning(null);
     try {
       const res = await fetch("/api/strava/sync", { method: "POST" });
       const data = await res.json();
       if (res.ok) {
         setResult(`Synced ${data.synced} new activities`);
+        if (data.playerRatingError) {
+          const playerRatingWarning = "Player rating failed to update — try syncing again";
+          setWarning(playerRatingWarning);
+          window.sessionStorage.setItem("syncPlayerRatingWarning", playerRatingWarning);
+        } else {
+          window.sessionStorage.removeItem("syncPlayerRatingWarning");
+        }
         setTimeout(() => window.location.reload(), 800);
       } else {
         setResult(data.error ?? "Sync failed");
@@ -51,7 +68,9 @@ export default function SyncButton({ lastSynced, stravaConnected }: SyncButtonPr
       </button>
       <div className="text-xs" style={{ color: "var(--text-muted)" }}>
         {result ? (
-          <span className="text-green-400">{result}</span>
+          <span className={warning ? "text-yellow-400" : "text-green-400"}>
+            {warning ?? result}
+          </span>
         ) : lastSynced ? (
           <span>Last synced: {format(new Date(lastSynced), "d MMM HH:mm")}</span>
         ) : (

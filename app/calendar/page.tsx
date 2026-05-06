@@ -1,7 +1,13 @@
 import prisma from "@/lib/db";
 import { trainingPlan } from "@/data/trainingPlan";
-import { inferRunType, parseRatingBreakdown, type StatActivity } from "@/lib/rating";
-import type { PlayerRatingAttribute, PlayerRatingLike } from "@/lib/playerRating";
+import { inferRunType, type StatActivity } from "@/lib/rating";
+import {
+  PLAYER_RATING_ATTRIBUTES,
+  playerRatingAccent,
+  ratingConditionsScore,
+  type PlayerRatingAttribute,
+  type PlayerRatingLike,
+} from "@/lib/playerRating";
 import { dbSettingsToUserSettings, DEFAULT_SETTINGS, formatPace, type UserSettings } from "@/lib/settings";
 import {
   getEffectivePlanStart,
@@ -34,37 +40,12 @@ type CalendarRatingActivity = StatActivity & {
 
 type AttributeExplanationKey = Exclude<PlayerRatingAttribute, "overall">;
 
-const PLAYER_ATTRIBUTES: Array<{
-  key: AttributeExplanationKey;
-  label: string;
-  name: string;
-}> = [
-  { key: "speed", label: "SPD", name: "Speed" },
-  { key: "endurance", label: "END", name: "Endurance" },
-  { key: "consistency", label: "CON", name: "Consistency" },
-  { key: "hrEfficiency", label: "EFF", name: "HR Efficiency" },
-  { key: "toughness", label: "TGH", name: "Toughness" },
-];
-
-function playerRatingAccent(score: number): string {
-  if (score >= 85) return "#22c55e";
-  if (score >= 70) return "#84cc16";
-  if (score >= 55) return "#facc15";
-  if (score >= 40) return "#fb923c";
-  return "#f87171";
-}
-
 function playerRatingValue(rating: PlayerRatingLike, key: AttributeExplanationKey): number {
   return Math.round(rating[key]);
 }
 
 function formatKm(value: number): string {
   return `${Math.round(value * 10) / 10} km`;
-}
-
-function conditionsComponentScore(a: CalendarRatingActivity): number {
-  const breakdown = parseRatingBreakdown(a.ratingBreakdown);
-  return breakdown?.components.conditions.score ?? 0.5;
 }
 
 function calculateInjuryFreeWeeks(
@@ -189,7 +170,7 @@ function playerAttributeExplanation(
     return "No runs found in the last 30 days, so toughness has no recent conditions data. Keep logging runs with weather data to improve this.";
   }
   const avgConditions =
-    conditionRuns.reduce((sum, a) => sum + conditionsComponentScore(a), 0) / conditionRuns.length;
+    conditionRuns.reduce((sum, a) => sum + ratingConditionsScore(a.ratingBreakdown), 0) / conditionRuns.length;
   return `Your average conditions score is ${avgConditions.toFixed(2)} across ${conditionRuns.length} recent ${conditionRuns.length === 1 ? "run" : "runs"}. Brisbane summer will push this up naturally.`;
 }
 
@@ -263,7 +244,7 @@ function PlayerCard({
           </div>
 
           <div className="grid flex-1 gap-4">
-            {PLAYER_ATTRIBUTES.map((attr) => {
+            {PLAYER_RATING_ATTRIBUTES.map((attr) => {
               const value = playerRatingValue(rating, attr.key);
               const width = Math.min(100, Math.max(0, (value / 99) * 100));
               const barColor = playerRatingAccent(value);

@@ -1,6 +1,4 @@
-import { getEffectivePlanStart, getPlanWeekForDate } from "@/lib/planUtils";
-import { trainingPlan } from "@/data/trainingPlan";
-import type { Phase } from "@/data/trainingPlan";
+import type { UserSettings as PrismaUserSettings } from "@prisma/client";
 
 export interface UserSettings {
   id: number;
@@ -52,8 +50,7 @@ export const DEFAULT_SETTINGS: UserSettings = {
   longPaceMaxSec: 450,
 };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function dbSettingsToUserSettings(row: any): UserSettings {
+export function dbSettingsToUserSettings(row: PrismaUserSettings): UserSettings {
   return {
     id: row.id,
     planStartDate:        row.planStartDate  ? new Date(row.planStartDate).toISOString()  : null,
@@ -78,19 +75,6 @@ export function dbSettingsToUserSettings(row: any): UserSettings {
     longPaceMinSec:       row.longPaceMinSec        ?? DEFAULT_SETTINGS.longPaceMinSec,
     longPaceMaxSec:       row.longPaceMaxSec        ?? DEFAULT_SETTINGS.longPaceMaxSec,
   };
-}
-
-export function deriveCurrentWeek(settings: UserSettings): number {
-  if (settings.currentWeekOverride != null) return settings.currentWeekOverride;
-  const planStart = getEffectivePlanStart(settings.planStartDate);
-  return getPlanWeekForDate(new Date(), planStart);
-}
-
-export function deriveCurrentPhase(settings: UserSettings): Phase {
-  if (settings.phaseOverride) return settings.phaseOverride as Phase;
-  const week = deriveCurrentWeek(settings);
-  const planWeek = trainingPlan.find(w => w.week === week);
-  return planWeek?.phase ?? "Base";
 }
 
 export function formatPace(secPerKm: number): string {

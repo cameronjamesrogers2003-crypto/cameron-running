@@ -7,14 +7,19 @@ const STRAVA_AUTH_URL = "https://www.strava.com/oauth/authorize";
 const STRAVA_TOKEN_URL = "https://www.strava.com/oauth/token";
 const STRAVA_API = "https://www.strava.com/api/v3";
 
-const CLIENT_ID = process.env.STRAVA_CLIENT_ID!;
-const CLIENT_SECRET = process.env.STRAVA_CLIENT_SECRET!;
-const REDIRECT_URI = process.env.STRAVA_REDIRECT_URI!;
+function getStravaEnv(): { clientId: string; clientSecret: string; redirectUri: string } {
+  return {
+    clientId: process.env.STRAVA_CLIENT_ID ?? "",
+    clientSecret: process.env.STRAVA_CLIENT_SECRET ?? "",
+    redirectUri: process.env.STRAVA_REDIRECT_URI ?? "",
+  };
+}
 
 export function getStravaAuthUrl(): string {
+  const { clientId, redirectUri } = getStravaEnv();
   const params = new URLSearchParams({
-    client_id: CLIENT_ID,
-    redirect_uri: REDIRECT_URI,
+    client_id: clientId,
+    redirect_uri: redirectUri,
     response_type: "code",
     approval_prompt: "auto",
     scope: "activity:read_all",
@@ -27,16 +32,15 @@ export async function exchangeStravaCode(code: string): Promise<{
   refresh_token: string;
   expires_at: number;
 }> {
+  const { clientId, clientSecret } = getStravaEnv();
   // Use form-encoded: Strava's token endpoint requires client_id as a number,
   // which URLSearchParams handles correctly (vs JSON where env vars are strings).
   const body = new URLSearchParams({
-    client_id: CLIENT_ID,
-    client_secret: CLIENT_SECRET,
+    client_id: clientId,
+    client_secret: clientSecret,
     code,
     grant_type: "authorization_code",
   });
-
-  console.log("[strava] exchanging code, client_id:", CLIENT_ID, "redirect_uri:", REDIRECT_URI);
 
   const res = await fetch(STRAVA_TOKEN_URL, {
     method: "POST",
@@ -58,9 +62,10 @@ export async function refreshStravaToken(refreshToken: string): Promise<{
   refresh_token: string;
   expires_at: number;
 }> {
+  const { clientId, clientSecret } = getStravaEnv();
   const body = new URLSearchParams({
-    client_id: CLIENT_ID,
-    client_secret: CLIENT_SECRET,
+    client_id: clientId,
+    client_secret: clientSecret,
     grant_type: "refresh_token",
     refresh_token: refreshToken,
   });
@@ -179,7 +184,7 @@ function sportTypeToLabel(sportType: string): string {
   }
 }
 
-export async function syncActivities(): Promise<{ synced: number; errors: number }> {
+export async function syncActivities(): Promise<{ synced: number; errors: number; playerRatingError?: string }> {
   const token = await getValidToken();
   if (!token) return { synced: 0, errors: 0 };
 
@@ -198,6 +203,16 @@ export async function syncActivities(): Promise<{ synced: number; errors: number
 
   let synced = 0;
   let errors = 0;
+  let playerRatingError: string | undefined;
+
+  async function refreshPlayerRating(id: string, activityType: string): Promise<void> {
+    try {
+      await updatePlayerRating(prisma, { id, activityType });
+    } catch (err) {
+      console.error("[player-rating] update failed:", err);
+      playerRatingError = "Player rating failed to update";
+    }
+  }
 
   for (const act of activities) {
     try {
@@ -205,6 +220,7 @@ export async function syncActivities(): Promise<{ synced: number; errors: number
       const existing = await prisma.activity.findUnique({ where: { id } });
       if (existing) {
         await persistActivityRating(prisma, id).catch(() => {});
+        await refreshPlayerRating(id, existing.activityType);
         continue;
       }
 
@@ -256,9 +272,7 @@ export async function syncActivities(): Promise<{ synced: number; errors: number
       }
 
       await persistActivityRating(prisma, id).catch(() => {});
-      await updatePlayerRating(prisma, { id, activityType }).catch((err) => {
-        console.error("[player-rating] update failed:", err);
-      });
+      await refreshPlayerRating(id, activityType);
 
       synced++;
     } catch {
@@ -266,7 +280,7 @@ export async function syncActivities(): Promise<{ synced: number; errors: number
     }
   }
 
-  return { synced, errors };
+  return { synced, errors, ...(playerRatingError ? { playerRatingError } : {}) };
 }
 
 export function formatPace(secPerKm: number): string {

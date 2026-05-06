@@ -7,10 +7,7 @@ export const BRISBANE_TZ = "Australia/Brisbane";
 // Brisbane is always UTC+10 — used for UTC instant math (midnight, year bounds)
 export const AEST_OFFSET_MS = 10 * 60 * 60 * 1000;
 
-/**
- * Shifts a UTC Date by +10h so legacy code can read Brisbane wall time via
- * getUTC* (used with plan session comparisons). Prefer formatInTimeZone / toBrisbaneYmd for new code.
- */
+/** Shifts a UTC instant by +10h and returns a Date whose UTC fields mirror Brisbane wall time. */
 export function toAEST(date: Date | string): Date {
   return new Date(new Date(date).getTime() + AEST_OFFSET_MS);
 }
@@ -20,9 +17,7 @@ export function formatAEST(date: Date | string, fmt: string): string {
   return formatInTimeZone(new Date(date), BRISBANE_TZ, fmt);
 }
 
-/**
- * Relative time from real UTC instants (correct elapsed time).
- */
+/** Formats elapsed distance from now and returns a relative time string. */
 export function formatDistanceToNowAEST(
   date: Date | string,
   options?: { addSuffix?: boolean }
@@ -30,17 +25,12 @@ export function formatDistanceToNowAEST(
   return formatDistance(new Date(date), new Date(), options);
 }
 
-/**
- * Brisbane calendar date as `yyyy-MM-dd` — use for calendar keys, grouping, and filters.
- */
+/** Formats an instant as a Brisbane calendar date key and returns `yyyy-MM-dd`. */
 export function toBrisbaneYmd(date: Date | string): string {
   return formatInTimeZone(new Date(date), BRISBANE_TZ, "yyyy-MM-dd");
 }
 
-/**
- * `yyyy-MM-dd` interpreted as a Brisbane **calendar** day → UTC instant of that day's
- * 00:00 in Brisbane (same as {@link startOfDayAEST} for that wall date).
- */
+/** Interprets `yyyy-MM-dd` as a Brisbane calendar day and returns its UTC midnight instant. */
 export function brisbaneMidnightUtcForYmd(ymd: string): Date {
   const parts = ymd.split("-").map(Number);
   const y = parts[0];
@@ -58,16 +48,12 @@ export function brisbaneCalendarYearUtcRange(year: number): { start: Date; endEx
   };
 }
 
-/**
- * UTC instant of Brisbane midnight on the same Brisbane calendar day as `date`.
- */
+/** Finds the Brisbane calendar day containing `date` and returns its UTC midnight instant. */
 export function startOfDayAEST(date: Date | string): Date {
   return brisbaneMidnightUtcForYmd(toBrisbaneYmd(date));
 }
 
-/**
- * Returns true if two instants fall on the same Brisbane calendar day.
- */
+/** Compares two instants and returns true when they share the same Brisbane calendar day. */
 export function sameDayAEST(a: Date, b: Date): boolean {
   return toBrisbaneYmd(a) === toBrisbaneYmd(b);
 }
@@ -86,10 +72,4 @@ export function startOfBrisbaneMonthContaining(date: Date | string): Date {
 /** Brisbane wall-clock hour (0–23) for the instant. */
 export function brisbaneHour(date: Date | string): number {
   return parseInt(formatInTimeZone(new Date(date), BRISBANE_TZ, "H"), 10);
-}
-
-/** Training-plan days: Sun (0), Wed (3), Sat (6) in Brisbane civil time. */
-export function isBrisbaneWedSatSun(date: Date | string): boolean {
-  const dow = toAEST(new Date(date)).getUTCDay();
-  return dow === 0 || dow === 3 || dow === 6;
 }

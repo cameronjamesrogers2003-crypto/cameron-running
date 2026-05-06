@@ -10,11 +10,12 @@ import {
 } from "@/lib/planUtils";
 import { sameDayAEST, startOfDayAEST } from "@/lib/dateUtils";
 import { dbSettingsToUserSettings, DEFAULT_SETTINGS } from "@/lib/settings";
-import { reconfigurePlan, type PlanInterruption, type InterruptionType } from "@/lib/interruptions";
+import { parseInterruptionType, reconfigurePlan, type PlanInterruption } from "@/lib/interruptions";
 import PhaseOverview from "./PhaseOverview";
 import ProgramSidePanel from "./ProgramSidePanel";
 import PlanAdjustments from "./PlanAdjustments";
 import RaceFlagBanner from "./RaceFlagBanner";
+import TodayLabel from "./TodayLabel";
 import Logo from "@/components/Logo";
 
 export const dynamic = "force-dynamic";
@@ -195,7 +196,7 @@ export default async function ProgramPage() {
   const interruptions: PlanInterruption[] = interruptionRows.map(row => ({
     id:               row.id,
     reason:           row.reason,
-    type:             row.type as InterruptionType,
+    type:             parseInterruptionType(row.type),
     startDate:        new Date(row.startDate),
     endDate:          row.endDate ? new Date(row.endDate) : null,
     weeklyKmEstimate: row.weeklyKmEstimate ?? null,
@@ -393,7 +394,6 @@ export default async function ProgramPage() {
                         {planWeek.sessions.map((session) => {
                           const sessionDate = getSessionDate(planWeek.week, session.day, planStart);
                           const isPast      = sessionDate < todayMidnight;
-                          const isToday     = sameDayAEST(sessionDate, today);
                           const matchedAct  = activities.find((a) => {
                             const d = new Date(a.date);
                             return (
@@ -515,14 +515,7 @@ export default async function ProgramPage() {
                               )}
 
                               {/* Today label */}
-                              {isToday && (
-                                <p
-                                  className="text-[11px] font-semibold mt-1.5"
-                                  style={{ color: "#a5b4fc" }}
-                                >
-                                  Today
-                                </p>
-                              )}
+                              <TodayLabel day={session.day} enabled={isCurrentWeek} />
                             </div>
                           );
                         })}

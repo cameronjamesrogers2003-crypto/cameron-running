@@ -40,10 +40,38 @@ export interface RunRatingResult {
   };
 }
 
+/** Checks parsed JSON component objects and returns true for a complete rating component. */
+function isRatingComponent(value: unknown): value is RunRatingComponentBreakdown {
+  if (!value || typeof value !== "object") return false;
+  const component = value as Record<string, unknown>;
+  return (
+    typeof component.score === "number"
+    && typeof component.max === "number"
+    && typeof component.reason === "string"
+  );
+}
+
+/** Checks parsed JSON objects and returns true for a complete run rating result. */
+function isRunRatingResult(value: unknown): value is RunRatingResult {
+  if (!value || typeof value !== "object") return false;
+  const rating = value as Record<string, unknown>;
+  const components = rating.components as Record<string, unknown> | undefined;
+  return (
+    typeof rating.total === "number"
+    && !!components
+    && isRatingComponent(components.pace)
+    && isRatingComponent(components.effort)
+    && isRatingComponent(components.distance)
+    && isRatingComponent(components.conditions)
+  );
+}
+
+/** Rounds a score to one decimal place and returns the rounded number. */
 function round1(n: number): number {
   return Math.round(n * 10) / 10;
 }
 
+/** Converts a normalized deviation into a component score and returns zero past the outer band. */
 function scoreFromDeviation(deviation: number, a0: number, a1: number, a2: number): number {
   if (deviation <= 0) return a0;
   if (deviation <= 1) return a0 + (a1 - a0) * deviation;
@@ -51,6 +79,7 @@ function scoreFromDeviation(deviation: number, a0: number, a1: number, a2: numbe
   return 0;
 }
 
+/** Looks up configured pace-zone bounds for a run type and returns lower/upper seconds per km. */
 function paceZoneBounds(runType: RunType, s: UserSettings): { lo: number; hi: number } {
   switch (runType) {
     case "easy":
@@ -64,6 +93,7 @@ function paceZoneBounds(runType: RunType, s: UserSettings): { lo: number; hi: nu
   }
 }
 
+/** Looks up heart-rate effort bounds for a run type and returns max-HR fractions. */
 function hrFracZone(runType: RunType): [number, number] {
   switch (runType) {
     case "easy":
@@ -76,13 +106,18 @@ function hrFracZone(runType: RunType): [number, number] {
   }
 }
 
+/** Returns the median of a numeric array, or 0 for an empty array. */
 function median(nums: number[]): number {
   if (nums.length === 0) return 0;
   const s = [...nums].sort((a, b) => a - b);
   const m = Math.floor(s.length / 2);
-  return s.length % 2 === 1 ? s[m]! : ((s[m - 1]! + s[m]!) / 2);
+  if (s.length % 2 === 1) return s[m] ?? 0;
+  const lo = s[m - 1];
+  const hi = s[m];
+  return lo !== undefined && hi !== undefined ? (lo + hi) / 2 : 0;
 }
 
+/** Converts actual-vs-benchmark distance ratio into the distance component score. */
 function distanceScoreFromRatio(ratio: number): number {
   if (ratio >= 1.2) return 2.0;
   if (ratio >= 1.0) return 1.5 + (2.0 - 1.5) * ((ratio - 1.0) / 0.2);
@@ -91,19 +126,18 @@ function distanceScoreFromRatio(ratio: number): number {
   return 0;
 }
 
+/** Formats seconds per km for rating explanation text and returns an em dash for invalid pace. */
 function paceKmStr(secPerKm: number): string {
   if (!secPerKm || secPerKm <= 0) return "—";
   return `${formatPace(secPerKm)}/km`;
 }
 
+/** Converts a run type key into a human-readable label. */
 function runTypeLabel(t: RunType): string {
   return t.charAt(0).toUpperCase() + t.slice(1);
 }
 
-/**
- * Run quality score (0–10) plus per-component scores and human-readable reasons.
- * See prior spec: pace 4, effort 3, distance 2, conditions 1.
- */
+/** Calculates a 0-10 run quality score and returns component scores plus explanation text. */
 export function calculateRunRating(
   activity: StatActivity,
   settings: UserSettings,
@@ -244,32 +278,18 @@ export function calculateRunRating(
   };
 }
 
+/** Parses stored rating JSON and returns a validated rating breakdown, or null when invalid. */
 export function parseRatingBreakdown(json: string | null | undefined): RunRatingResult | null {
   if (!json || !json.trim()) return null;
   try {
-    const o = JSON.parse(json) as RunRatingResult;
-    const p = o.components?.pace;
-    const e = o.components?.effort;
-    const d = o.components?.distance;
-    const c = o.components?.conditions;
-    if (
-      typeof o?.total === "number"
-      && p && typeof p.score === "number" && typeof p.max === "number" && typeof p.reason === "string"
-      && e && typeof e.score === "number" && typeof e.max === "number" && typeof e.reason === "string"
-      && d && typeof d.score === "number" && typeof d.max === "number" && typeof d.reason === "string"
-      && c && typeof c.score === "number" && typeof c.max === "number" && typeof c.reason === "string"
-    ) {
-      return o;
-    }
-    return null;
+    const parsed: unknown = JSON.parse(json);
+    return isRunRatingResult(parsed) ? parsed : null;
   } catch {
     return null;
   }
 }
 
-/**
- * Pace-zone classification (manual pace zone thresholds + 15 km long rule).
- */
+/** Classifies a run by configured pace thresholds and returns the canonical run type. */
 export function classifyRunByPaceZones(
   avgPaceSecKm: number,
   distanceKm: number,
@@ -282,6 +302,7 @@ export function classifyRunByPaceZones(
   return "easy";
 }
 
+/** Returns the stored run type when valid, otherwise classifies the run from pace zones. */
 export function inferRunType(run: StatActivity, settings: UserSettings = DEFAULT_SETTINGS): RunType {
   if (run.classifiedRunType === "easy" || run.classifiedRunType === "tempo"
     || run.classifiedRunType === "interval" || run.classifiedRunType === "long") {
@@ -295,6 +316,7 @@ export function inferRunType(run: StatActivity, settings: UserSettings = DEFAULT
   );
 }
 
+/** Finds the planned session matching a run's plan week/date and returns it, or null. */
 export function resolveRunSession(
   run: StatActivity,
   plan: TrainingWeek[],
@@ -316,11 +338,13 @@ export function resolveRunSession(
   return null;
 }
 
+/** Resolves a run type from its planned session first, otherwise from canonical pace-zone classification. */
 export function resolveRunType(run: StatActivity, plan: TrainingWeek[], settings: UserSettings = DEFAULT_SETTINGS): RunType {
   const planStart = getEffectivePlanStart(settings.planStartDate);
   return resolveRunSession(run, plan, planStart)?.type ?? inferRunType(run, settings);
 }
 
+/** Resolves the planned target pace for a run and returns seconds per km, or null when unmatched. */
 export function resolveTargetPaceSecKm(run: StatActivity, plan: TrainingWeek[], settings: UserSettings): number | null {
   const planStart = getEffectivePlanStart(settings.planStartDate);
   const session = resolveRunSession(run, plan, planStart);
