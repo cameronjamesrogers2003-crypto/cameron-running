@@ -6,6 +6,12 @@ type SettingsUpdate = {
   planStartDate?: Date | null;
   currentWeekOverride?: number | null;
   phaseOverride?: string | null;
+  experienceLevel?: "BEGINNER" | "INTERMEDIATE" | "ADVANCED" | null;
+  goalRace?: "hm" | "full" | null;
+  planLengthWeeks?: 12 | 16 | 20 | null;
+  trainingDays?: string | null;
+  sessionAssignment?: string | null;
+  targetFinishTime?: number | null;
   maxHR?: number;
   startingTempoPaceSec?: number;
   currentVdot?: number;
@@ -60,6 +66,7 @@ export async function GET() {
 
 const ALLOWED_FIELDS = new Set([
   "planStartDate", "currentWeekOverride", "phaseOverride",
+  "experienceLevel", "goalRace", "planLengthWeeks", "trainingDays", "sessionAssignment", "targetFinishTime",
   "maxHR", "startingTempoPaceSec", "currentVdot",
   "targetHMTimeSec", "raceName", "raceDate",
   "distTargetEasyM", "distTargetTempoM", "distTargetIntervalM", "distTargetLongM",
@@ -79,6 +86,28 @@ function applySetting(update: SettingsUpdate, key: string, value: unknown): void
       return;
     case "phaseOverride":
       if (typeof value === "string" || value === null) update.phaseOverride = value;
+      return;
+    case "experienceLevel":
+      if (value === "BEGINNER" || value === "INTERMEDIATE" || value === "ADVANCED" || value === null) {
+        update.experienceLevel = value;
+      }
+      return;
+    case "goalRace":
+      if (value === "hm" || value === "full" || value === null) update.goalRace = value;
+      return;
+    case "planLengthWeeks":
+      if (value === 12 || value === 16 || value === 20 || value === null) {
+        update.planLengthWeeks = value;
+      }
+      return;
+    case "trainingDays":
+      if (typeof value === "string" || value === null) update.trainingDays = value;
+      return;
+    case "sessionAssignment":
+      if (typeof value === "string" || value === null) update.sessionAssignment = value;
+      return;
+    case "targetFinishTime":
+      if (typeof value === "number" || value === null) update.targetFinishTime = value;
       return;
     case "raceName":
       if (typeof value === "string" || value === null) update.raceName = value;
