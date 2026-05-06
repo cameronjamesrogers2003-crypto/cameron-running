@@ -71,6 +71,7 @@ Brisbane coordinates: lat `-27.4698`, lon `153.0251`.
    - `STRAVA_CLIENT_SECRET`
    - `STRAVA_REDIRECT_URI` → `https://your-site.vercel.app/api/strava/callback`
    - `DATABASE_URL` → `file:./dev.db`
+   - `PLANS_API_TOKEN`
 4. Update your Strava app's callback domain to your Vercel domain
 5. Deploy — the build command runs `prisma generate && prisma db push && next build`
 
