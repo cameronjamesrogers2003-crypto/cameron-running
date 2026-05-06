@@ -101,6 +101,8 @@ function basePhaseForLevel(level: PlanConfig["level"]): Phase {
       return "Intermediate Base";
     case "ADVANCED":
       return "Advanced Base";
+    default:
+      return "Beginner Base";
   }
 }
 
@@ -146,6 +148,7 @@ function getPeakWeeklyKm(level: PlanConfig["level"], goal: PlanConfig["goal"]): 
     case "INTERMEDIATE-full": return 84;
     case "ADVANCED-hm": return 90;
     case "ADVANCED-full": return 100;
+    default: return 45;
   }
 }
 
@@ -390,6 +393,7 @@ function getLongRunKm(config: PlanConfig, goal: PlanConfig["goal"]) {
     case "INTERMEDIATE-full": return { start: 13, peak: 32 };
     case "ADVANCED-hm": return { start: 11, peak: 22 };
     case "ADVANCED-full": return { start: 16, peak: 35 };
+    default: return { start: 7, peak: 18 };
   }
 }
 
