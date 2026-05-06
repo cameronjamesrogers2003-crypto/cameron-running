@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generatePlan } from "@/lib/generatePlan";
-import { saveGeneratedPlan } from "@/lib/planStorage";
+import { loadGeneratedPlan, saveGeneratedPlan } from "@/lib/planStorage";
 import type { Day, PlanConfig, RunType } from "@/data/trainingPlan";
 
 function requirePlansAuth(req: NextRequest): NextResponse | null {
@@ -70,8 +70,35 @@ export async function POST(req: NextRequest) {
   const config = parseConfig(body);
   if (!config) return NextResponse.json({ error: "invalid_config" }, { status: 400 });
 
-  const plan = generatePlan(config);
-  await saveGeneratedPlan(config, plan);
+  const lockedWeeksInput = (body as { lockedWeeks?: unknown }).lockedWeeks;
+  const lockedWeeks =
+    Array.isArray(lockedWeeksInput)
+      ? lockedWeeksInput.map((n) => Number(n)).filter((n) => Number.isFinite(n))
+      : undefined;
+
+  const generatedPlan = generatePlan(config);
+  let plan = generatedPlan;
+
+  if (lockedWeeks && lockedWeeks.length > 0) {
+    const lockedSet = new Set(lockedWeeks);
+    const existing = await loadGeneratedPlan();
+    if (existing) {
+      const existingByWeek = new Map(existing.plan.map((w) => [w.week, w]));
+      const merged = generatedPlan.map((w) => {
+        if (!lockedSet.has(w.week)) return w;
+        return existingByWeek.get(w.week) ?? w;
+      });
+      for (const oldWeek of existing.plan) {
+        if (lockedSet.has(oldWeek.week) && !merged.some((w) => w.week === oldWeek.week)) {
+          merged.push(oldWeek);
+        }
+      }
+      merged.sort((a, b) => a.week - b.week);
+      plan = merged;
+    }
+  }
+
+  await saveGeneratedPlan(config, plan, lockedWeeks);
 
   return NextResponse.json(plan);
 }

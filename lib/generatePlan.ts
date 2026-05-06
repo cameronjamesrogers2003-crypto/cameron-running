@@ -77,6 +77,22 @@ function isHard(t: RunType): boolean {
   return t === "tempo" || t === "interval";
 }
 
+export function hasConsecutiveHardSessions(
+  days: Day[],
+  assignment: Partial<Record<Day, RunType>>,
+): boolean {
+  const sorted = daysSorted(uniqDays(days));
+  for (let i = 1; i < sorted.length; i++) {
+    const prev = sorted[i - 1];
+    const curr = sorted[i];
+    if (Math.abs(DAY_INDEX[curr] - DAY_INDEX[prev]) !== 1) continue;
+    const pt = assignment[prev];
+    const ct = assignment[curr];
+    if (pt && ct && isHard(pt) && isHard(ct)) return true;
+  }
+  return false;
+}
+
 function basePhaseForLevel(level: PlanConfig["level"]): Phase {
   switch (level) {
     case "BEGINNER":
@@ -280,6 +296,22 @@ function chooseSessionAssignment(config: PlanConfig): Record<Day, RunType> {
   }
 
   return out as Record<Day, RunType>;
+}
+
+export function recommendSessionAssignment(
+  level: PlanConfig["level"],
+  days: Day[],
+  current: Partial<Record<Day, RunType>> = {},
+): Record<Day, RunType> {
+  const normalizedDays = uniqDays(days);
+  return chooseSessionAssignment({
+    level,
+    goal: "hm",
+    weeks: 16,
+    days: normalizedDays,
+    sessionAssignment: current as Record<Day, RunType>,
+    vdot: 33,
+  });
 }
 
 function gateSessionType(
