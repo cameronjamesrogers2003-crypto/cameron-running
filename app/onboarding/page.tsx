@@ -246,7 +246,7 @@ export default function OnboardingPage() {
             Enter a recent race time or timed 5K to calculate your VDOT score.
           </p>
           <VdotCalculator
-            onVdotCalculated={(nextVdot) => {
+            onApply={(nextVdot) => {
               setCalculatedVdot(nextVdot);
             }}
             onLevelSuggested={(nextLevel) => {
