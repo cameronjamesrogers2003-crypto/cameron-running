@@ -231,7 +231,6 @@ export default async function Dashboard({
     redirect("/onboarding");
   }
   const planStart = getEffectivePlanStart(settings.planStartDate);
-  const scheduleAnchor = planStart;
 
   // Prefer generated plan from DB; fallback to legacy pipeline.
   const stored = await loadGeneratedPlan();
@@ -259,7 +258,7 @@ export default async function Dashboard({
   }
 
   const lastPlanWeekNum = planToRender[planToRender.length - 1]?.week ?? planToRender.length;
-  const rawCalendarWeek = getPlanWeekForDate(today, scheduleAnchor);
+  const rawCalendarWeek = getPlanWeekForDate(today, planStart);
   const currentWeek =
     rawCalendarWeek > 0 ? Math.min(lastPlanWeekNum, rawCalendarWeek) : 1;
   const currentPlanWeek = planToRender.find((w) => w.week === currentWeek) ?? planToRender[0];
@@ -401,7 +400,7 @@ export default async function Dashboard({
     const pw = planToRender.find((x) => x.week === w);
     if (!pw) continue;
     for (const session of pw.sessions) {
-      const date = getSessionDate(w, session.day, scheduleAnchor);
+      const date = getSessionDate(w, session.day, planStart);
       if (date <= todayAESTMidnight) continue;
       if (hasRunOnCalendarDay(runsPlanForward, date)) continue;
       upcomingCandidates.push({ session, date, week: w });
@@ -416,7 +415,7 @@ export default async function Dashboard({
   const sessionChecklist = [...(currentPlanWeek?.sessions ?? [])]
     .sort((a, b) => CHECKLIST_DAY_ORDER.indexOf(a.day) - CHECKLIST_DAY_ORDER.indexOf(b.day))
     .map((session) => {
-      const date = getSessionDate(currentWeek, session.day, scheduleAnchor);
+      const date = getSessionDate(currentWeek, session.day, planStart);
       const completed = weekActivities.some((a) => {
         const d = new Date(a.date);
         return sameDayAEST(d, date) && isActivityOnOrAfterPlanStart(d, planStart);
