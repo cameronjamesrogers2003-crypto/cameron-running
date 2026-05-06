@@ -496,12 +496,22 @@ function buildLongRuns(config: PlanConfig, weeklyKm: number[], isCutback: boolea
 }
 
 export function generatePlan(config: PlanConfig): TrainingWeek[] {
+  /*
+   * ROOT CAUSE ANALYSIS (requested):
+   * 1) Sessions are created in the `sessions` mapping inside the per-week loop
+   *    (the `dayList.map(...)` block below).
+   * 2) Session days come from `dayList`, which is derived from `days`.
+   * 3) `days` is derived from `config.days` (`uniqDays(config.days)`), so this is
+   *    the source used for session creation.
+   * 4) Session type fallback exists (recommendation/gating), but there should be no
+   *    fallback that introduces extra days outside `config.days`.
+   */
   const days = uniqDays(config.days);
   if (days.length < 2) {
     throw new Error("PlanConfig.days must include at least 2 training days");
   }
 
-  const assignment = chooseSessionAssignment({ ...config, days });
+  const assignment = recommendSessionAssignment(config.level, days, config.sessionAssignment);
   const { weeklyKm, isCutback, peakKm } = buildWeeklyVolumes({ ...config, days });
   const longKm = buildLongRuns({ ...config, days }, weeklyKm, isCutback);
 
@@ -584,6 +594,18 @@ export function generatePlan(config: PlanConfig): TrainingWeek[] {
       isCutback: cutback,
       sessions,
     });
+  }
+
+  // Verify no session has a day outside config.days
+  const validDays = new Set(days);
+  for (const week of plan) {
+    for (const session of week.sessions) {
+      if (!validDays.has(session.day)) {
+        throw new Error(
+          `generatePlan produced session for day ${session.day} which is not in config.days ${days.join(",")}`,
+        );
+      }
+    }
   }
 
   return plan;
