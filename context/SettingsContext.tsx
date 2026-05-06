@@ -21,7 +21,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   const [loading,  setLoading]  = useState(true);
 
   useEffect(() => {
-    fetch("/api/settings")
+    fetch("/api/settings", { cache: "no-store" })
       .then(r => r.json())
       .then(data => { setSettings(data); setLoading(false); })
       .catch(() => setLoading(false));
@@ -33,10 +33,11 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
       headers: { "Content-Type": "application/json" },
       body:    JSON.stringify(patch),
     });
-    if (res.ok) {
-      const updated = await res.json();
-      setSettings(updated);
+    if (!res.ok) {
+      throw new Error("Failed to save settings");
     }
+    const updated = await res.json();
+    setSettings(updated);
   }, []);
 
   return (

@@ -1,12 +1,13 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { useSettings } from "@/context/SettingsContext";
 import { brisbaneMidnightUtcForYmd } from "@/lib/dateUtils";
 import { planStartAusDisplayToIsoYmd, planStartIsoYmdToAusDisplay } from "@/lib/planStartDateFormat";
 import { formatPace, parsePace, formatDuration, parseDuration } from "@/lib/settings";
 import { getVdotPaces } from "@/lib/vdot";
-import type { Day, PlanConfig, RunType } from "@/data/trainingPlan";
+import type { Day, RunType } from "@/data/trainingPlan";
 import { hasConsecutiveHardSessions, recommendSessionAssignment } from "@/lib/generatePlan";
 import VdotCalculator from "@/components/VdotCalculator";
 import InterruptionsForm from "./InterruptionsForm";
@@ -131,7 +132,8 @@ type ZoneSuggestion = {
   newMax: number;
 };
 
-const DAYS: Day[] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
+const DAY_ORDER: Day[] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
+const DAYS: Day[] = DAY_ORDER;
 const DAY_LABEL: Record<Day, string> = {
   mon: "Mon",
   tue: "Tue",
@@ -142,8 +144,48 @@ const DAY_LABEL: Record<Day, string> = {
   sun: "Sun",
 };
 
+type PlanConfigSnapshot = {
+  experienceLevel: "BEGINNER" | "INTERMEDIATE" | "ADVANCED" | null;
+  goalRace: "HALF" | "FULL" | null;
+  planLengthWeeks: 12 | 16 | 20 | null;
+  trainingDays: Day[];
+  sessionAssignment: Partial<Record<Day, RunType>>;
+  currentVdot: number;
+};
+
+function parseTrainingDaysValue(value: string | null | undefined): Day[] {
+  if (!value) return [];
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((d): d is Day => DAY_ORDER.includes(d as Day))
+      .sort((a, b) => DAY_ORDER.indexOf(a) - DAY_ORDER.indexOf(b));
+  } catch {
+    return [];
+  }
+}
+
+function parseSessionAssignmentValue(value: string | null | undefined): Partial<Record<Day, RunType>> {
+  if (!value) return {};
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    if (!parsed || typeof parsed !== "object") return {};
+    const out: Partial<Record<Day, RunType>> = {};
+    for (const [k, v] of Object.entries(parsed as Record<string, unknown>)) {
+      if (DAY_ORDER.includes(k as Day) && (v === "easy" || v === "tempo" || v === "interval" || v === "long")) {
+        out[k as Day] = v;
+      }
+    }
+    return out;
+  } catch {
+    return {};
+  }
+}
+
 export default function SettingsForm() {
-  const { settings, updateSettings } = useSettings();
+  const router = useRouter();
+  const { settings, loading, updateSettings } = useSettings();
 
   // ── Training Plan group ────────────────────────────────────────────────────
   const [planStartDate,       setPlanStartDate]       = useState(
@@ -156,26 +198,18 @@ export default function SettingsForm() {
   );
   const [goalRace, setGoalRace] = useState<"HALF" | "FULL">(settings.goalRace ?? "HALF");
   const [planLengthWeeks, setPlanLengthWeeks] = useState<12 | 16 | 20>((settings.planLengthWeeks ?? 16) as 12 | 16 | 20);
-  const [trainingDays, setTrainingDays] = useState<Day[]>(() => {
-    try {
-      const parsed = settings.trainingDays ? JSON.parse(settings.trainingDays) as unknown : [];
-      if (Array.isArray(parsed)) {
-        const valid = parsed.filter((d): d is Day => DAYS.includes(d as Day));
-        if (valid.length) return valid;
-      }
-    } catch {}
-    return ["wed", "sat", "sun"];
-  });
-  const [sessionAssignment, setSessionAssignment] = useState<Partial<Record<Day, RunType>>>(() => {
-    try {
-      const parsed = settings.sessionAssignment ? JSON.parse(settings.sessionAssignment) as unknown : {};
-      if (parsed && typeof parsed === "object") return parsed as Partial<Record<Day, RunType>>;
-    } catch {}
-    return {};
-  });
+  const [trainingDays, setTrainingDays] = useState<Day[]>(() => parseTrainingDaysValue(settings.trainingDays));
+  const [sessionAssignment, setSessionAssignment] = useState<Partial<Record<Day, RunType>>>(() =>
+    parseSessionAssignmentValue(settings.sessionAssignment),
+  );
   const [vdotUpdatedMsg, setVdotUpdatedMsg] = useState<string | null>(null);
   const [suggestedLevel, setSuggestedLevel] = useState<"BEGINNER" | "INTERMEDIATE" | "ADVANCED" | null>(null);
   const [showTooManyDaysWarning, setShowTooManyDaysWarning] = useState(false);
+  const [saveMessage, setSaveMessage] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [showRegenerateModal, setShowRegenerateModal] = useState(false);
+  const [isRegenerating, setIsRegenerating] = useState(false);
+  const [initialPlanSnapshot, setInitialPlanSnapshot] = useState<PlanConfigSnapshot | null>(null);
   const planConfigGroup = useSaveGroup();
 
   // ── Performance group ─────────────────────────────────────────────────────
@@ -209,14 +243,23 @@ export default function SettingsForm() {
   const [longMin,     setLongMin]     = useState(formatPace(settings.longPaceMinSec));
   const [longMax,     setLongMax]     = useState(formatPace(settings.longPaceMaxSec));
   const zonesGroup = useSaveGroup();
+  const [distEasy,     setDistEasy]     = useState(settings.distTargetEasyM / 1000);
+  const [distTempo,    setDistTempo]    = useState(settings.distTargetTempoM / 1000);
+  const [distInterval, setDistInterval] = useState(settings.distTargetIntervalM / 1000);
+  const [distLong,     setDistLong]     = useState(settings.distTargetLongM / 1000);
+  const distGroup = useSaveGroup();
 
   const [suggestions, setSuggestions] = useState<ZoneSuggestion[]>([]);
+  const sortedTrainingDays = useMemo(
+    () => [...trainingDays].sort((a, b) => DAY_ORDER.indexOf(a) - DAY_ORDER.indexOf(b)),
+    [trainingDays],
+  );
   const assignmentEffective = useMemo<Partial<Record<Day, RunType>>>(() => {
-    return recommendSessionAssignment(experienceLevel, trainingDays, sessionAssignment);
-  }, [experienceLevel, trainingDays, sessionAssignment]);
+    return recommendSessionAssignment(experienceLevel, sortedTrainingDays, sessionAssignment);
+  }, [experienceLevel, sortedTrainingDays, sessionAssignment]);
   const hasConsecutiveHard = useMemo(
-    () => hasConsecutiveHardSessions(trainingDays, assignmentEffective),
-    [trainingDays, assignmentEffective],
+    () => hasConsecutiveHardSessions(sortedTrainingDays, assignmentEffective),
+    [sortedTrainingDays, assignmentEffective],
   );
 
   function toggleTrainingDay(day: Day) {
@@ -230,7 +273,7 @@ export default function SettingsForm() {
         return prev;
       }
       setShowTooManyDaysWarning(false);
-      return [...prev, day];
+      return [...prev, day].sort((a, b) => DAY_ORDER.indexOf(a) - DAY_ORDER.indexOf(b));
     });
   }
 
@@ -238,33 +281,10 @@ export default function SettingsForm() {
     days: Day[],
     assignment: Partial<Record<Day, RunType>>,
   ): Partial<Record<Day, RunType>> {
+    const sortedDays = [...days].sort((a, b) => DAY_ORDER.indexOf(a) - DAY_ORDER.indexOf(b));
     return Object.fromEntries(
-      days.map((day) => [day, assignment[day] ?? "easy"]),
+      sortedDays.map((day) => [day, assignment[day] ?? "easy"]),
     ) as Partial<Record<Day, RunType>>;
-  }
-
-  function computeLockedWeeksFromPlan(plan: Array<{ week: number }>, planStartIso: string | null): number[] {
-    if (!planStartIso) return [];
-    const planStart = new Date(planStartIso);
-    const now = new Date();
-    const todayAestMidnight = new Date(now.getTime() + 10 * 60 * 60 * 1000);
-    const todayYmdUtc = Date.UTC(
-      todayAestMidnight.getUTCFullYear(),
-      todayAestMidnight.getUTCMonth(),
-      todayAestMidnight.getUTCDate(),
-    );
-    return plan
-      .map((w) => w.week)
-      .filter((weekNum) => {
-        const weekEnd = new Date(planStart.getTime() + weekNum * 7 * 24 * 60 * 60 * 1000);
-        const weekEndAest = new Date(weekEnd.getTime() + 10 * 60 * 60 * 1000);
-        const weekEndYmdUtc = Date.UTC(
-          weekEndAest.getUTCFullYear(),
-          weekEndAest.getUTCMonth(),
-          weekEndAest.getUTCDate(),
-        );
-        return weekEndYmdUtc < todayYmdUtc;
-      });
   }
 
   useEffect(() => {
@@ -306,8 +326,44 @@ export default function SettingsForm() {
   }, [settings]);
 
   useEffect(() => {
+    if (loading) return;
+    const parsedDays = parseTrainingDaysValue(settings.trainingDays);
+    const parsedAssignment = parseSessionAssignmentValue(settings.sessionAssignment);
+
     setPlanStartDate(planStartIsoYmdToAusDisplay(settings.planStartDate));
-  }, [settings.planStartDate]);
+    setCurrentWeekOverride(String(settings.currentWeekOverride ?? ""));
+    setExperienceLevel(settings.experienceLevel ?? "BEGINNER");
+    setGoalRace(settings.goalRace ?? "HALF");
+    setPlanLengthWeeks((settings.planLengthWeeks ?? 16) as 12 | 16 | 20);
+    setTrainingDays(parsedDays);
+    setSessionAssignment(parsedAssignment);
+    setMaxHR(settings.maxHR);
+    setVdot(settings.currentVdot);
+    setStartTP(formatPace(settings.startingTempoPaceSec));
+    setHmTime(formatDuration(settings.targetHMTimeSec));
+    setRaceName(settings.raceName ?? "");
+    setRaceDate(settings.raceDate?.slice(0, 10) ?? "");
+    setEasyMin(formatPace(settings.easyPaceMinSec));
+    setEasyMax(formatPace(settings.easyPaceMaxSec));
+    setTempoMin(formatPace(settings.tempoPaceMinSec));
+    setTempoMax(formatPace(settings.tempoPaceMaxSec));
+    setIntervalMin(formatPace(settings.intervalPaceMinSec));
+    setIntervalMax(formatPace(settings.intervalPaceMaxSec));
+    setLongMin(formatPace(settings.longPaceMinSec));
+    setLongMax(formatPace(settings.longPaceMaxSec));
+    setDistEasy(settings.distTargetEasyM / 1000);
+    setDistTempo(settings.distTargetTempoM / 1000);
+    setDistInterval(settings.distTargetIntervalM / 1000);
+    setDistLong(settings.distTargetLongM / 1000);
+    setInitialPlanSnapshot({
+      experienceLevel: settings.experienceLevel,
+      goalRace: settings.goalRace,
+      planLengthWeeks: settings.planLengthWeeks,
+      trainingDays: parsedDays,
+      sessionAssignment: normalizeAssignmentForDays(parsedDays, parsedAssignment),
+      currentVdot: settings.currentVdot,
+    });
+  }, [loading, settings]);
 
   function applySuggestion(sug: ZoneSuggestion) {
     const mn = formatPace(sug.newMin);
@@ -318,12 +374,13 @@ export default function SettingsForm() {
     if (sug.type === "long")     { setLongMin(mn);     setLongMax(mx); }
   }
 
-  // ── Distance targets group ────────────────────────────────────────────────
-  const [distEasy,     setDistEasy]     = useState(settings.distTargetEasyM / 1000);
-  const [distTempo,    setDistTempo]    = useState(settings.distTargetTempoM / 1000);
-  const [distInterval, setDistInterval] = useState(settings.distTargetIntervalM / 1000);
-  const [distLong,     setDistLong]     = useState(settings.distTargetLongM / 1000);
-  const distGroup = useSaveGroup();
+  if (loading) {
+    return (
+      <div className="rounded-[10px] p-5 text-sm" style={{ background: "#181818", border: "1px solid rgba(255,255,255,0.08)" }}>
+        Loading settings…
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-5 w-full max-w-2xl min-w-0">
@@ -394,8 +451,11 @@ export default function SettingsForm() {
             <p className="text-xs mb-2" style={{ color: "var(--text-muted)" }}>
               Enter a recent race time to calculate your fitness score and training paces.
             </p>
+            <p className="text-xs mb-2" style={{ color: "#99f6e4" }}>
+              Current VDOT: <span className="font-semibold">{vdot}</span>
+            </p>
             <VdotCalculator
-              onVdotCalculated={(value) => {
+              onApply={(value) => {
                 setVdot(value);
                 setVdotUpdatedMsg(`VDOT updated to ${value}`);
               }}
@@ -511,7 +571,7 @@ export default function SettingsForm() {
             <div>
               <p className="text-sm text-white mb-2">Session Assignment</p>
               <div className="space-y-2">
-                {trainingDays.map((day) => (
+                {sortedTrainingDays.map((day) => (
                   <div key={day} className="rounded-lg p-3 border border-white/10 bg-white/5">
                     <div className="flex flex-col xs:flex-row xs:items-center xs:justify-between gap-2">
                       <span className="text-sm text-white">{day.charAt(0).toUpperCase() + day.slice(1)}</span>
@@ -542,73 +602,73 @@ export default function SettingsForm() {
             status={planConfigGroup.status}
             onClick={() =>
               planConfigGroup.save(async () => {
-                const nextAssignment = normalizeAssignmentForDays(trainingDays, sessionAssignment);
-                const prevAssignment = normalizeAssignmentForDays(
-                  JSON.parse(settings.trainingDays ?? JSON.stringify(["wed", "sat", "sun"])) as Day[],
-                  (settings.sessionAssignment ? JSON.parse(settings.sessionAssignment) : {}) as Partial<Record<Day, RunType>>,
-                );
-                const planAffectingChanged =
-                  settings.experienceLevel !== experienceLevel
-                  || settings.goalRace !== goalRace
-                  || settings.planLengthWeeks !== planLengthWeeks
-                  || settings.currentVdot !== vdot
-                  || JSON.stringify(trainingDays) !== JSON.stringify(
-                    (() => {
-                      try { return settings.trainingDays ? JSON.parse(settings.trainingDays) : []; } catch { return []; }
-                    })(),
-                  )
-                  || JSON.stringify(nextAssignment) !== JSON.stringify(prevAssignment);
+                try {
+                  setSaveError(null);
+                  setSaveMessage(null);
+                  if (sortedTrainingDays.length < 2) {
+                    throw new Error("Select at least 2 training days.");
+                  }
+                  const nextAssignment = normalizeAssignmentForDays(sortedTrainingDays, sessionAssignment);
+                  const snapshot = initialPlanSnapshot;
+                  const planAffectingChanged = snapshot
+                    ? (
+                      snapshot.experienceLevel !== experienceLevel
+                      || snapshot.goalRace !== goalRace
+                      || snapshot.planLengthWeeks !== planLengthWeeks
+                      || snapshot.currentVdot !== vdot
+                      || JSON.stringify(snapshot.trainingDays) !== JSON.stringify(sortedTrainingDays)
+                      || JSON.stringify(snapshot.sessionAssignment) !== JSON.stringify(nextAssignment)
+                    )
+                    : false;
 
-                await updateSettings({
-                  experienceLevel,
-                  goalRace,
-                  planLengthWeeks,
-                  trainingDays: JSON.stringify(trainingDays),
-                  sessionAssignment: JSON.stringify(nextAssignment),
-                  currentVdot: vdot,
-                });
-
-                if (!planAffectingChanged) return;
-
-                const token = process.env.NEXT_PUBLIC_PLANS_API_TOKEN;
-                const currentResp = await fetch("/api/plans/current", {
-                  headers: token ? { Authorization: `Bearer ${token}` } : {},
-                });
-                const currentData = currentResp.ok ? await currentResp.json() as { plan?: Array<{ week: number }> } | null : null;
-                let lockedWeeks: number[] = [];
-                let shouldGenerate = true;
-                if (currentData?.plan && currentData.plan.length > 0) {
-                  lockedWeeks = computeLockedWeeksFromPlan(currentData.plan, settings.planStartDate);
-                  shouldGenerate = window.confirm(
-                    "Your training plan settings have changed.\nRegenerate your plan from the current week forward?\nCompleted weeks will be preserved.",
-                  );
-                }
-
-                if (shouldGenerate) {
-                  const config: PlanConfig = {
-                    level: experienceLevel,
-                    goal: goalRace === "FULL" ? "full" : "hm",
-                    weeks: planLengthWeeks,
-                    days: trainingDays,
-                    sessionAssignment: nextAssignment as Record<Day, RunType>,
-                    vdot,
+                  const patchPayload = {
+                    experienceLevel,
+                    goalRace,
+                    planLengthWeeks,
+                    trainingDays: JSON.stringify(sortedTrainingDays),
+                    sessionAssignment: JSON.stringify(nextAssignment),
+                    currentVdot: vdot,
                   };
-                  await fetch("/api/plans/generate", {
-                    method: "POST",
-                    headers: {
-                      "Content-Type": "application/json",
-                      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-                    },
-                    body: JSON.stringify({
-                      ...config,
-                      ...(lockedWeeks.length > 0 ? { lockedWeeks } : {}),
-                    }),
+                  await updateSettings(patchPayload);
+                  setInitialPlanSnapshot({
+                    experienceLevel,
+                    goalRace,
+                    planLengthWeeks,
+                    trainingDays: sortedTrainingDays,
+                    sessionAssignment: nextAssignment,
+                    currentVdot: vdot,
                   });
+                  if (!planAffectingChanged) {
+                    setSaveMessage("Settings saved");
+                    setTimeout(() => setSaveMessage(null), 2000);
+                    return;
+                  }
+
+                  const token = process.env.NEXT_PUBLIC_PLANS_API_TOKEN;
+                  const currentResp = await fetch("/api/plans/current", {
+                    cache: "no-store",
+                    headers: token ? { Authorization: `Bearer ${token}` } : {},
+                  });
+                  if (!currentResp.ok) {
+                    throw new Error("Unable to check current plan. Please try again.");
+                  }
+                  const currentData = await currentResp.json() as { plan?: Array<{ week: number }> } | null;
+                  if (currentData?.plan && currentData.plan.length > 0) {
+                    setShowRegenerateModal(true);
+                    return;
+                  }
+                  setSaveMessage("Settings saved");
+                  setTimeout(() => setSaveMessage(null), 2000);
+                } catch (error) {
+                  setSaveError(error instanceof Error ? error.message : "Failed to save settings.");
+                  throw error;
                 }
               })
             }
           />
         </div>
+        {saveMessage && <p className="text-xs text-green-300 mt-2">{saveMessage}</p>}
+        {saveError && <p className="text-xs text-red-300 mt-2">{saveError}</p>}
       </Panel>
 
       {/* My Pace Zones */}
@@ -819,6 +879,60 @@ export default function SettingsForm() {
 
       {/* Plan Interruptions */}
       <InterruptionsForm />
+
+      {showRegenerateModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+          <div
+            className="w-full max-w-md rounded-xl p-5 space-y-4"
+            style={{ background: "#181818", border: "1px solid rgba(255,255,255,0.12)" }}
+          >
+            <div>
+              <p className="text-base font-semibold text-white">Regenerate training plan?</p>
+              <p className="text-sm mt-2" style={{ color: "var(--text-muted)" }}>
+                Plan settings changed. Regenerate now to apply updates to your stored GeneratedPlan.
+              </p>
+              {saveError && (
+                <p className="text-xs mt-2 text-red-300">{saveError}</p>
+              )}
+            </div>
+            <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
+              <button
+                type="button"
+                className="min-h-11 px-4 py-2 rounded-md text-sm"
+                style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", color: "white" }}
+                disabled={isRegenerating}
+                onClick={() => setShowRegenerateModal(false)}
+              >
+                Later
+              </button>
+              <button
+                type="button"
+                className="min-h-11 px-4 py-2 rounded-md text-sm font-medium"
+                style={{ background: "rgba(45,212,191,0.2)", border: "1px solid rgba(45,212,191,0.35)", color: "#5eead4" }}
+                disabled={isRegenerating}
+                onClick={async () => {
+                  try {
+                    setSaveError(null);
+                    setIsRegenerating(true);
+                    const regenerateResp = await fetch("/api/plans/regenerate", { method: "POST" });
+                    if (!regenerateResp.ok) {
+                      throw new Error("Regenerate request failed");
+                    }
+                    setShowRegenerateModal(false);
+                    router.push("/program");
+                  } catch {
+                    setSaveError("Failed to regenerate plan. Please try again.");
+                  } finally {
+                    setIsRegenerating(false);
+                  }
+                }}
+              >
+                {isRegenerating ? "Regenerating…" : "Regenerate Plan"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

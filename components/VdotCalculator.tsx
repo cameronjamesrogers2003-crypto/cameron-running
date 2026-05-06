@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { getVdotPaces } from "@/lib/vdot";
 import { formatPace } from "@/lib/settings";
 
@@ -16,10 +16,10 @@ const DISTANCES = [
 ] as const;
 
 export default function VdotCalculator({
-  onVdotCalculated,
+  onApply,
   onLevelSuggested,
 }: {
-  onVdotCalculated?: (vdot: number) => void;
+  onApply?: (vdot: number) => void;
   onLevelSuggested?: (level: Level) => void;
 }) {
   const [distanceKey, setDistanceKey] = useState<(typeof DISTANCES)[number]["key"]>("5k");
@@ -49,12 +49,6 @@ export default function VdotCalculator({
 
     return { vdot, vo2, paces, level };
   }, [distanceKey, minutes, seconds]);
-
-  useEffect(() => {
-    if (!result) return;
-    onVdotCalculated?.(result.vdot);
-    onLevelSuggested?.(result.level);
-  }, [result, onVdotCalculated, onLevelSuggested]);
 
   return (
     <div className="rounded-[10px] p-4 space-y-4" style={{ background: "#181818", border: "1px solid rgba(255,255,255,0.08)" }}>
@@ -113,6 +107,17 @@ export default function VdotCalculator({
             <p>Long run: ~10% slower than easy max</p>
           </div>
           <p className="text-xs text-white">Suggested level: {result.level}</p>
+          <button
+            type="button"
+            className="min-h-11 mt-2 rounded-md px-3 py-2 text-xs font-medium"
+            style={{ background: "rgba(45,212,191,0.18)", color: "#5eead4", border: "1px solid rgba(45,212,191,0.32)" }}
+            onClick={() => {
+              onApply?.(result.vdot);
+              onLevelSuggested?.(result.level);
+            }}
+          >
+            Apply VDOT
+          </button>
         </div>
       )}
     </div>
