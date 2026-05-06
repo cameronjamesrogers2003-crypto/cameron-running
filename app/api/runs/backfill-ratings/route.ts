@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/db";
 import { persistActivityRating } from "@/lib/persistActivityRating";
+import { recalculatePlayerRating } from "@/lib/playerRating";
 
 export const dynamic = "force-dynamic";
 
@@ -27,5 +28,7 @@ export async function POST() {
     }
   }
 
-  return NextResponse.json({ updated: ok, errors, total: ids.length });
+  const playerRating = await recalculatePlayerRating(prisma);
+
+  return NextResponse.json({ updated: ok, errors, total: ids.length, playerRating });
 }

@@ -184,7 +184,7 @@ function sportTypeToLabel(sportType: string): string {
   }
 }
 
-export async function syncActivities(): Promise<{ synced: number; errors: number }> {
+export async function syncActivities(): Promise<{ synced: number; errors: number; playerRatingError?: string }> {
   const token = await getValidToken();
   if (!token) return { synced: 0, errors: 0 };
 
@@ -203,6 +203,16 @@ export async function syncActivities(): Promise<{ synced: number; errors: number
 
   let synced = 0;
   let errors = 0;
+  let playerRatingError: string | undefined;
+
+  async function refreshPlayerRating(id: string, activityType: string): Promise<void> {
+    try {
+      await updatePlayerRating(prisma, { id, activityType });
+    } catch (err) {
+      console.error("[player-rating] update failed:", err);
+      playerRatingError = "Player rating failed to update";
+    }
+  }
 
   for (const act of activities) {
     try {
@@ -210,6 +220,7 @@ export async function syncActivities(): Promise<{ synced: number; errors: number
       const existing = await prisma.activity.findUnique({ where: { id } });
       if (existing) {
         await persistActivityRating(prisma, id).catch(() => {});
+        await refreshPlayerRating(id, existing.activityType);
         continue;
       }
 
@@ -261,9 +272,7 @@ export async function syncActivities(): Promise<{ synced: number; errors: number
       }
 
       await persistActivityRating(prisma, id).catch(() => {});
-      await updatePlayerRating(prisma, { id, activityType }).catch((err) => {
-        console.error("[player-rating] update failed:", err);
-      });
+      await refreshPlayerRating(id, activityType);
 
       synced++;
     } catch {
@@ -271,7 +280,7 @@ export async function syncActivities(): Promise<{ synced: number; errors: number
     }
   }
 
-  return { synced, errors };
+  return { synced, errors, ...(playerRatingError ? { playerRatingError } : {}) };
 }
 
 export function formatPace(secPerKm: number): string {
