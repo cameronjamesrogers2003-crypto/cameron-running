@@ -7,7 +7,7 @@ import { useSettings } from "@/context/SettingsContext";
 import { recommendSessionAssignment, hasConsecutiveHardSessions } from "@/lib/generatePlan";
 
 type Level = "BEGINNER" | "INTERMEDIATE" | "ADVANCED";
-type GoalRace = "HALF_MARATHON" | "FULL_MARATHON";
+type GoalRace = "HALF" | "FULL";
 
 const DAYS: Day[] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 const DAY_LABEL: Record<Day, string> = {
@@ -128,7 +128,7 @@ export default function OnboardingPage() {
     const finishMins = skipFinishTime ? null : (targetHours * 60 + targetMinutes);
     const planConfig: PlanConfig = {
       level,
-      goal: goalRace === "FULL_MARATHON" ? "full" : "hm",
+      goal: goalRace === "FULL" ? "full" : "hm",
       weeks: planLengthWeeks,
       days: trainingDays,
       sessionAssignment: assignmentEffective as Record<Day, RunType>,
@@ -169,8 +169,8 @@ export default function OnboardingPage() {
         <section className="space-y-3">
           <h1 className="text-2xl font-bold text-white">What are you training for?</h1>
           <div className="grid sm:grid-cols-2 gap-3">
-            <CardOption selected={goalRace === "HALF_MARATHON"} title="HALF MARATHON" subtitle="21.1 km" onClick={() => setGoalRace("HALF_MARATHON")} />
-            <CardOption selected={goalRace === "FULL_MARATHON"} title="FULL MARATHON" subtitle="42.2 km" onClick={() => setGoalRace("FULL_MARATHON")} />
+            <CardOption selected={goalRace === "HALF"} title="HALF MARATHON" subtitle="21.1 km" onClick={() => setGoalRace("HALF")} />
+            <CardOption selected={goalRace === "FULL"} title="FULL MARATHON" subtitle="42.2 km" onClick={() => setGoalRace("FULL")} />
           </div>
         </section>
       )}
@@ -274,7 +274,7 @@ export default function OnboardingPage() {
         <section className="space-y-3">
           <h1 className="text-2xl font-bold text-white">Your plan is ready.</h1>
           <div className="rounded-xl border border-white/10 bg-white/5 p-4 text-sm space-y-1">
-            <p><span style={{ color: "var(--text-muted)" }}>Goal race:</span> {goalRace?.replace("_", " ")}</p>
+            <p><span style={{ color: "var(--text-muted)" }}>Goal race:</span> {goalRace === "FULL" ? "FULL MARATHON" : "HALF MARATHON"}</p>
             <p><span style={{ color: "var(--text-muted)" }}>Experience level:</span> {level}</p>
             <p><span style={{ color: "var(--text-muted)" }}>Plan length:</span> {planLengthWeeks} weeks</p>
             <p><span style={{ color: "var(--text-muted)" }}>Training days:</span> {trainingDays.map((d) => DAY_LABEL[d]).join(", ")}</p>

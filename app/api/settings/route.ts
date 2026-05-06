@@ -7,7 +7,7 @@ type SettingsUpdate = {
   currentWeekOverride?: number | null;
   phaseOverride?: string | null;
   experienceLevel?: "BEGINNER" | "INTERMEDIATE" | "ADVANCED" | null;
-  goalRace?: "hm" | "full" | null;
+  goalRace?: "HALF" | "FULL" | null;
   planLengthWeeks?: 12 | 16 | 20 | null;
   trainingDays?: string | null;
   sessionAssignment?: string | null;
@@ -93,7 +93,7 @@ function applySetting(update: SettingsUpdate, key: string, value: unknown): void
       }
       return;
     case "goalRace":
-      if (value === "hm" || value === "full" || value === null) update.goalRace = value;
+      if (value === "HALF" || value === "FULL" || value === null) update.goalRace = value;
       return;
     case "planLengthWeeks":
       if (value === 12 || value === 16 || value === 20 || value === null) {

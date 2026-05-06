@@ -251,7 +251,7 @@ export function buildTrainingPlan(settings: UserSettings): TrainingWeek[] {
   // Best-effort config coercion; generator handles missing/incomplete assignment.
   const config: PlanConfig = {
     level: settings.experienceLevel,
-    goal: settings.goalRace === "full" ? "full" : "hm",
+    goal: settings.goalRace === "FULL" ? "full" : "hm",
     weeks: (settings.planLengthWeeks ?? 16) as 12 | 16 | 20,
     days: days ?? ["wed", "sat", "sun"],
     sessionAssignment: (Object.fromEntries(
