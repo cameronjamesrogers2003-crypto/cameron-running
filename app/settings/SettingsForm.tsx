@@ -663,6 +663,12 @@ export default function SettingsForm() {
                       || sessionAssignmentChanged
                     )
                     : false;
+                  const willShowModal = Boolean(planAffectingChanged);
+                  console.log("SETTINGS SAVE TRIGGERED", {
+                    planAffectingChanged,
+                    sessionAssignment: JSON.stringify(sessionAssignment),
+                    willShowModal,
+                  });
 
                   const patchPayload = {
                     experienceLevel,
@@ -956,6 +962,7 @@ export default function SettingsForm() {
                 disabled={isRegenerating}
                 onClick={async () => {
                   try {
+                    console.log("REGENERATE BUTTON CLICKED");
                     setSaveError(null);
                     setIsRegenerating(true);
                     const regenerateResp = await fetch("/api/plans/regenerate", { method: "POST" });

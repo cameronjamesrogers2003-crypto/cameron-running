@@ -25,6 +25,7 @@ function parseTrainingDays(raw: string | null): Day[] {
 }
 
 async function regenerateFromSettings(req: NextRequest) {
+  console.log("REGENERATE ENDPOINT HIT");
   const settingsRow = await prisma.userSettings.findUnique({ where: { id: 1 } });
   const settings = settingsRow ? dbSettingsToUserSettings(settingsRow) : DEFAULT_SETTINGS;
 
