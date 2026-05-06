@@ -1,5 +1,6 @@
 import prisma from "@/lib/db";
 import type { PlanConfig, TrainingWeek } from "@/data/trainingPlan";
+import { startOfDayAEST } from "@/lib/dateUtils";
 
 const SINGLETON_ID = "singleton";
 
@@ -55,5 +56,16 @@ export async function loadGeneratedPlan(): Promise<{
 
   if (!plan || !config) return null;
   return { plan, config, lockedWeeks };
+}
+
+export function getLockedWeeks(planStart: Date, totalWeeks = 0): number[] {
+  const today = startOfDayAEST(new Date());
+  const locks: number[] = [];
+  if (totalWeeks <= 0) return locks;
+  for (let week = 1; week <= totalWeeks; week++) {
+    const weekEnd = new Date(planStart.getTime() + week * 7 * 24 * 60 * 60 * 1000);
+    if (weekEnd < today) locks.push(week);
+  }
+  return locks;
 }
 

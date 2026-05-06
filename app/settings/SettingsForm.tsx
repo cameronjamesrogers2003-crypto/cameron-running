@@ -1,11 +1,14 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useSettings } from "@/context/SettingsContext";
 import { brisbaneMidnightUtcForYmd } from "@/lib/dateUtils";
 import { planStartAusDisplayToIsoYmd, planStartIsoYmdToAusDisplay } from "@/lib/planStartDateFormat";
 import { formatPace, parsePace, formatDuration, parseDuration } from "@/lib/settings";
 import { getVdotPaces } from "@/lib/vdot";
+import type { Day, PlanConfig, RunType } from "@/data/trainingPlan";
+import { hasConsecutiveHardSessions, recommendSessionAssignment } from "@/lib/generatePlan";
+import VdotCalculator from "@/components/VdotCalculator";
 import InterruptionsForm from "./InterruptionsForm";
 
 type SaveStatus = "idle" | "saving" | "saved" | "error";
@@ -128,6 +131,17 @@ type ZoneSuggestion = {
   newMax: number;
 };
 
+const DAYS: Day[] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
+const DAY_LABEL: Record<Day, string> = {
+  mon: "Mon",
+  tue: "Tue",
+  wed: "Wed",
+  thu: "Thu",
+  fri: "Fri",
+  sat: "Sat",
+  sun: "Sun",
+};
+
 export default function SettingsForm() {
   const { settings, updateSettings } = useSettings();
 
@@ -137,6 +151,32 @@ export default function SettingsForm() {
   );
   const [currentWeekOverride, setCurrentWeekOverride] = useState(String(settings.currentWeekOverride ?? ""));
   const planGroup = useSaveGroup();
+  const [experienceLevel, setExperienceLevel] = useState<"BEGINNER" | "INTERMEDIATE" | "ADVANCED">(
+    settings.experienceLevel ?? "BEGINNER",
+  );
+  const [goalRace, setGoalRace] = useState<"HALF" | "FULL">(settings.goalRace ?? "HALF");
+  const [planLengthWeeks, setPlanLengthWeeks] = useState<12 | 16 | 20>((settings.planLengthWeeks ?? 16) as 12 | 16 | 20);
+  const [trainingDays, setTrainingDays] = useState<Day[]>(() => {
+    try {
+      const parsed = settings.trainingDays ? JSON.parse(settings.trainingDays) as unknown : [];
+      if (Array.isArray(parsed)) {
+        const valid = parsed.filter((d): d is Day => DAYS.includes(d as Day));
+        if (valid.length) return valid;
+      }
+    } catch {}
+    return ["wed", "sat", "sun"];
+  });
+  const [sessionAssignment, setSessionAssignment] = useState<Partial<Record<Day, RunType>>>(() => {
+    try {
+      const parsed = settings.sessionAssignment ? JSON.parse(settings.sessionAssignment) as unknown : {};
+      if (parsed && typeof parsed === "object") return parsed as Partial<Record<Day, RunType>>;
+    } catch {}
+    return {};
+  });
+  const [vdotUpdatedMsg, setVdotUpdatedMsg] = useState<string | null>(null);
+  const [suggestedLevel, setSuggestedLevel] = useState<"BEGINNER" | "INTERMEDIATE" | "ADVANCED" | null>(null);
+  const [showTooManyDaysWarning, setShowTooManyDaysWarning] = useState(false);
+  const planConfigGroup = useSaveGroup();
 
   // ── Performance group ─────────────────────────────────────────────────────
   const [maxHR,   setMaxHR]   = useState(settings.maxHR);
@@ -171,6 +211,61 @@ export default function SettingsForm() {
   const zonesGroup = useSaveGroup();
 
   const [suggestions, setSuggestions] = useState<ZoneSuggestion[]>([]);
+  const assignmentEffective = useMemo<Partial<Record<Day, RunType>>>(() => {
+    return recommendSessionAssignment(experienceLevel, trainingDays, sessionAssignment);
+  }, [experienceLevel, trainingDays, sessionAssignment]);
+  const hasConsecutiveHard = useMemo(
+    () => hasConsecutiveHardSessions(trainingDays, assignmentEffective),
+    [trainingDays, assignmentEffective],
+  );
+
+  function toggleTrainingDay(day: Day) {
+    setTrainingDays((prev) => {
+      if (prev.includes(day)) {
+        setShowTooManyDaysWarning(false);
+        return prev.filter((d) => d !== day);
+      }
+      if (prev.length >= 6) {
+        setShowTooManyDaysWarning(true);
+        return prev;
+      }
+      setShowTooManyDaysWarning(false);
+      return [...prev, day];
+    });
+  }
+
+  function normalizeAssignmentForDays(
+    days: Day[],
+    assignment: Partial<Record<Day, RunType>>,
+  ): Partial<Record<Day, RunType>> {
+    return Object.fromEntries(
+      days.map((day) => [day, assignment[day] ?? "easy"]),
+    ) as Partial<Record<Day, RunType>>;
+  }
+
+  function computeLockedWeeksFromPlan(plan: Array<{ week: number }>, planStartIso: string | null): number[] {
+    if (!planStartIso) return [];
+    const planStart = new Date(planStartIso);
+    const now = new Date();
+    const todayAestMidnight = new Date(now.getTime() + 10 * 60 * 60 * 1000);
+    const todayYmdUtc = Date.UTC(
+      todayAestMidnight.getUTCFullYear(),
+      todayAestMidnight.getUTCMonth(),
+      todayAestMidnight.getUTCDate(),
+    );
+    return plan
+      .map((w) => w.week)
+      .filter((weekNum) => {
+        const weekEnd = new Date(planStart.getTime() + weekNum * 7 * 24 * 60 * 60 * 1000);
+        const weekEndAest = new Date(weekEnd.getTime() + 10 * 60 * 60 * 1000);
+        const weekEndYmdUtc = Date.UTC(
+          weekEndAest.getUTCFullYear(),
+          weekEndAest.getUTCMonth(),
+          weekEndAest.getUTCDate(),
+        );
+        return weekEndYmdUtc < todayYmdUtc;
+      });
+  }
 
   useEffect(() => {
     fetch("/api/runs?perPage=100&sort=date&order=desc")
@@ -260,6 +355,256 @@ export default function SettingsForm() {
                   planStartDate: planIso,
                   currentWeekOverride: currentWeekOverride ? parseInt(currentWeekOverride, 10) : null,
                 });
+              })
+            }
+          />
+        </div>
+      </Panel>
+
+      {/* Training Plan Configuration */}
+      <Panel title="Training Plan Configuration">
+        <div className="space-y-4">
+          <div>
+            <p className="text-sm text-white mb-2">Experience Level</p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              {([
+                ["BEGINNER", "0–12 months running. Conservative progression."],
+                ["INTERMEDIATE", "1–3 years running. Balanced mix of sessions."],
+                ["ADVANCED", "3+ years running. High intensity from week 1."],
+              ] as const).map(([lvl, copy]) => (
+                <button
+                  key={lvl}
+                  type="button"
+                  onClick={() => setExperienceLevel(lvl)}
+                  className="min-h-11 rounded-lg border p-3 text-left"
+                  style={{
+                    borderColor: experienceLevel === lvl ? "rgba(45,212,191,0.45)" : "rgba(255,255,255,0.12)",
+                    background: experienceLevel === lvl ? "rgba(45,212,191,0.10)" : "rgba(255,255,255,0.03)",
+                  }}
+                >
+                  <p className="text-xs font-semibold text-white">{lvl}</p>
+                  <p className="text-[11px] mt-1" style={{ color: "var(--text-muted)" }}>{copy}</p>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-lg p-3" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)" }}>
+            <p className="text-sm text-white">Calculate your VDOT</p>
+            <p className="text-xs mb-2" style={{ color: "var(--text-muted)" }}>
+              Enter a recent race time to calculate your fitness score and training paces.
+            </p>
+            <VdotCalculator
+              onVdotCalculated={(value) => {
+                setVdot(value);
+                setVdotUpdatedMsg(`VDOT updated to ${value}`);
+              }}
+              onLevelSuggested={(lvl) => setSuggestedLevel(lvl)}
+            />
+            {vdotUpdatedMsg && (
+              <p className="text-xs mt-2" style={{ color: "#5eead4" }}>{vdotUpdatedMsg}</p>
+            )}
+            {suggestedLevel && suggestedLevel !== experienceLevel && (
+              <div
+                className="mt-2 rounded-md p-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2"
+                style={{ background: "rgba(45,212,191,0.08)", border: "1px solid rgba(45,212,191,0.22)" }}
+              >
+                <p className="text-xs" style={{ color: "#99f6e4" }}>
+                  Based on your VDOT, we suggest: {suggestedLevel === "BEGINNER" ? "Beginner" : suggestedLevel === "INTERMEDIATE" ? "Intermediate" : "Advanced"}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setExperienceLevel(suggestedLevel)}
+                  className="min-h-11 rounded-md px-3 py-2 text-xs font-medium"
+                  style={{ background: "rgba(45,212,191,0.18)", color: "#5eead4", border: "1px solid rgba(45,212,191,0.32)" }}
+                >
+                  Apply suggestion
+                </button>
+              </div>
+            )}
+          </div>
+
+          <div>
+            <p className="text-sm text-white mb-2">Goal Race</p>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setGoalRace("HALF")}
+                className="min-h-11 rounded-lg border p-3 text-left"
+                style={{
+                  borderColor: goalRace === "HALF" ? "rgba(45,212,191,0.45)" : "rgba(255,255,255,0.12)",
+                  background: goalRace === "HALF" ? "rgba(45,212,191,0.10)" : "rgba(255,255,255,0.03)",
+                }}
+              >
+                <p className="text-xs font-semibold text-white">HALF MARATHON</p>
+                <p className="text-[11px] mt-1" style={{ color: "var(--text-muted)" }}>21.1 km</p>
+              </button>
+              <button
+                type="button"
+                onClick={() => setGoalRace("FULL")}
+                className="min-h-11 rounded-lg border p-3 text-left"
+                style={{
+                  borderColor: goalRace === "FULL" ? "rgba(45,212,191,0.45)" : "rgba(255,255,255,0.12)",
+                  background: goalRace === "FULL" ? "rgba(45,212,191,0.10)" : "rgba(255,255,255,0.03)",
+                }}
+              >
+                <p className="text-xs font-semibold text-white">FULL MARATHON</p>
+                <p className="text-[11px] mt-1" style={{ color: "var(--text-muted)" }}>42.2 km</p>
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <p className="text-sm text-white mb-2">Plan Length</p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              {([12, 16, 20] as const).map((weeks) => (
+                <button
+                  key={weeks}
+                  type="button"
+                  onClick={() => setPlanLengthWeeks(weeks)}
+                  className="min-h-11 rounded-lg border p-3 text-left"
+                  style={{
+                    borderColor: planLengthWeeks === weeks ? "rgba(45,212,191,0.45)" : "rgba(255,255,255,0.12)",
+                    background: planLengthWeeks === weeks ? "rgba(45,212,191,0.10)" : "rgba(255,255,255,0.03)",
+                  }}
+                >
+                  <p className="text-xs font-semibold text-white">{weeks} WEEKS</p>
+                  <p className="text-[11px] mt-1" style={{ color: "var(--text-muted)" }}>
+                    {weeks === 12 ? "For runners with a race soon or a strong base." : weeks === 16 ? "Standard plan length. Recommended for most runners." : "Extra base building time. Ideal for beginners."}
+                  </p>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <p className="text-sm text-white mb-2">Training Days</p>
+            <div className="grid grid-cols-7 gap-1.5 sm:gap-2">
+              {DAYS.map((day) => {
+                const selected = trainingDays.includes(day);
+                return (
+                  <button
+                    key={day}
+                    type="button"
+                    onClick={() => toggleTrainingDay(day)}
+                    className="min-h-11 rounded-md border text-[11px] sm:text-xs"
+                    style={{
+                      borderColor: selected ? "rgba(45,212,191,0.45)" : "rgba(255,255,255,0.12)",
+                      background: selected ? "rgba(45,212,191,0.15)" : "rgba(255,255,255,0.03)",
+                      color: selected ? "#5eead4" : "#fff",
+                    }}
+                  >
+                    {DAY_LABEL[day]}
+                  </button>
+                );
+              })}
+            </div>
+            {trainingDays.length < 2 && <p className="text-xs mt-1 text-orange-300">Select at least 2 training days.</p>}
+            {showTooManyDaysWarning && (
+              <p className="text-xs mt-1 text-orange-300">
+                Running every day increases injury risk. Maximum 6 days recommended.
+              </p>
+            )}
+          </div>
+
+          {trainingDays.length >= 2 && (
+            <div>
+              <p className="text-sm text-white mb-2">Session Assignment</p>
+              <div className="space-y-2">
+                {trainingDays.map((day) => (
+                  <div key={day} className="rounded-lg p-3 border border-white/10 bg-white/5">
+                    <div className="flex flex-col xs:flex-row xs:items-center xs:justify-between gap-2">
+                      <span className="text-sm text-white">{day.charAt(0).toUpperCase() + day.slice(1)}</span>
+                      <select
+                        className="min-h-11 rounded-md px-3 py-2 bg-black/20 border border-white/10 text-white w-full xs:w-auto"
+                        value={sessionAssignment[day] ?? "easy"}
+                        onChange={(e) => setSessionAssignment((prev) => ({ ...prev, [day]: e.target.value as RunType }))}
+                      >
+                        <option value="easy">Easy</option>
+                        <option value="tempo">Tempo</option>
+                        <option value="interval">Interval</option>
+                        <option value="long">Long</option>
+                      </select>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {hasConsecutiveHard && (
+                <p className="text-xs mt-2 text-orange-300">
+                  Hard sessions need at least one rest day between them. Consider moving one session.
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+        <div className="flex justify-stretch sm:justify-end pt-1">
+          <SaveButton
+            status={planConfigGroup.status}
+            onClick={() =>
+              planConfigGroup.save(async () => {
+                const nextAssignment = normalizeAssignmentForDays(trainingDays, sessionAssignment);
+                const prevAssignment = normalizeAssignmentForDays(
+                  JSON.parse(settings.trainingDays ?? JSON.stringify(["wed", "sat", "sun"])) as Day[],
+                  (settings.sessionAssignment ? JSON.parse(settings.sessionAssignment) : {}) as Partial<Record<Day, RunType>>,
+                );
+                const planAffectingChanged =
+                  settings.experienceLevel !== experienceLevel
+                  || settings.goalRace !== goalRace
+                  || settings.planLengthWeeks !== planLengthWeeks
+                  || settings.currentVdot !== vdot
+                  || JSON.stringify(trainingDays) !== JSON.stringify(
+                    (() => {
+                      try { return settings.trainingDays ? JSON.parse(settings.trainingDays) : []; } catch { return []; }
+                    })(),
+                  )
+                  || JSON.stringify(nextAssignment) !== JSON.stringify(prevAssignment);
+
+                await updateSettings({
+                  experienceLevel,
+                  goalRace,
+                  planLengthWeeks,
+                  trainingDays: JSON.stringify(trainingDays),
+                  sessionAssignment: JSON.stringify(nextAssignment),
+                  currentVdot: vdot,
+                });
+
+                if (!planAffectingChanged) return;
+
+                const token = process.env.NEXT_PUBLIC_PLANS_API_TOKEN;
+                const currentResp = await fetch("/api/plans/current", {
+                  headers: token ? { Authorization: `Bearer ${token}` } : {},
+                });
+                const currentData = currentResp.ok ? await currentResp.json() as { plan?: Array<{ week: number }> } | null : null;
+                let lockedWeeks: number[] = [];
+                let shouldGenerate = true;
+                if (currentData?.plan && currentData.plan.length > 0) {
+                  lockedWeeks = computeLockedWeeksFromPlan(currentData.plan, settings.planStartDate);
+                  shouldGenerate = window.confirm(
+                    "Your training plan settings have changed.\nRegenerate your plan from the current week forward?\nCompleted weeks will be preserved.",
+                  );
+                }
+
+                if (shouldGenerate) {
+                  const config: PlanConfig = {
+                    level: experienceLevel,
+                    goal: goalRace === "FULL" ? "full" : "hm",
+                    weeks: planLengthWeeks,
+                    days: trainingDays,
+                    sessionAssignment: nextAssignment as Record<Day, RunType>,
+                    vdot,
+                  };
+                  await fetch("/api/plans/generate", {
+                    method: "POST",
+                    headers: {
+                      "Content-Type": "application/json",
+                      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                    },
+                    body: JSON.stringify({
+                      ...config,
+                      ...(lockedWeeks.length > 0 ? { lockedWeeks } : {}),
+                    }),
+                  });
+                }
               })
             }
           />

@@ -11,6 +11,7 @@ import {
 import { sameDayAEST, startOfDayAEST } from "@/lib/dateUtils";
 import { dbSettingsToUserSettings, DEFAULT_SETTINGS } from "@/lib/settings";
 import { parseInterruptionType, reconfigurePlan, type PlanInterruption } from "@/lib/interruptions";
+import { loadGeneratedPlan } from "@/lib/planStorage";
 import PhaseOverview from "./PhaseOverview";
 import ProgramSidePanel from "./ProgramSidePanel";
 import PlanAdjustments from "./PlanAdjustments";
@@ -191,13 +192,14 @@ export default async function ProgramPage() {
   const today        = new Date();
   const todayMidnight = startOfDayAEST(today);
 
-  const [profile, userSettingsRow, activities, interruptionRows] = await Promise.all([
+  const [profile, userSettingsRow, activities, interruptionRows, storedPlan] = await Promise.all([
     prisma.profile.findUnique({ where: { id: 1 } }),
     prisma.userSettings.findUnique({ where: { id: 1 } }),
     prisma.activity.findMany({
       where: { activityType: { in: ["running", "trail_running"] } },
     }),
     prisma.planInterruption.findMany({ orderBy: { startDate: "asc" } }),
+    loadGeneratedPlan(),
   ]);
 
   const settings   = userSettingsRow ? dbSettingsToUserSettings(userSettingsRow) : DEFAULT_SETTINGS;
@@ -205,32 +207,44 @@ export default async function ProgramPage() {
   const rawWeek    = getPlanWeekForDate(today, planStart);
   const maxHR       = settings.maxHR;
 
-  // Build VDOT-adjusted base plan
-  const basePlan = buildTrainingPlan(settings);
+  let planToRender: TrainingWeek[];
+  let totalWeeksAdded = 0;
+  let adjustmentSummary: string[] = [];
+  let extendsPastRace = false;
 
-  // Compute normal weekly km from base plan
-  const normalWeeklyKm =
-    basePlan.reduce((sum, w) => sum + getWeeklyTargetKm(w), 0) / basePlan.length;
+  if (storedPlan?.plan?.length) {
+    planToRender = storedPlan.plan;
+  } else {
+    // Build VDOT-adjusted base plan
+    const basePlan = buildTrainingPlan(settings);
 
-  // Map DB rows to PlanInterruption
-  const interruptions: PlanInterruption[] = interruptionRows.map(row => ({
-    id:               row.id,
-    reason:           row.reason,
-    type:             parseInterruptionType(row.type),
-    startDate:        new Date(row.startDate),
-    endDate:          row.endDate ? new Date(row.endDate) : null,
-    weeklyKmEstimate: row.weeklyKmEstimate ?? null,
-    notes:            row.notes ?? null,
-    weeksAffected:    row.weeksAffected ?? null,
-  }));
+    // Compute normal weekly km from base plan
+    const normalWeeklyKm =
+      basePlan.reduce((sum, w) => sum + getWeeklyTargetKm(w), 0) / basePlan.length;
 
-  const { plan: planToRender, totalWeeksAdded, adjustmentSummary, extendsPastRace } =
-    reconfigurePlan(basePlan, interruptions, {
+    // Map DB rows to PlanInterruption
+    const interruptions: PlanInterruption[] = interruptionRows.map(row => ({
+      id:               row.id,
+      reason:           row.reason,
+      type:             parseInterruptionType(row.type),
+      startDate:        new Date(row.startDate),
+      endDate:          row.endDate ? new Date(row.endDate) : null,
+      weeklyKmEstimate: row.weeklyKmEstimate ?? null,
+      notes:            row.notes ?? null,
+      weeksAffected:    row.weeksAffected ?? null,
+    }));
+
+    const fallback = reconfigurePlan(basePlan, interruptions, {
       isBeginnerCurve: true,
       raceDate: settings.raceDate ? new Date(settings.raceDate) : null,
       normalWeeklyKm,
       planStart,
     });
+    planToRender = fallback.plan;
+    totalWeeksAdded = fallback.totalWeeksAdded;
+    adjustmentSummary = fallback.adjustmentSummary;
+    extendsPastRace = fallback.extendsPastRace;
+  }
 
   const currentWeek = rawWeek > 0 ? Math.min(planToRender[planToRender.length - 1]?.week ?? 18, rawWeek) : 1;
   const currentPlanEntry = planToRender.find(w => w.week === currentWeek) ?? planToRender[0];

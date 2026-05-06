@@ -11,6 +11,8 @@ export interface UserSettings {
   trainingDays: string | null;
   /** JSON object string, e.g. {"mon":"easy","wed":"interval","sat":"long"} */
   sessionAssignment: string | null;
+  goalRace: "HALF" | "FULL" | null;
+  targetFinishTime: number | null;
   maxHR: number;
   startingTempoPaceSec: number;
   currentVdot: number;
@@ -40,6 +42,8 @@ export const DEFAULT_SETTINGS: UserSettings = {
   planLengthWeeks: null,
   trainingDays: null,
   sessionAssignment: null,
+  goalRace: null,
+  targetFinishTime: null,
   maxHR: 198,
   startingTempoPaceSec: 390,
   currentVdot: 33,
@@ -70,6 +74,8 @@ export function dbSettingsToUserSettings(row: PrismaUserSettings): UserSettings 
     planLengthWeeks:      (row.planLengthWeeks as UserSettings["planLengthWeeks"]) ?? null,
     trainingDays:         row.trainingDays ?? null,
     sessionAssignment:    row.sessionAssignment ?? null,
+    goalRace:             (row.goalRace as UserSettings["goalRace"]) ?? null,
+    targetFinishTime:     row.targetFinishTime ?? null,
     maxHR:                row.maxHR                ?? DEFAULT_SETTINGS.maxHR,
     startingTempoPaceSec: row.startingTempoPaceSec ?? DEFAULT_SETTINGS.startingTempoPaceSec,
     currentVdot:          row.currentVdot          ?? DEFAULT_SETTINGS.currentVdot,

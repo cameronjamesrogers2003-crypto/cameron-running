@@ -77,6 +77,22 @@ function isHard(t: RunType): boolean {
   return t === "tempo" || t === "interval";
 }
 
+export function hasConsecutiveHardSessions(
+  days: Day[],
+  assignment: Partial<Record<Day, RunType>>,
+): boolean {
+  const sorted = daysSorted(uniqDays(days));
+  for (let i = 1; i < sorted.length; i++) {
+    const prev = sorted[i - 1];
+    const curr = sorted[i];
+    if (Math.abs(DAY_INDEX[curr] - DAY_INDEX[prev]) !== 1) continue;
+    const pt = assignment[prev];
+    const ct = assignment[curr];
+    if (pt && ct && isHard(pt) && isHard(ct)) return true;
+  }
+  return false;
+}
+
 function basePhaseForLevel(level: PlanConfig["level"]): Phase {
   switch (level) {
     case "BEGINNER":
@@ -85,6 +101,8 @@ function basePhaseForLevel(level: PlanConfig["level"]): Phase {
       return "Intermediate Base";
     case "ADVANCED":
       return "Advanced Base";
+    default:
+      return "Beginner Base";
   }
 }
 
@@ -130,6 +148,7 @@ function getPeakWeeklyKm(level: PlanConfig["level"], goal: PlanConfig["goal"]): 
     case "INTERMEDIATE-full": return 84;
     case "ADVANCED-hm": return 90;
     case "ADVANCED-full": return 100;
+    default: return 45;
   }
 }
 
@@ -282,6 +301,22 @@ function chooseSessionAssignment(config: PlanConfig): Record<Day, RunType> {
   return out as Record<Day, RunType>;
 }
 
+export function recommendSessionAssignment(
+  level: PlanConfig["level"],
+  days: Day[],
+  current: Partial<Record<Day, RunType>> = {},
+): Record<Day, RunType> {
+  const normalizedDays = uniqDays(days);
+  return chooseSessionAssignment({
+    level,
+    goal: "hm",
+    weeks: 16,
+    days: normalizedDays,
+    sessionAssignment: current as Record<Day, RunType>,
+    vdot: 33,
+  });
+}
+
 function gateSessionType(
   config: PlanConfig,
   type: RunType,
@@ -358,6 +393,7 @@ function getLongRunKm(config: PlanConfig, goal: PlanConfig["goal"]) {
     case "INTERMEDIATE-full": return { start: 13, peak: 32 };
     case "ADVANCED-hm": return { start: 11, peak: 22 };
     case "ADVANCED-full": return { start: 16, peak: 35 };
+    default: return { start: 7, peak: 18 };
   }
 }
 
@@ -504,7 +540,9 @@ export function generatePlan(config: PlanConfig): TrainingWeek[] {
 
     const weekKm = weeklyKm[w - 1] ?? peakKm;
     const longDay = dayList.find((d) => typesForWeek[d] === "long") ?? dayList[0];
-    const wkLongKm = clamp(longKm[w - 1] ?? 0, 5, weekKm);
+    const baseLongKm = clamp(longKm[w - 1] ?? 0, 5, weekKm);
+    // Ensure long run is not disproportionately small relative to weekly load.
+    const wkLongKm = clamp(Math.max(baseLongKm, weekKm * 0.30), 5, weekKm);
 
     const otherDays = dayList.filter((d) => d !== longDay);
     const remaining = Math.max(0, weekKm - wkLongKm);

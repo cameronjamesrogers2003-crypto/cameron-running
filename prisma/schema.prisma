@@ -59,7 +59,9 @@ model UserSettings {
   currentWeekOverride   Int?
   phaseOverride         String?
   experienceLevel       ExperienceLevel?
+  goalRace              String?
   planLengthWeeks       Int?
+  targetFinishTime      Int?
   trainingDays          String?
   sessionAssignment     String?
   maxHR                 Int       @default(198)

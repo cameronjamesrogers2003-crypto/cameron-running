@@ -2,7 +2,6 @@ import prisma from "@/lib/db";
 import { formatPace } from "@/lib/settings";
 import { buildTrainingPlan, type Phase, type RunType, type Day } from "@/data/trainingPlan";
 import {
-  PLAN_START_DATE,
   getEffectivePlanStart,
   getPlanWeekForDate,
   getSessionDate,
@@ -14,6 +13,7 @@ import { formatAEST, formatDistanceToNowAEST, sameDayAEST, startOfDayAEST } from
 import { inferRunType } from "@/lib/rating";
 import { dbSettingsToUserSettings, DEFAULT_SETTINGS } from "@/lib/settings";
 import { parseInterruptionType, reconfigurePlan, type PlanInterruption } from "@/lib/interruptions";
+import { loadGeneratedPlan } from "@/lib/planStorage";
 import {
   buildPlayerRatingSummaryRows,
   PLAYER_RATING_ATTRIBUTES,
@@ -26,6 +26,7 @@ import TrainingLoadChart from "@/components/charts/TrainingLoadChart";
 import SyncButton from "@/components/SyncButton";
 import Logo from "@/components/Logo";
 import PlayerRatingDeltaPanel from "@/components/PlayerRatingDeltaPanel";
+import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
@@ -226,32 +227,38 @@ export default async function Dashboard({
   ]);
 
   const settings = userSettingsRow ? dbSettingsToUserSettings(userSettingsRow) : DEFAULT_SETTINGS;
+  if ((settings.experienceLevel == null) && Boolean(profile?.stravaConnected)) {
+    redirect("/onboarding");
+  }
   const planStart = getEffectivePlanStart(settings.planStartDate);
-  // Session scheduling stays on the fixed plan anchor; planStart gates completion only.
-  const scheduleAnchor = PLAN_START_DATE;
+  const scheduleAnchor = planStart;
 
-  // Same plan pipeline as app/program/page.tsx (VDOT base + interruptions)
-  const basePlan = buildTrainingPlan(settings);
-  const normalWeeklyKm =
-    basePlan.reduce((sum, w) => sum + getWeeklyTargetKm(w), 0) / basePlan.length;
-  const interruptions: PlanInterruption[] = interruptionRows.map((row) => ({
-    id:               row.id,
-    reason:           row.reason,
-    type:             parseInterruptionType(row.type),
-    startDate:        new Date(row.startDate),
-    endDate:          row.endDate ? new Date(row.endDate) : null,
-    weeklyKmEstimate: row.weeklyKmEstimate ?? null,
-    notes:            row.notes ?? null,
-    weeksAffected:    row.weeksAffected ?? null,
-  }));
-  const { plan: planToRender } = reconfigurePlan(basePlan, interruptions, {
-    isBeginnerCurve: true,
-    raceDate: settings.raceDate ? new Date(settings.raceDate) : null,
-    normalWeeklyKm,
-    planStart,
-  });
+  // Prefer generated plan from DB; fallback to legacy pipeline.
+  const stored = await loadGeneratedPlan();
+  let planToRender = stored?.plan ?? [];
+  if (!planToRender.length) {
+    const basePlan = buildTrainingPlan(settings);
+    const normalWeeklyKm =
+      basePlan.reduce((sum, w) => sum + getWeeklyTargetKm(w), 0) / basePlan.length;
+    const interruptions: PlanInterruption[] = interruptionRows.map((row) => ({
+      id:               row.id,
+      reason:           row.reason,
+      type:             parseInterruptionType(row.type),
+      startDate:        new Date(row.startDate),
+      endDate:          row.endDate ? new Date(row.endDate) : null,
+      weeklyKmEstimate: row.weeklyKmEstimate ?? null,
+      notes:            row.notes ?? null,
+      weeksAffected:    row.weeksAffected ?? null,
+    }));
+    planToRender = reconfigurePlan(basePlan, interruptions, {
+      isBeginnerCurve: true,
+      raceDate: settings.raceDate ? new Date(settings.raceDate) : null,
+      normalWeeklyKm,
+      planStart,
+    }).plan;
+  }
 
-  const lastPlanWeekNum = planToRender[planToRender.length - 1]?.week ?? basePlan.length;
+  const lastPlanWeekNum = planToRender[planToRender.length - 1]?.week ?? planToRender.length;
   const rawCalendarWeek = getPlanWeekForDate(today, scheduleAnchor);
   const currentWeek =
     rawCalendarWeek > 0 ? Math.min(lastPlanWeekNum, rawCalendarWeek) : 1;
@@ -383,7 +390,7 @@ export default async function Dashboard({
     });
   }
 
-  // ── Upcoming: next 5 Wed/Sat/Sun plan sessions (no completed days) ───────
+  // ── Upcoming: next 5 future plan sessions (no completed days) ─────────────
   type UpcomingRow = {
     session: (typeof planToRender)[0]["sessions"][0];
     date: Date;
@@ -393,9 +400,7 @@ export default async function Dashboard({
   for (let w = currentWeek; w <= lastPlanWeekNum; w++) {
     const pw = planToRender.find((x) => x.week === w);
     if (!pw) continue;
-    for (const day of ["wed", "sat", "sun"] as Day[]) {
-      const session = pw.sessions.find((s) => s.day === day);
-      if (!session) continue;
+    for (const session of pw.sessions) {
       const date = getSessionDate(w, session.day, scheduleAnchor);
       if (date <= todayAESTMidnight) continue;
       if (hasRunOnCalendarDay(runsPlanForward, date)) continue;

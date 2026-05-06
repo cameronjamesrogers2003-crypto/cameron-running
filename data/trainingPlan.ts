@@ -251,9 +251,7 @@ export function buildTrainingPlan(settings: UserSettings): TrainingWeek[] {
   // Best-effort config coercion; generator handles missing/incomplete assignment.
   const config: PlanConfig = {
     level: settings.experienceLevel,
-    // There's no explicit marathon-vs-half-marathon setting yet; use plan length
-    // as a pragmatic default (20w plans are typically full marathon builds).
-    goal: settings.planLengthWeeks === 20 ? "full" : "hm",
+    goal: settings.goalRace === "FULL" ? "full" : "hm",
     weeks: (settings.planLengthWeeks ?? 16) as 12 | 16 | 20,
     days: days ?? ["wed", "sat", "sun"],
     sessionAssignment: (Object.fromEntries(
