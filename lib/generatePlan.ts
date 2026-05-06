@@ -593,9 +593,8 @@ export function generatePlan(config: PlanConfig): TrainingWeek[] {
     }
 
     const weekKm = weeklyKm[w - 1] ?? peakKm;
-    const longDay = dayList.find((d) => typesForWeek[d] === "long") ?? dayList[0];
     const baseLongKm = clamp(longKm[w - 1] ?? 0, 5, weekKm);
-    const otherDays = dayList.filter((d) => d !== longDay);
+    const otherDays = dayList.filter((d) => typesForWeek[d] !== "long");
     const nonLongCount = otherDays.length;
 
     // Rule 1/3: long run should be at least 35% of weekly volume.
@@ -610,10 +609,10 @@ export function generatePlan(config: PlanConfig): TrainingWeek[] {
     const eachOther = Math.min(eachOtherRaw, nonLongCap);
 
     const sessions: Session[] = dayList.map((day) => {
-      const type = day === longDay ? "long" : typesForWeek[day];
+      const type = typesForWeek[day];
 
       const km =
-        day === longDay
+        type === "long"
           ? wkLongKm
           : clamp(eachOther, 3, Math.max(3, wkLongKm * 0.85));
 
