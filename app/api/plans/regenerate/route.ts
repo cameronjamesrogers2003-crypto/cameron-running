@@ -39,7 +39,7 @@ function parseSessionAssignment(raw: string | null): Partial<Record<Day, RunType
   }
 }
 
-async function regenerateFromSettings() {
+async function regenerateFromSettings(req: NextRequest) {
   const settingsRow = await prisma.userSettings.findUnique({ where: { id: 1 } });
   const settings = settingsRow ? dbSettingsToUserSettings(settingsRow) : DEFAULT_SETTINGS;
 
@@ -63,25 +63,21 @@ async function regenerateFromSettings() {
   const plan = generatePlan(config);
   await saveGeneratedPlan(config, plan);
 
-  return NextResponse.json({
-    success: true,
-    weeks: plan.length,
-    days: config.days,
-  });
+  return NextResponse.redirect(new URL("/", req.url), { status: 303 });
 }
 
-export async function GET(_req: NextRequest) {
+export async function GET(req: NextRequest) {
   try {
-    return await regenerateFromSettings();
+    return await regenerateFromSettings(req);
   } catch (err) {
     console.error("[plans/regenerate] GET failed:", err);
     return NextResponse.json({ error: "Failed to regenerate plan" }, { status: 500 });
   }
 }
 
-export async function POST(_req: NextRequest) {
+export async function POST(req: NextRequest) {
   try {
-    return await regenerateFromSettings();
+    return await regenerateFromSettings(req);
   } catch (err) {
     console.error("[plans/regenerate] POST failed:", err);
     return NextResponse.json({ error: "Failed to regenerate plan" }, { status: 500 });
