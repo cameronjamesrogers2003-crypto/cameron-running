@@ -96,18 +96,11 @@ export default function OnboardingPage() {
 
   const assignmentEffective = useMemo(() => {
     if (!level || trainingDays.length < 2) return {};
-    return recommendSessionAssignment({
-      level,
-      goal: goalRace === "FULL_MARATHON" ? "full" : "hm",
-      weeks: planLengthWeeks,
-      days: trainingDays,
-      sessionAssignment: sessionAssignment as Record<Day, RunType>,
-      vdot: settings.currentVdot,
-    });
-  }, [level, goalRace, planLengthWeeks, trainingDays, sessionAssignment, settings.currentVdot]);
+    return recommendSessionAssignment(level, trainingDays, sessionAssignment);
+  }, [level, trainingDays, sessionAssignment]);
 
   const hasHardWarning = useMemo(
-    () => hasConsecutiveHardSessions(assignmentEffective as Record<Day, RunType>, trainingDays),
+    () => hasConsecutiveHardSessions(trainingDays, assignmentEffective as Record<Day, RunType>),
     [assignmentEffective, trainingDays],
   );
 
