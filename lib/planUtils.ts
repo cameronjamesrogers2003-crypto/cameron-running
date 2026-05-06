@@ -34,7 +34,8 @@ const MS_PER_DAY = 24 * 60 * 60 * 1000;
 /** Returns the session date for a plan week/day using the Saturday-anchored plan calendar. */
 export function getSessionDate(weekNumber: number, day: Day, planStart: Date): Date {
   const weekStart = getWeekStartForPlanWeek(weekNumber, planStart);
-  const offsets: Record<Day, number> = { sat: 0, sun: 1, wed: 4 };
+  // Saturday-anchored week: sat+0, sun+1, mon+2, tue+3, wed+4, thu+5, fri+6
+  const offsets: Record<Day, number> = { sat: 0, sun: 1, mon: 2, tue: 3, wed: 4, thu: 5, fri: 6 };
   // Whole-day offsets from week anchor (Brisbane week; no DST) — do not use setDate/getDate
   // (those use the host timezone and shift session dates on UTC servers).
   return new Date(weekStart.getTime() + offsets[day] * MS_PER_DAY);
@@ -71,5 +72,10 @@ export function getNextPhaseInfo(
     case "Half Marathon Build": return { label: "Marathon Build",       week: 15 };
     case "Marathon Build":      return null;
     case "Recovery":            return null;
+    case "Beginner Base":       return { label: "Race Specific",        week: 1 };
+    case "Intermediate Base":   return { label: "Race Specific",        week: 1 };
+    case "Advanced Base":       return { label: "Race Specific",        week: 1 };
+    case "Race Specific":       return { label: "Taper",                week: 1 };
+    case "Taper":               return null;
   }
 }

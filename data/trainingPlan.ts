@@ -1,9 +1,28 @@
 import { getVdotPaces } from "@/lib/vdot";
 import type { UserSettings } from "@/lib/settings";
+import { generatePlan } from "@/lib/generatePlan";
 
 export type RunType = 'easy' | 'tempo' | 'interval' | 'long'
-export type Day = 'wed' | 'sat' | 'sun'
-export type Phase = 'Base' | 'Half Marathon Build' | 'Marathon Build' | 'Recovery'
+export type Day = 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun'
+export type Phase =
+  | 'Base'
+  | 'Half Marathon Build'
+  | 'Marathon Build'
+  | 'Recovery'
+  | 'Beginner Base'
+  | 'Intermediate Base'
+  | 'Advanced Base'
+  | 'Race Specific'
+  | 'Taper'
+
+export interface PlanConfig {
+  level: 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED'
+  goal: 'hm' | 'full'
+  weeks: 12 | 16 | 20
+  days: Day[]
+  sessionAssignment: Record<Day, RunType>
+  vdot: number
+}
 
 export interface Session {
   day: Day
@@ -184,21 +203,67 @@ export const trainingPlan: TrainingWeek[] = [
 ]
 
 export function buildTrainingPlan(settings: UserSettings): TrainingWeek[] {
-  const paces = getVdotPaces(settings.currentVdot);
-  const easyPace     = paces.easyMaxSecKm  / 60;
-  const tempoPace    = paces.tempoSecKm    / 60;
-  const intervalPace = paces.intervalSecKm / 60;
+  // Backwards compatible: fall back to the legacy hardcoded plan unless the new
+  // generator inputs are present.
+  if (!settings.experienceLevel || !settings.trainingDays) {
+    const paces = getVdotPaces(settings.currentVdot);
+    const easyPace     = paces.easyMaxSecKm  / 60;
+    const tempoPace    = paces.tempoSecKm    / 60;
+    const intervalPace = paces.intervalSecKm / 60;
 
-  return trainingPlan.map(week => ({
-    ...week,
-    sessions: week.sessions.map(session => ({
-      ...session,
-      targetPaceMinPerKm:
-        session.type === 'easy'     ? easyPace :
-        session.type === 'long'     ? easyPace :
-        session.type === 'tempo'    ? tempoPace :
-        session.type === 'interval' ? intervalPace :
-        session.targetPaceMinPerKm,
-    })),
-  }));
+    return trainingPlan.map(week => ({
+      ...week,
+      sessions: week.sessions.map(session => ({
+        ...session,
+        targetPaceMinPerKm:
+          session.type === 'easy'     ? easyPace :
+          session.type === 'long'     ? easyPace :
+          session.type === 'tempo'    ? tempoPace :
+          session.type === 'interval' ? intervalPace :
+          session.targetPaceMinPerKm,
+      })),
+    }));
+  }
+
+  const days = (() => {
+    try {
+      const parsed = JSON.parse(settings.trainingDays) as unknown;
+      if (!Array.isArray(parsed)) return null;
+      const valid = parsed.filter((d): d is Day =>
+        d === "mon" || d === "tue" || d === "wed" || d === "thu" || d === "fri" || d === "sat" || d === "sun",
+      );
+      return valid.length > 0 ? (valid as Day[]) : null;
+    } catch {
+      return null;
+    }
+  })();
+
+  const assignment = (() => {
+    if (!settings.sessionAssignment) return {};
+    try {
+      const parsed = JSON.parse(settings.sessionAssignment) as unknown;
+      return (parsed && typeof parsed === "object") ? (parsed as Record<string, unknown>) : {};
+    } catch {
+      return {};
+    }
+  })();
+
+  // Best-effort config coercion; generator handles missing/incomplete assignment.
+  const config: PlanConfig = {
+    level: settings.experienceLevel,
+    // There's no explicit marathon-vs-half-marathon setting yet; use plan length
+    // as a pragmatic default (20w plans are typically full marathon builds).
+    goal: settings.planLengthWeeks === 20 ? "full" : "hm",
+    weeks: (settings.planLengthWeeks ?? 16) as 12 | 16 | 20,
+    days: days ?? ["wed", "sat", "sun"],
+    sessionAssignment: (Object.fromEntries(
+      Object.entries(assignment).filter(([k, v]) =>
+        (k === "mon" || k === "tue" || k === "wed" || k === "thu" || k === "fri" || k === "sat" || k === "sun")
+        && (v === "easy" || v === "tempo" || v === "interval" || v === "long"),
+      ),
+    ) as Record<Day, RunType>),
+    vdot: settings.currentVdot,
+  };
+
+  return generatePlan(config);
 }
