@@ -227,7 +227,7 @@ export default async function Dashboard({
   ]);
 
   const settings = userSettingsRow ? dbSettingsToUserSettings(userSettingsRow) : DEFAULT_SETTINGS;
-  if (settings.experienceLevel == null) {
+  if ((settings.experienceLevel == null) && Boolean(profile?.stravaConnected)) {
     redirect("/onboarding");
   }
   const planStart = getEffectivePlanStart(settings.planStartDate);

@@ -540,7 +540,9 @@ export function generatePlan(config: PlanConfig): TrainingWeek[] {
 
     const weekKm = weeklyKm[w - 1] ?? peakKm;
     const longDay = dayList.find((d) => typesForWeek[d] === "long") ?? dayList[0];
-    const wkLongKm = clamp(longKm[w - 1] ?? 0, 5, weekKm);
+    const baseLongKm = clamp(longKm[w - 1] ?? 0, 5, weekKm);
+    // Ensure long run is not disproportionately small relative to weekly load.
+    const wkLongKm = clamp(Math.max(baseLongKm, weekKm * 0.30), 5, weekKm);
 
     const otherDays = dayList.filter((d) => d !== longDay);
     const remaining = Math.max(0, weekKm - wkLongKm);
