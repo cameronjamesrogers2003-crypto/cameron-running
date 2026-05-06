@@ -7,7 +7,6 @@ import { planStartAusDisplayToIsoYmd, planStartIsoYmdToAusDisplay } from "@/lib/
 import { formatPace, parsePace, formatDuration, parseDuration } from "@/lib/settings";
 import { getVdotPaces } from "@/lib/vdot";
 import type { Day, PlanConfig, RunType } from "@/data/trainingPlan";
-import { recommendSessionAssignment, hasConsecutiveHardSessions } from "@/lib/generatePlan";
 import InterruptionsForm from "./InterruptionsForm";
 
 type SaveStatus = "idle" | "saving" | "saved" | "error";

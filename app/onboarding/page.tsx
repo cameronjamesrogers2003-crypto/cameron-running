@@ -94,13 +94,13 @@ export default function OnboardingPage() {
 
   const recommendedLength = level === "BEGINNER" ? 20 : level === "ADVANCED" ? 12 : 16;
 
-  const assignmentEffective = useMemo(() => {
+  const assignmentEffective = useMemo<Partial<Record<Day, RunType>>>(() => {
     if (!level || trainingDays.length < 2) return {};
     return recommendSessionAssignment(level, trainingDays, sessionAssignment);
   }, [level, trainingDays, sessionAssignment]);
 
   const hasHardWarning = useMemo(
-    () => hasConsecutiveHardSessions(trainingDays, assignmentEffective as Record<Day, RunType>),
+    () => hasConsecutiveHardSessions(trainingDays, assignmentEffective),
     [assignmentEffective, trainingDays],
   );
 
