@@ -538,6 +538,7 @@ function buildLongRuns(config: PlanConfig, weeklyKm: number[], isCutback: boolea
 }
 
 export function generatePlan(config: PlanConfig): TrainingWeek[] {
+  console.log("GENERATEPLAN RECEIVED CONFIG:", JSON.stringify(config.sessionAssignment));
   /*
    * ROOT CAUSE ANALYSIS (requested):
    * 1) Sessions are created in the `sessions` mapping inside the per-week loop
@@ -580,6 +581,9 @@ export function generatePlan(config: PlanConfig): TrainingWeek[] {
       } else {
         finalAssignment[day] = getDefaultSessionType(day, config);
       }
+    }
+    if (w === 1) {
+      console.log("WEEK 1 FINAL ASSIGNMENT:", JSON.stringify(finalAssignment));
     }
 
     // Use fixed assignment for all weeks; no recommendation overrides in generator.
