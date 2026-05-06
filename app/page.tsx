@@ -26,6 +26,7 @@ import TrainingLoadChart from "@/components/charts/TrainingLoadChart";
 import SyncButton from "@/components/SyncButton";
 import Logo from "@/components/Logo";
 import PlayerRatingDeltaPanel from "@/components/PlayerRatingDeltaPanel";
+import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
@@ -226,6 +227,13 @@ export default async function Dashboard({
   ]);
 
   const settings = userSettingsRow ? dbSettingsToUserSettings(userSettingsRow) : DEFAULT_SETTINGS;
+  if (
+    profile?.stravaConnected
+    && settings.experienceLevel == null
+    && settings.trainingDays == null
+  ) {
+    redirect("/onboarding");
+  }
   const planStart = getEffectivePlanStart(settings.planStartDate);
   // Session scheduling stays on the fixed plan anchor; planStart gates completion only.
   const scheduleAnchor = PLAN_START_DATE;
