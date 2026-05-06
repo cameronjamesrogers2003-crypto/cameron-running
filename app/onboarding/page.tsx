@@ -96,7 +96,7 @@ export default function OnboardingPage() {
   });
   const [saving, setSaving] = useState(false);
 
-  const effectiveLevelForRecommendation = level ?? vdotSuggestedLevel;
+  const effectiveLevelForRecommendation = level ?? suggestedLevel;
   const recommendedLength =
     effectiveLevelForRecommendation === "BEGINNER"
       ? 20
