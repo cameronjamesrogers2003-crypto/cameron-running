@@ -2,9 +2,9 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { Day, PlanConfig, RunType } from "@/data/trainingPlan";
+import type { Day, PlanConfig } from "@/data/trainingPlan";
 import { useSettings } from "@/context/SettingsContext";
-import { recommendSessionAssignment, hasConsecutiveHardSessions } from "@/lib/generatePlan";
+import { getDefaultLongRunDay } from "@/lib/generatePlan";
 import VdotCalculator from "@/components/VdotCalculator";
 
 type Level = "BEGINNER" | "INTERMEDIATE" | "ADVANCED";
@@ -102,12 +102,9 @@ export default function OnboardingPage() {
     } catch {}
     return ["wed", "sat", "sun"];
   });
-  const [sessionAssignment, setSessionAssignment] = useState<Partial<Record<Day, RunType>>>(() => {
-    try {
-      const parsed = settings.sessionAssignment ? JSON.parse(settings.sessionAssignment) as unknown : {};
-      if (parsed && typeof parsed === "object") return parsed as Partial<Record<Day, RunType>>;
-    } catch {}
-    return {};
+  const [longRunDay, setLongRunDay] = useState<Day | null>(() => {
+    const value = settings.longRunDay;
+    return value && DAYS.includes(value as Day) ? (value as Day) : null;
   });
   const [saving, setSaving] = useState(false);
 
@@ -119,15 +116,16 @@ export default function OnboardingPage() {
         ? 12
         : 16;
 
-  const assignmentEffective = useMemo<Partial<Record<Day, RunType>>>(() => {
-    if (!level || trainingDays.length < 2) return {};
-    return recommendSessionAssignment(level, trainingDays, sessionAssignment);
-  }, [level, trainingDays, sessionAssignment]);
-
-  const hasHardWarning = useMemo(
-    () => hasConsecutiveHardSessions(trainingDays, assignmentEffective),
-    [assignmentEffective, trainingDays],
+  const sortedTrainingDays = useMemo(
+    () => [...trainingDays].sort((a, b) => DAYS.indexOf(a) - DAYS.indexOf(b)),
+    [trainingDays],
   );
+
+  const effectiveLongRunDay = useMemo<Day | null>(() => {
+    if (sortedTrainingDays.length < 2) return null;
+    if (longRunDay && sortedTrainingDays.includes(longRunDay)) return longRunDay;
+    return getDefaultLongRunDay(sortedTrainingDays);
+  }, [longRunDay, sortedTrainingDays]);
 
   const canNext = (() => {
     if (step === 1) return goalRace != null;
@@ -136,7 +134,7 @@ export default function OnboardingPage() {
     if (step === 4) return skipFitnessStep || calculatedVdot != null;
     if (step === 5) return skipFinishTime || (targetHours >= 0 && targetMinutes >= 0 && targetMinutes < 60);
     if (step === 6) return trainingDays.length >= 2 && trainingDays.length <= 6;
-    if (step === 7) return trainingDays.length >= 2;
+    if (step === 7) return sortedTrainingDays.length >= 2 && effectiveLongRunDay != null;
     return true;
   })();
 
@@ -156,8 +154,8 @@ export default function OnboardingPage() {
       level,
       goal: goalRace === "FULL" ? "full" : "hm",
       weeks: planLengthWeeks,
-      days: trainingDays,
-      sessionAssignment: assignmentEffective as Record<Day, RunType>,
+      days: sortedTrainingDays,
+      longRunDay: effectiveLongRunDay ?? undefined,
       vdot: calculatedVdot ?? settings.currentVdot,
     };
     try {
@@ -165,8 +163,8 @@ export default function OnboardingPage() {
         goalRace,
         experienceLevel: level,
         planLengthWeeks,
-        trainingDays: JSON.stringify(trainingDays),
-        sessionAssignment: JSON.stringify(assignmentEffective),
+        trainingDays: JSON.stringify(sortedTrainingDays),
+        longRunDay: effectiveLongRunDay,
         targetFinishTime: finishMins,
       });
 
@@ -316,29 +314,27 @@ export default function OnboardingPage() {
       )}
       {step === 7 && (
         <section className="space-y-3">
-          <h1 className="text-2xl font-bold text-white">What will you do on each day?</h1>
-          <div className="space-y-2">
-            {trainingDays.map((day) => (
-              <div key={day} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 rounded-lg p-3 border border-white/10 bg-white/5">
-                <span className="text-sm text-white">{day.charAt(0).toUpperCase() + day.slice(1)}</span>
-                <select
-                  className="rounded min-h-11 px-3 py-2 bg-black/20 border border-white/10 text-white w-full sm:w-auto"
-                  value={assignmentEffective[day] ?? "easy"}
-                  onChange={(e) => setSessionAssignment((prev) => ({ ...prev, [day]: e.target.value as RunType }))}
-                >
-                  <option value="easy">Easy</option>
-                  <option value="tempo">Tempo</option>
-                  <option value="interval">Interval</option>
-                  <option value="long">Long</option>
-                </select>
-              </div>
+          <h1 className="text-2xl font-bold text-white">Which day is your long run?</h1>
+          <p className="text-sm" style={{ color: "var(--text-muted)" }}>
+            We&apos;ll build your training schedule around this day.
+          </p>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {sortedTrainingDays.map((day) => (
+              <button
+                type="button"
+                key={day}
+                onClick={() => setLongRunDay(day)}
+                className="rounded-md min-h-11 py-2 text-[11px] sm:text-sm border"
+                style={{
+                  borderColor: effectiveLongRunDay === day ? "rgba(45,212,191,0.45)" : "rgba(255,255,255,0.12)",
+                  background: effectiveLongRunDay === day ? "rgba(45,212,191,0.15)" : "rgba(255,255,255,0.03)",
+                  color: effectiveLongRunDay === day ? "#5eead4" : "#fff",
+                }}
+              >
+                {DAY_LABEL[day]}
+              </button>
             ))}
           </div>
-          {hasHardWarning && (
-            <p className="text-xs text-orange-300">
-              Hard sessions need at least one rest day between them. Consider moving one session.
-            </p>
-          )}
         </section>
       )}
       {step > 7 && (
@@ -348,7 +344,8 @@ export default function OnboardingPage() {
             <p><span style={{ color: "var(--text-muted)" }}>Goal race:</span> {goalRace === "FULL" ? "FULL MARATHON" : "HALF MARATHON"}</p>
             <p><span style={{ color: "var(--text-muted)" }}>Experience level:</span> {level}</p>
             <p><span style={{ color: "var(--text-muted)" }}>Plan length:</span> {planLengthWeeks} weeks</p>
-            <p><span style={{ color: "var(--text-muted)" }}>Training days:</span> {trainingDays.map((d) => DAY_LABEL[d]).join(", ")}</p>
+            <p><span style={{ color: "var(--text-muted)" }}>Training days:</span> {sortedTrainingDays.map((d) => DAY_LABEL[d]).join(", ")}</p>
+            <p><span style={{ color: "var(--text-muted)" }}>Long run day:</span> {effectiveLongRunDay ? DAY_LABEL[effectiveLongRunDay] : "Not set"}</p>
             <p><span style={{ color: "var(--text-muted)" }}>Start date:</span> {settings.planStartDate?.slice(0, 10) ?? "Not set"}</p>
           </div>
           <button

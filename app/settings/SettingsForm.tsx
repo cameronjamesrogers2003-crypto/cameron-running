@@ -7,8 +7,8 @@ import { brisbaneMidnightUtcForYmd } from "@/lib/dateUtils";
 import { planStartAusDisplayToIsoYmd, planStartIsoYmdToAusDisplay } from "@/lib/planStartDateFormat";
 import { formatPace, parsePace, formatDuration, parseDuration } from "@/lib/settings";
 import { getVdotPaces } from "@/lib/vdot";
-import type { Day, RunType } from "@/data/trainingPlan";
-import { hasConsecutiveHardSessions, recommendSessionAssignment } from "@/lib/generatePlan";
+import type { Day } from "@/data/trainingPlan";
+import { getDefaultLongRunDay } from "@/lib/generatePlan";
 import VdotCalculator from "@/components/VdotCalculator";
 import InterruptionsForm from "./InterruptionsForm";
 
@@ -149,7 +149,7 @@ type PlanConfigSnapshot = {
   goalRace: "HALF" | "FULL" | null;
   planLengthWeeks: 12 | 16 | 20 | null;
   trainingDays: Day[];
-  sessionAssignment: Partial<Record<Day, RunType>>;
+  longRunDay: Day | null;
   currentVdot: number;
 };
 
@@ -172,21 +172,9 @@ function parseTrainingDaysValue(value: string | null | undefined): Day[] {
   }
 }
 
-function parseSessionAssignmentValue(value: string | null | undefined): Partial<Record<Day, RunType>> {
-  if (!value) return {};
-  try {
-    const parsed = JSON.parse(value) as unknown;
-    if (!parsed || typeof parsed !== "object") return {};
-    const out: Partial<Record<Day, RunType>> = {};
-    for (const [k, v] of Object.entries(parsed as Record<string, unknown>)) {
-      if (DAY_ORDER.includes(k as Day) && (v === "easy" || v === "tempo" || v === "interval" || v === "long")) {
-        out[k as Day] = v;
-      }
-    }
-    return out;
-  } catch {
-    return {};
-  }
+function parseLongRunDayValue(value: string | null | undefined): Day | null {
+  if (!value) return null;
+  return DAY_ORDER.includes(value as Day) ? (value as Day) : null;
 }
 
 export default function SettingsForm() {
@@ -205,8 +193,8 @@ export default function SettingsForm() {
   const [goalRace, setGoalRace] = useState<"HALF" | "FULL">(settings.goalRace ?? "HALF");
   const [planLengthWeeks, setPlanLengthWeeks] = useState<12 | 16 | 20>((settings.planLengthWeeks ?? 16) as 12 | 16 | 20);
   const [trainingDays, setTrainingDays] = useState<Day[]>(() => parseTrainingDaysValue(settings.trainingDays));
-  const [sessionAssignment, setSessionAssignment] = useState<Partial<Record<Day, RunType>>>(() =>
-    parseSessionAssignmentValue(settings.sessionAssignment),
+  const [selectedLongRunDay, setSelectedLongRunDay] = useState<Day | null>(() =>
+    parseLongRunDayValue(settings.longRunDay),
   );
   const [vdotUpdatedMsg, setVdotUpdatedMsg] = useState<string | null>(null);
   const [vdotInput, setVdotInput] = useState<VdotCalculatorInput>({
@@ -263,14 +251,6 @@ export default function SettingsForm() {
     () => [...trainingDays].sort((a, b) => DAY_ORDER.indexOf(a) - DAY_ORDER.indexOf(b)),
     [trainingDays],
   );
-  const assignmentEffective = useMemo<Partial<Record<Day, RunType>>>(() => {
-    return recommendSessionAssignment(experienceLevel, sortedTrainingDays, sessionAssignment);
-  }, [experienceLevel, sortedTrainingDays, sessionAssignment]);
-  const hasConsecutiveHard = useMemo(
-    () => hasConsecutiveHardSessions(sortedTrainingDays, assignmentEffective),
-    [sortedTrainingDays, assignmentEffective],
-  );
-
   function toggleTrainingDay(day: Day) {
     setTrainingDays((prev) => {
       if (prev.includes(day)) {
@@ -284,16 +264,6 @@ export default function SettingsForm() {
       setShowTooManyDaysWarning(false);
       return [...prev, day].sort((a, b) => DAY_ORDER.indexOf(a) - DAY_ORDER.indexOf(b));
     });
-  }
-
-  function normalizeAssignmentForDays(
-    days: Day[],
-    assignment: Partial<Record<Day, RunType>>,
-  ): Partial<Record<Day, RunType>> {
-    const sortedDays = [...days].sort((a, b) => DAY_ORDER.indexOf(a) - DAY_ORDER.indexOf(b));
-    return Object.fromEntries(
-      sortedDays.map((day) => [day, assignment[day] ?? "easy"]),
-    ) as Partial<Record<Day, RunType>>;
   }
 
   useEffect(() => {
@@ -337,7 +307,7 @@ export default function SettingsForm() {
   useEffect(() => {
     if (loading) return;
     const parsedDays = parseTrainingDaysValue(settings.trainingDays);
-    const parsedAssignment = parseSessionAssignmentValue(settings.sessionAssignment);
+    const parsedLongRunDay = parseLongRunDayValue(settings.longRunDay);
 
     setPlanStartDate(planStartIsoYmdToAusDisplay(settings.planStartDate));
     setCurrentWeekOverride(String(settings.currentWeekOverride ?? ""));
@@ -345,7 +315,7 @@ export default function SettingsForm() {
     setGoalRace(settings.goalRace ?? "HALF");
     setPlanLengthWeeks((settings.planLengthWeeks ?? 16) as 12 | 16 | 20);
     setTrainingDays(parsedDays);
-    setSessionAssignment(parsedAssignment);
+    setSelectedLongRunDay(parsedLongRunDay);
     setMaxHR(settings.maxHR);
     setVdot(settings.currentVdot);
     setVdotInput({
@@ -374,10 +344,16 @@ export default function SettingsForm() {
       goalRace: settings.goalRace,
       planLengthWeeks: settings.planLengthWeeks,
       trainingDays: parsedDays,
-      sessionAssignment: normalizeAssignmentForDays(parsedDays, parsedAssignment),
+      longRunDay: parsedLongRunDay,
       currentVdot: settings.currentVdot,
     });
   }, [loading, settings]);
+
+  const effectiveLongRunDay = useMemo<Day | null>(() => {
+    if (sortedTrainingDays.length < 2) return null;
+    if (selectedLongRunDay && sortedTrainingDays.includes(selectedLongRunDay)) return selectedLongRunDay;
+    return getDefaultLongRunDay(sortedTrainingDays);
+  }, [selectedLongRunDay, sortedTrainingDays]);
 
   function applySuggestion(sug: ZoneSuggestion) {
     const mn = formatPace(sug.newMin);
@@ -397,7 +373,7 @@ export default function SettingsForm() {
         goalRace,
         planLengthWeeks,
         trainingDays: JSON.stringify(sortedTrainingDays),
-        sessionAssignment: JSON.stringify(sessionAssignment),
+        longRunDay: effectiveLongRunDay,
         currentVdot: vdot,
       }),
     });
@@ -640,31 +616,27 @@ export default function SettingsForm() {
 
           {trainingDays.length >= 2 && (
             <div>
-              <p className="text-sm text-white mb-2">Session Assignment</p>
-              <div className="space-y-2">
+              <p className="text-sm text-white mb-1">Long Run Day</p>
+              <p className="text-xs mb-3" style={{ color: "var(--text-muted)" }}>
+                Which day do you want to do your long run?
+              </p>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 {sortedTrainingDays.map((day) => (
-                  <div key={day} className="rounded-lg p-3 border border-white/10 bg-white/5">
-                    <div className="flex flex-col xs:flex-row xs:items-center xs:justify-between gap-2">
-                      <span className="text-sm text-white">{day.charAt(0).toUpperCase() + day.slice(1)}</span>
-                      <select
-                        className="min-h-11 rounded-md px-3 py-2 bg-black/20 border border-white/10 text-white w-full xs:w-auto"
-                        value={sessionAssignment[day] ?? "easy"}
-                        onChange={(e) => setSessionAssignment((prev) => ({ ...prev, [day]: e.target.value as RunType }))}
-                      >
-                        <option value="easy">Easy</option>
-                        <option value="tempo">Tempo</option>
-                        <option value="interval">Interval</option>
-                        <option value="long">Long</option>
-                      </select>
-                    </div>
-                  </div>
+                  <button
+                    key={day}
+                    type="button"
+                    onClick={() => setSelectedLongRunDay(day)}
+                    className="min-h-11 rounded-md border text-xs sm:text-sm"
+                    style={{
+                      borderColor: effectiveLongRunDay === day ? "rgba(45,212,191,0.45)" : "rgba(255,255,255,0.12)",
+                      background: effectiveLongRunDay === day ? "rgba(45,212,191,0.15)" : "rgba(255,255,255,0.03)",
+                      color: effectiveLongRunDay === day ? "#5eead4" : "#fff",
+                    }}
+                  >
+                    {DAY_LABEL[day]}
+                  </button>
                 ))}
               </div>
-              {hasConsecutiveHard && (
-                <p className="text-xs mt-2 text-orange-300">
-                  Hard sessions need at least one rest day between them. Consider moving one session.
-                </p>
-              )}
             </div>
           )}
         </div>

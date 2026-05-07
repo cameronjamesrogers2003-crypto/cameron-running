@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generatePlan } from "@/lib/generatePlan";
 import { loadGeneratedPlan, saveGeneratedPlan } from "@/lib/planStorage";
-import type { Day, PlanConfig, RunType } from "@/data/trainingPlan";
+import type { Day, PlanConfig } from "@/data/trainingPlan";
 
 function requirePlansAuth(req: NextRequest): NextResponse | null {
   const token = process.env.PLANS_API_TOKEN;
@@ -19,10 +19,6 @@ function isDay(x: unknown): x is Day {
   return x === "mon" || x === "tue" || x === "wed" || x === "thu" || x === "fri" || x === "sat" || x === "sun";
 }
 
-function isRunType(x: unknown): x is RunType {
-  return x === "easy" || x === "tempo" || x === "interval" || x === "long";
-}
-
 function parseConfig(body: unknown): PlanConfig | null {
   if (!body || typeof body !== "object") return null;
   const b = body as Record<string, unknown>;
@@ -31,7 +27,7 @@ function parseConfig(body: unknown): PlanConfig | null {
   const goal = b.goal;
   const weeks = b.weeks;
   const days = b.days;
-  const sessionAssignment = b.sessionAssignment;
+  const longRunDay = b.longRunDay;
   const vdot = b.vdot;
 
   if (level !== "BEGINNER" && level !== "INTERMEDIATE" && level !== "ADVANCED") return null;
@@ -39,19 +35,14 @@ function parseConfig(body: unknown): PlanConfig | null {
   if (weeks !== 12 && weeks !== 16 && weeks !== 20) return null;
   if (typeof vdot !== "number" || !Number.isFinite(vdot)) return null;
   if (!Array.isArray(days) || days.length < 2 || days.length > 7 || !days.every(isDay)) return null;
-  if (!sessionAssignment || typeof sessionAssignment !== "object") return null;
-
-  const assignment: Partial<Record<Day, RunType>> = {};
-  for (const [k, v] of Object.entries(sessionAssignment as Record<string, unknown>)) {
-    if (isDay(k) && isRunType(v)) assignment[k] = v;
-  }
+  if (longRunDay != null && !isDay(longRunDay)) return null;
 
   return {
     level,
     goal,
     weeks,
     days: days as Day[],
-    sessionAssignment: assignment as Record<Day, RunType>,
+    longRunDay: longRunDay as Day | undefined,
     vdot,
   };
 }

@@ -20,7 +20,7 @@ export interface PlanConfig {
   goal: 'hm' | 'full'
   weeks: 12 | 16 | 20
   days: Day[]
-  sessionAssignment: Record<Day, RunType>
+  longRunDay?: Day
   vdot: number
 }
 
@@ -238,14 +238,11 @@ export function buildTrainingPlan(settings: UserSettings): TrainingWeek[] {
     }
   })();
 
-  const assignment = (() => {
-    if (!settings.sessionAssignment) return {};
-    try {
-      const parsed = JSON.parse(settings.sessionAssignment) as unknown;
-      return (parsed && typeof parsed === "object") ? (parsed as Record<string, unknown>) : {};
-    } catch {
-      return {};
-    }
+  const longRunDay = (() => {
+    const value = settings.longRunDay;
+    return value === "mon" || value === "tue" || value === "wed" || value === "thu" || value === "fri" || value === "sat" || value === "sun"
+      ? value
+      : undefined;
   })();
 
   // Best-effort config coercion; generator handles missing/incomplete assignment.
@@ -254,12 +251,7 @@ export function buildTrainingPlan(settings: UserSettings): TrainingWeek[] {
     goal: settings.goalRace === "FULL" ? "full" : "hm",
     weeks: (settings.planLengthWeeks ?? 16) as 12 | 16 | 20,
     days: days ?? ["wed", "sat", "sun"],
-    sessionAssignment: (Object.fromEntries(
-      Object.entries(assignment).filter(([k, v]) =>
-        (k === "mon" || k === "tue" || k === "wed" || k === "thu" || k === "fri" || k === "sat" || k === "sun")
-        && (v === "easy" || v === "tempo" || v === "interval" || v === "long"),
-      ),
-    ) as Record<Day, RunType>),
+    longRunDay,
     vdot: settings.currentVdot,
   };
 

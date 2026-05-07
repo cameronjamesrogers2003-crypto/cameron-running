@@ -10,7 +10,7 @@ type SettingsUpdate = {
   goalRace?: "HALF" | "FULL" | null;
   planLengthWeeks?: 12 | 16 | 20 | null;
   trainingDays?: string | null;
-  sessionAssignment?: string | null;
+  longRunDay?: string | null;
   targetFinishTime?: number | null;
   maxHR?: number;
   startingTempoPaceSec?: number;
@@ -72,7 +72,7 @@ export async function GET() {
 
 const ALLOWED_FIELDS = new Set([
   "planStartDate", "currentWeekOverride", "phaseOverride",
-  "experienceLevel", "goalRace", "planLengthWeeks", "trainingDays", "sessionAssignment", "targetFinishTime",
+  "experienceLevel", "goalRace", "planLengthWeeks", "trainingDays", "longRunDay", "targetFinishTime",
   "maxHR", "startingTempoPaceSec", "currentVdot",
   "vdotRaceDistance", "vdotRaceMinutes", "vdotRaceSeconds",
   "targetHMTimeSec", "raceName", "raceDate",
@@ -110,8 +110,8 @@ function applySetting(update: SettingsUpdate, key: string, value: unknown): void
     case "trainingDays":
       if (typeof value === "string" || value === null) update.trainingDays = value;
       return;
-    case "sessionAssignment":
-      if (typeof value === "string" || value === null) update.sessionAssignment = value;
+    case "longRunDay":
+      if (typeof value === "string" || value === null) update.longRunDay = value;
       return;
     case "targetFinishTime":
       if (typeof value === "number" || value === null) update.targetFinishTime = value;

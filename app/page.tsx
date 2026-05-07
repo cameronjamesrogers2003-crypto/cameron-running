@@ -1,6 +1,6 @@
 import prisma from "@/lib/db";
 import { formatPace } from "@/lib/settings";
-import { buildTrainingPlan, type Phase, type RunType, type Day, type PlanConfig } from "@/data/trainingPlan";
+import { buildTrainingPlan, type Phase, type Day, type PlanConfig } from "@/data/trainingPlan";
 import {
   getEffectivePlanStart,
   getPlanWeekForDate,
@@ -41,26 +41,6 @@ function parseSettingsDays(trainingDaysJson: string | null): Day[] {
     );
   } catch {
     return [];
-  }
-}
-
-function parseSettingsAssignment(value: string | null): Partial<Record<Day, RunType>> {
-  if (!value) return {};
-  try {
-    const parsed = JSON.parse(value) as unknown;
-    if (!parsed || typeof parsed !== "object") return {};
-    const out: Partial<Record<Day, RunType>> = {};
-    for (const [k, v] of Object.entries(parsed as Record<string, unknown>)) {
-      if (
-        (k === "mon" || k === "tue" || k === "wed" || k === "thu" || k === "fri" || k === "sat" || k === "sun")
-        && (v === "easy" || v === "tempo" || v === "interval" || v === "long")
-      ) {
-        out[k] = v;
-      }
-    }
-    return out;
-  } catch {
-    return {};
   }
 }
 
@@ -305,7 +285,12 @@ export default async function Dashboard({
         goal: settings.goalRace === "FULL" ? "full" : "hm",
         weeks: (settings.planLengthWeeks ?? 16) as 12 | 16 | 20,
         days: settingsDays,
-        sessionAssignment: parseSettingsAssignment(settings.sessionAssignment) as Record<Day, RunType>,
+        longRunDay:
+          settings.longRunDay === "mon" || settings.longRunDay === "tue" || settings.longRunDay === "wed"
+          || settings.longRunDay === "thu" || settings.longRunDay === "fri" || settings.longRunDay === "sat"
+          || settings.longRunDay === "sun"
+            ? settings.longRunDay
+            : undefined,
         vdot: settings.currentVdot ?? 33,
       };
       const regenerated = generatePlan(config);

@@ -63,7 +63,7 @@ model UserSettings {
   planLengthWeeks       Int?
   targetFinishTime      Int?
   trainingDays          String?
-  sessionAssignment     String?
+  longRunDay            String?
   maxHR                 Int       @default(198)
   startingTempoPaceSec  Int       @default(390)
   currentVdot           Int       @default(33)
