@@ -200,7 +200,7 @@ export default async function ProgramPage({
   const today        = new Date();
   const todayMidnight = startOfDayAEST(today);
 
-  const [profile, userSettingsRow, activities, interruptionRows, storedPlan] = await Promise.all([
+  const [profile, userSettingsRow, activities, interruptionRows, storedPlan, adaptationHistory] = await Promise.all([
     prisma.profile.findUnique({ where: { id: 1 } }),
     prisma.userSettings.findUnique({ where: { id: 1 } }),
     prisma.activity.findMany({
@@ -208,6 +208,7 @@ export default async function ProgramPage({
     }),
     prisma.planInterruption.findMany({ orderBy: { startDate: "asc" } }),
     loadGeneratedPlan(),
+    prisma.planAdaptation.findMany({ orderBy: { createdAt: "desc" } }),
   ]);
 
   const settings   = userSettingsRow ? dbSettingsToUserSettings(userSettingsRow) : DEFAULT_SETTINGS;
@@ -423,7 +424,9 @@ export default async function ProgramPage({
                         <p className="text-xs font-bold text-white leading-tight">
                           Week {planWeek.week}
                           {planWeek.isCutback && (
-                            <span style={{ color: "#fbbf24" }}> · Cutback</span>
+                            <span style={{ color: "#fbbf24" }}>
+                              {planWeek.adaptationNote?.includes("Unplanned recovery week inserted") ? " · Unplanned Recovery" : " · Cutback"}
+                            </span>
                           )}
                           {planWeek.isRecovery && (
                             <span style={{ color: "#a78bfa" }}> · Return</span>
@@ -595,12 +598,44 @@ export default async function ProgramPage({
                         )}
                       </div>
                     </div>
+                    {planWeek.adaptationNote && (
+                      <p
+                        className="mt-2 text-xs italic"
+                        style={{
+                          color:
+                            planWeek.adaptationNote.includes("Volume increased") || planWeek.adaptationNote.includes("improved")
+                              ? "#5eead4"
+                              : "#fbbf24",
+                        }}
+                      >
+                        {planWeek.adaptationNote}
+                      </p>
+                    )}
                   </div>
                 );
               })}
             </section>
           );
         })}
+        <details
+          className="rounded-xl px-4 py-3"
+          style={{ background: "#181818", border: "1px solid rgba(255,255,255,0.08)" }}
+        >
+          <summary className="text-sm font-semibold text-white cursor-pointer">Plan History</summary>
+          <div className="mt-3 space-y-2">
+            {adaptationHistory.map((item) => (
+              <div key={item.id} className="rounded-lg p-2" style={{ background: "rgba(255,255,255,0.03)" }}>
+                <p className="text-xs text-white">
+                  {new Date(item.createdAt).toLocaleDateString("en-AU")} · {item.type} · Week {item.weekNumber}
+                </p>
+                <p className="text-xs" style={{ color: "var(--text-muted)" }}>{item.reason}</p>
+              </div>
+            ))}
+            {adaptationHistory.length === 0 && (
+              <p className="text-xs" style={{ color: "var(--text-muted)" }}>No adaptations recorded yet.</p>
+            )}
+          </div>
+        </details>
       </div>
 
       {/* ── Side panel (desktop) ─────────────────────────────────────── */}

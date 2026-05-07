@@ -86,6 +86,9 @@ model UserSettings {
   longPaceMinSec        Int       @default(390)
   longPaceMaxSec        Int       @default(450)
   lastCutbackInsertedWeek Int?
+  lastEstimatedVdot     Int?
+  lastVdotCheckDate     DateTime?
+  lastAdaptationDate    DateTime?
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
 }

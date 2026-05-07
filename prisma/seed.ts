@@ -14,8 +14,6 @@ async function main() {
       stravaConnected: false,
     },
   });
-
-  console.log("Seed complete.");
 }
 
 main()

@@ -1,8 +1,10 @@
 import type { Activity, PrismaClient } from "@prisma/client";
 import type { RunType, TrainingWeek } from "@/data/trainingPlan";
 import { generatePlan } from "@/lib/generatePlan";
-import { dbSettingsToUserSettings, DEFAULT_SETTINGS } from "@/lib/settings";
+import { dbSettingsToUserSettings, DEFAULT_SETTINGS, type UserSettings } from "@/lib/settings";
 import { loadGeneratedPlan, saveGeneratedPlan } from "@/lib/planStorage";
+import { getVdotPaces } from "@/lib/vdot";
+import { inferRunType } from "@/lib/rating";
 import {
   getEffectivePlanStart,
   getPlanWeekForDate,
@@ -18,6 +20,75 @@ function round1(n: number): number {
 
 function toDayMs(days: number): number {
   return days * 24 * 60 * 60 * 1000;
+}
+
+function median(nums: number[]): number | null {
+  if (nums.length === 0) return null;
+  const sorted = [...nums].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  if (sorted.length % 2 === 1) return sorted[mid] ?? null;
+  const lo = sorted[mid - 1];
+  const hi = sorted[mid];
+  return lo != null && hi != null ? (lo + hi) / 2 : null;
+}
+
+function estimateRunVdot(distanceKm: number, avgPaceSecKm: number): number | null {
+  if (!Number.isFinite(distanceKm) || !Number.isFinite(avgPaceSecKm) || distanceKm <= 0 || avgPaceSecKm <= 0) {
+    return null;
+  }
+  const minutes = (distanceKm * avgPaceSecKm) / 60;
+  const metres = distanceKm * 1000;
+  const velocity = metres / minutes;
+  const pct =
+    0.8
+    + 0.1894393 * Math.exp(-0.012778 * minutes)
+    + 0.2989558 * Math.exp(-0.1932605 * minutes);
+  if (pct <= 0) return null;
+  const vo2 = (-4.6 + 0.182258 * velocity + 0.000104 * velocity * velocity) / pct;
+  return Number.isFinite(vo2) && vo2 > 0 ? vo2 : null;
+}
+
+export function estimateCurrentVdot(activities: Activity[], settings: UserSettings): number | null {
+  const recentWithData = activities
+    .filter((activity) => activity.distanceKm > 0 && activity.avgPaceSecKm > 0)
+    .slice(0, 10);
+
+  const estimates: number[] = [];
+  for (const activity of recentWithData) {
+    if (activity.distanceKm < 3) continue;
+    const runType = inferRunType(activity, settings);
+    if (runType !== "tempo" && runType !== "interval") continue;
+    const estimated = estimateRunVdot(activity.distanceKm, activity.avgPaceSecKm);
+    if (estimated != null) estimates.push(estimated);
+  }
+
+  if (estimates.length < 3) return null;
+  const mid = median(estimates);
+  return mid == null ? null : Math.round(mid);
+}
+
+export function rebuildPaceTargets(
+  plan: TrainingWeek[],
+  lockedWeeks: number[],
+  newVdot: number,
+): TrainingWeek[] {
+  const lockedSet = new Set(lockedWeeks);
+  const paces = getVdotPaces(newVdot);
+  return plan.map((week) => {
+    if (lockedSet.has(week.week)) return week;
+    return {
+      ...week,
+      sessions: week.sessions.map((session) => ({
+        ...session,
+        targetPaceMinPerKm:
+          session.type === "tempo"
+            ? paces.tempoSecKm / 60
+            : session.type === "interval"
+              ? paces.intervalSecKm / 60
+              : paces.easyMaxSecKm / 60,
+      })),
+    };
+  });
 }
 
 function weekAverageRating(
@@ -127,23 +198,24 @@ export async function checkAndAdaptPlan(prisma: PrismaClient): Promise<{
     ...week,
     sessions: week.sessions.map((session) => ({ ...session })),
   }));
+  const now = new Date();
+
+  const withinCooldown = settings.lastAdaptationDate
+    ? now.getTime() - new Date(settings.lastAdaptationDate).getTime() < toDayMs(7)
+    : false;
+
   const mutableWeek = newPlan.find((week) => week.week === targetWeekNumber);
   if (!mutableWeek) return { adapted: false, reason: "no active plan", changes: [] };
 
   const changes: string[] = [];
-  let adaptationType:
-    | "volume_reduced"
-    | "volume_increased"
-    | "soft_cutback"
-    | "missed_sessions_warning"
-    | "cutback_inserted"
-    | "extended_recovery"
-    | null = null;
+  let adaptationType: string | null = null;
+  let ratingRuleApplied = false;
+  let missedRuleApplied = false;
 
   const canReduce = !(mutableWeek.adaptationNote ?? "").includes("Volume reduced 10%");
   const canIncrease = !(mutableWeek.adaptationNote ?? "").includes("Volume increased 5%");
 
-  if (recent3.count >= 3 && recent3.avg < 6.0 && canReduce) {
+  if (!withinCooldown && recent3.count >= 3 && recent3.avg < 6.0 && canReduce) {
     mutableWeek.sessions = mutableWeek.sessions.map((session) => {
       const minKm = getSessionMinKm(stored.config.level, session.type);
       return {
@@ -154,9 +226,10 @@ export async function checkAndAdaptPlan(prisma: PrismaClient): Promise<{
     mutableWeek.adaptationNote = `Volume reduced 10% — recent runs averaging ${recent3.avg.toFixed(1)}/10`;
     changes.push(`Reduced all session distances in week ${targetWeekNumber} by 10%.`);
     adaptationType = "volume_reduced";
+    ratingRuleApplied = true;
   }
 
-  if (recent5.count >= 5 && recent5.avg < 6.0) {
+  if (!withinCooldown && !ratingRuleApplied && recent5.count >= 5 && recent5.avg < 6.0) {
     const hardSession = mutableWeek.sessions.find((session) => session.type === "tempo" || session.type === "interval");
     if (hardSession) {
       hardSession.type = "easy";
@@ -167,8 +240,13 @@ export async function checkAndAdaptPlan(prisma: PrismaClient): Promise<{
         : note;
       changes.push(`Converted hard session to easy in week ${targetWeekNumber}.`);
       adaptationType = "soft_cutback";
+      ratingRuleApplied = true;
     }
   } else if (
+    !withinCooldown
+    && !ratingRuleApplied
+    && !missedRuleApplied
+    &&
     recent3.count >= 3
     && recent3.avg > 8.5
     && mutableWeek.phase !== "Taper"
@@ -194,6 +272,7 @@ export async function checkAndAdaptPlan(prisma: PrismaClient): Promise<{
     mutableWeek.adaptationNote = `Volume increased 5% — recent runs averaging ${recent3.avg.toFixed(1)}/10`;
     changes.push(`Increased all session distances in week ${targetWeekNumber} by 5% (capped by original plan).`);
     adaptationType = "volume_increased";
+    ratingRuleApplied = true;
   }
 
   const completedWeeks = [...stored.lockedWeeks].sort((a, b) => a - b);
@@ -207,7 +286,7 @@ export async function checkAndAdaptPlan(prisma: PrismaClient): Promise<{
     mutableWeek.phase !== "Taper"
     && (settings.lastCutbackInsertedWeek == null || (targetWeekNumber - settings.lastCutbackInsertedWeek >= 4));
 
-  if (consecutiveMissWeeks >= 3 && canInsertCutback) {
+  if (!withinCooldown && consecutiveMissWeeks >= 3 && canInsertCutback) {
     const cutbackWeek: TrainingWeek = {
       ...mutableWeek,
       sessions: mutableWeek.sessions.map((session) => ({
@@ -235,13 +314,14 @@ export async function checkAndAdaptPlan(prisma: PrismaClient): Promise<{
       }
       changes.push(`Inserted unplanned cutback week before week ${targetWeekNumber}.`);
       changes.push("Converted the following week's hard session to easy for extended recovery.");
-      adaptationType = "extended_recovery";
+      if (!ratingRuleApplied) adaptationType = "extended_recovery";
+      missedRuleApplied = true;
       await prisma.userSettings.update({
         where: { id: 1 },
         data: { lastCutbackInsertedWeek: targetWeekNumber },
       });
     }
-  } else if (consecutiveMissWeeks >= 2 && canInsertCutback) {
+  } else if (!withinCooldown && consecutiveMissWeeks >= 2 && canInsertCutback) {
     const cutbackWeek: TrainingWeek = {
       ...mutableWeek,
       sessions: mutableWeek.sessions.map((session) => ({
@@ -260,13 +340,14 @@ export async function checkAndAdaptPlan(prisma: PrismaClient): Promise<{
       cutbackWeek.week = targetWeekNumber;
       newPlan.splice(insertIdx, 0, cutbackWeek);
       changes.push(`Inserted unplanned cutback week before week ${targetWeekNumber}.`);
-      adaptationType = "cutback_inserted";
+      if (!ratingRuleApplied) adaptationType = "cutback_inserted";
+      missedRuleApplied = true;
       await prisma.userSettings.update({
         where: { id: 1 },
         data: { lastCutbackInsertedWeek: targetWeekNumber },
       });
     }
-  } else if (lastCompletedWeek != null) {
+  } else if (!withinCooldown && !missedRuleApplied && lastCompletedWeek != null) {
     const missedLastWeek = getMissedSessionsForWeek(
       lastCompletedWeek,
       stored.plan,
@@ -278,28 +359,74 @@ export async function checkAndAdaptPlan(prisma: PrismaClient): Promise<{
       mutableWeek.adaptationNote =
         `You missed ${missedLastWeek} sessions last week. This week has been kept as planned — focus on showing up.`;
       changes.push(`Added missed-session warning note for week ${targetWeekNumber}.`);
-      adaptationType = "missed_sessions_warning";
+      if (!ratingRuleApplied) adaptationType = "missed_sessions_warning";
+      missedRuleApplied = true;
     }
   }
 
-  if (changes.length === 0 || adaptationType == null) {
-    return { adapted: false, reason: null, changes: [] };
-  }
-
-  // Safety guard: long run remains the longest target in adapted week.
-  const longSession = mutableWeek.sessions.find((session) => session.type === "long");
-  if (longSession) {
-    for (const session of mutableWeek.sessions) {
-      if (session.type !== "long" && session.targetDistanceKm > longSession.targetDistanceKm) {
-        session.targetDistanceKm = longSession.targetDistanceKm;
+  if (ratingRuleApplied || missedRuleApplied) {
+    // Safety guard: long run remains the longest target in adapted week.
+    const longSession = mutableWeek.sessions.find((session) => session.type === "long");
+    if (longSession) {
+      for (const session of mutableWeek.sessions) {
+        if (session.type !== "long" && session.targetDistanceKm > longSession.targetDistanceKm) {
+          session.targetDistanceKm = longSession.targetDistanceKm;
+        }
       }
     }
   }
 
+  const vdotEstimate = estimateCurrentVdot(activities, settings);
+  const vdotStable = vdotEstimate != null && settings.lastEstimatedVdot != null && settings.lastEstimatedVdot === vdotEstimate;
+  const vdotShouldUpdate =
+    vdotEstimate != null
+    && vdotEstimate > settings.currentVdot + 2
+    && vdotStable
+    && !missedRuleApplied;
+
+  if (vdotShouldUpdate) {
+    const prior = settings.currentVdot;
+    const rebuilt = rebuildPaceTargets(newPlan, stored.lockedWeeks, vdotEstimate);
+    newPlan.splice(0, newPlan.length, ...rebuilt);
+    adaptationType = adaptationType ?? "vdot_improved";
+    changes.push(`Updated VDOT from ${prior} to ${vdotEstimate} and rebuilt pace targets for unlocked weeks.`);
+    await prisma.userSettings.update({
+      where: { id: 1 },
+      data: {
+        currentVdot: vdotEstimate,
+        lastEstimatedVdot: vdotEstimate,
+        lastVdotCheckDate: now,
+      },
+    });
+    await prisma.planAdaptation.create({
+      data: {
+        weekNumber: targetWeekNumber,
+        type: "vdot_improved",
+        reason: `Your fitness has improved! VDOT updated from ${prior} to ${vdotEstimate} based on recent runs.`,
+        changes: JSON.stringify([`Pace targets updated to VDOT ${vdotEstimate} for all unlocked weeks.`]),
+      },
+    });
+  } else {
+    await prisma.userSettings.update({
+      where: { id: 1 },
+      data: {
+        lastEstimatedVdot: vdotEstimate,
+        lastVdotCheckDate: now,
+      },
+    });
+  }
+
+  if (!ratingRuleApplied && !missedRuleApplied && !vdotShouldUpdate) {
+    return { adapted: false, reason: null, changes: [] };
+  }
+
   await saveGeneratedPlan(stored.config, newPlan, stored.lockedWeeks);
 
-  const reason =
-    adaptationType === "soft_cutback"
+  const reason = !ratingRuleApplied && !missedRuleApplied
+    ? vdotShouldUpdate
+      ? `VDOT updated to ${vdotEstimate}.`
+      : null
+    : adaptationType === "soft_cutback"
       ? `Runs averaged ${recent5.avg.toFixed(1)}/10 across 5 weeks.`
       : adaptationType === "missed_sessions_warning"
         ? "You missed multiple planned sessions last week."
@@ -311,14 +438,20 @@ export async function checkAndAdaptPlan(prisma: PrismaClient): Promise<{
         ? `Runs averaged ${recent3.avg.toFixed(1)}/10 across 3 weeks.`
         : `Runs averaged ${recent3.avg.toFixed(1)}/10 across 3 weeks.`;
 
-  await prisma.planAdaptation.create({
-    data: {
-      weekNumber: targetWeekNumber,
-      type: adaptationType,
-      reason,
-      changes: JSON.stringify(changes),
-    },
-  });
+  if (reason && adaptationType && adaptationType !== "vdot_improved") {
+    await prisma.planAdaptation.create({
+      data: {
+        weekNumber: targetWeekNumber,
+        type: adaptationType,
+        reason,
+        changes: JSON.stringify(changes),
+      },
+    });
+    await prisma.userSettings.update({
+      where: { id: 1 },
+      data: { lastAdaptationDate: now },
+    });
+  }
 
   return { adapted: true, reason, changes };
 }

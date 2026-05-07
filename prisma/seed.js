@@ -25,8 +25,6 @@ async function main() {
       comfortableDistKm: 5.0,
     },
   });
-
-  console.log("Seed complete — Cameron's profile and settings initialised.");
 }
 
 main()

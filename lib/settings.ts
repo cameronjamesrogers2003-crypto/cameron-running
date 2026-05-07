@@ -35,6 +35,9 @@ export interface UserSettings {
   longPaceMinSec: number;
   longPaceMaxSec: number;
   lastCutbackInsertedWeek: number | null;
+  lastEstimatedVdot: number | null;
+  lastVdotCheckDate: string | null;
+  lastAdaptationDate: string | null;
 }
 
 export const DEFAULT_SETTINGS: UserSettings = {
@@ -70,6 +73,9 @@ export const DEFAULT_SETTINGS: UserSettings = {
   longPaceMinSec: 390,
   longPaceMaxSec: 450,
   lastCutbackInsertedWeek: null,
+  lastEstimatedVdot: null,
+  lastVdotCheckDate: null,
+  lastAdaptationDate: null,
 };
 
 export function dbSettingsToUserSettings(row: PrismaUserSettings): UserSettings {
@@ -111,6 +117,9 @@ export function dbSettingsToUserSettings(row: PrismaUserSettings): UserSettings 
     longPaceMinSec:       row.longPaceMinSec        ?? DEFAULT_SETTINGS.longPaceMinSec,
     longPaceMaxSec:       row.longPaceMaxSec        ?? DEFAULT_SETTINGS.longPaceMaxSec,
     lastCutbackInsertedWeek: row.lastCutbackInsertedWeek ?? null,
+    lastEstimatedVdot: row.lastEstimatedVdot ?? null,
+    lastVdotCheckDate: row.lastVdotCheckDate ? new Date(row.lastVdotCheckDate).toISOString() : null,
+    lastAdaptationDate: row.lastAdaptationDate ? new Date(row.lastAdaptationDate).toISOString() : null,
   };
 }
 
