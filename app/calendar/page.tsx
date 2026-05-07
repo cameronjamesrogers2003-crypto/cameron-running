@@ -1,5 +1,5 @@
 import prisma from "@/lib/db";
-import { buildTrainingPlan } from "@/data/trainingPlan";
+import { buildTrainingPlan, type TrainingWeek } from "@/data/trainingPlan";
 import { loadGeneratedPlan } from "@/lib/planStorage";
 import { inferRunType, type StatActivity } from "@/lib/rating";
 import {
@@ -94,6 +94,7 @@ function calculateInjuryFreeWeeks(
 function playerAttributeExplanation(
   key: AttributeExplanationKey,
   activities: CalendarRatingActivity[],
+  plan: TrainingWeek[],
   settings: UserSettings,
   planStart: Date,
   today: Date,
@@ -140,18 +141,21 @@ function playerAttributeExplanation(
         .filter((a) => isActivityOnOrAfterPlanStart(new Date(a.date), planStart))
         .map((a) => toBrisbaneYmd(a.date)),
     );
-    const plan = buildTrainingPlan(settings);
+    const planSessions: Date[] = [];
     for (let week = firstWeek; week <= currentWeek; week++) {
       const planWeek = plan.find((w) => w.week === week);
       if (!planWeek) continue;
       for (const session of planWeek.sessions) {
-        if (runKeys.has(toBrisbaneYmd(getSessionDate(week, session.day, planStart)))) hits++;
+        const sessionDate = getSessionDate(week, session.day, planStart);
+        planSessions.push(sessionDate);
+        if (runKeys.has(toBrisbaneYmd(sessionDate))) hits++;
       }
     }
+    const plannedCount = planSessions.length;
     if (hits === 0) {
-      return `No scheduled Wed/Sat/Sun sessions completed yet; plan starts ${planStartLabel}. Hit your sessions every week to climb this.`;
+      return `No scheduled sessions completed yet; plan starts ${planStartLabel}. Hit your sessions every week to climb this.`;
     }
-    return `You have completed ${hits}/12 scheduled Wed/Sat/Sun sessions in the last 4 weeks. Hit your sessions every week to climb this.`;
+    return `You have completed ${hits}/${plannedCount} scheduled sessions in the last 4 weeks. Hit your sessions every week to climb this.`;
   }
 
   if (key === "hrEfficiency") {
@@ -180,12 +184,14 @@ function playerAttributeExplanation(
 function PlayerCard({
   rating,
   activities,
+  plan,
   settings,
   planStart,
   today,
 }: {
   rating: PlayerRatingLike | null;
   activities: CalendarRatingActivity[];
+  plan: TrainingWeek[];
   settings: UserSettings;
   planStart: Date;
   today: Date;
@@ -272,7 +278,7 @@ function PlayerCard({
                     <p className="text-sm font-black text-right tabular-nums text-white">{value}</p>
                   </div>
                   <p className="pl-[55px] text-[11px] leading-snug" style={{ color: "rgba(255,255,255,0.55)" }}>
-                    {playerAttributeExplanation(attr.key, activities, settings, planStart, today)}
+                    {playerAttributeExplanation(attr.key, activities, plan, settings, planStart, today)}
                   </p>
                 </div>
               );
@@ -348,13 +354,11 @@ export default async function CalendarPage({
 
   const aestKey = toBrisbaneYmd;
 
-  const PLAN_DOW = new Set([0, 3, 6]); // Sun, Wed, Sat in AEST
-
   // Extra runs this month
   const extraRunsThisMonth = statsActivities.filter((r) => {
     const d = new Date(r.date);
     if (d < monthStart || d >= todayEnd) return false;
-    return !PLAN_DOW.has(toAEST(d).getUTCDay());
+    return !isPlannedRun(d, plan, planStart);
   }).length;
 
   // Long runs: last 6 weeks
@@ -440,6 +444,7 @@ export default async function CalendarPage({
         <PlayerCard
           rating={playerRating}
           activities={statsActivities}
+          plan={plan}
           settings={settings}
           planStart={planStart}
           today={today}

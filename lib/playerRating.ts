@@ -1,7 +1,7 @@
 import type { PlayerRating, PrismaClient } from "@prisma/client";
 import { buildTrainingPlan, type RunType } from "@/data/trainingPlan";
 import { parseInterruptionType, reconfigurePlan, type PlanInterruption } from "@/lib/interruptions";
-import { sameDayAEST, toAEST, toBrisbaneYmd } from "@/lib/dateUtils";
+import { sameDayAEST, toBrisbaneYmd } from "@/lib/dateUtils";
 import {
   getEffectivePlanStart,
   getPlanWeekForDate,
@@ -141,24 +141,37 @@ function calculateEndurance(activities: RatingActivity[], now: Date): number {
 /** Calculates the consistency attribute from recent scheduled-day run hits. */
 function calculateConsistency(
   activities: RatingActivity[],
-  _settings: UserSettings,
+  settings: UserSettings,
   _interruptions: PlanInterruption[],
   now: Date,
 ): number {
   const since = new Date(now.getTime() - 28 * MS_PER_DAY);
   const hitDays = new Set<string>();
+  const planStart = getEffectivePlanStart(settings.planStartDate);
+  const plan = buildTrainingPlan(settings);
+  let plannedSessions = 0;
+
+  for (const week of plan) {
+    for (const session of week.sessions) {
+      const sessionDate = getSessionDate(week.week, session.day, planStart);
+      if (sessionDate < since || sessionDate > now) continue;
+      plannedSessions++;
+    }
+  }
 
   for (const activity of activities) {
     const d = new Date(activity.date);
     if (d < since || d > now) continue;
-
-    const dayOfWeek = toAEST(d).getUTCDay();
-    if (dayOfWeek === 0 || dayOfWeek === 3 || dayOfWeek === 6) {
-      hitDays.add(toBrisbaneYmd(d));
-    }
+    if (!isActivityOnOrAfterPlanStart(d, planStart)) continue;
+    const weekNum = getPlanWeekForDate(d, planStart);
+    if (weekNum <= 0 || weekNum > plan.length) continue;
+    const week = plan[weekNum - 1];
+    const matched = week?.sessions.some((session) => sameDayAEST(d, getSessionDate(weekNum, session.day, planStart)));
+    if (matched) hitDays.add(toBrisbaneYmd(d));
   }
 
-  return scoreFromRaw(clamp(hitDays.size, 0, 12) / 12);
+  const denominator = Math.max(1, plannedSessions);
+  return scoreFromRaw(clamp(hitDays.size, 0, denominator) / denominator);
 }
 
 /** Calculates the HR efficiency attribute from recent easy-run pace per heart-rate effort. */

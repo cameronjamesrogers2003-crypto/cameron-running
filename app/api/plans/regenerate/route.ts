@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
 import { dbSettingsToUserSettings, DEFAULT_SETTINGS } from "@/lib/settings";
 import { generatePlan } from "@/lib/generatePlan";
-import { saveGeneratedPlan } from "@/lib/planStorage";
+import { getLockedWeeks, loadGeneratedPlan, saveGeneratedPlan } from "@/lib/planStorage";
+import { getEffectivePlanStart } from "@/lib/planUtils";
 import type { Day, PlanConfig } from "@/data/trainingPlan";
 
 function isDay(x: unknown): x is Day {
@@ -40,13 +41,26 @@ async function regenerateFromSettings(_req: NextRequest) {
     longRunDay: isDay(settings.longRunDay) ? settings.longRunDay : undefined,
     vdot: settings.currentVdot ?? 33,
   };
-  const plan = generatePlan(config);
-  await saveGeneratedPlan(config, plan);
+  const generatedPlan = generatePlan(config);
+  const planStart = getEffectivePlanStart(settings.planStartDate);
+  const computedLockedWeeks = getLockedWeeks(planStart, generatedPlan.length);
+  const existingStored = await loadGeneratedPlan();
+  const existingLockedSet = new Set(existingStored?.lockedWeeks ?? []);
+  const lockedSet = new Set<number>([...computedLockedWeeks, ...existingLockedSet]);
+  const existingByWeek = new Map((existingStored?.plan ?? []).map((week) => [week.week, week]));
+
+  const mergedPlan = generatedPlan.map((week) => {
+    if (!lockedSet.has(week.week)) return week;
+    return existingByWeek.get(week.week) ?? week;
+  });
+
+  await saveGeneratedPlan(config, mergedPlan, [...lockedSet].sort((a, b) => a - b));
 
   return NextResponse.json({
     success: true,
-    weeks: plan.length,
+    weeks: mergedPlan.length,
     days: config.days,
+    lockedWeeks: [...lockedSet].sort((a, b) => a - b),
   });
 }
 
