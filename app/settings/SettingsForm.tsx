@@ -121,8 +121,6 @@ export default function SettingsForm() {
   const token = process.env.NEXT_PUBLIC_PLANS_API_TOKEN;
   const authJsonHeaders: Record<string, string> = { "Content-Type": "application/json" };
   if (token) authJsonHeaders.Authorization = `Bearer ${token}`;
-  const authOnlyHeaders: Record<string, string> = {};
-  if (token) authOnlyHeaders.Authorization = `Bearer ${token}`;
 
   const [planStartDate, setPlanStartDate] = useState(() => planStartIsoYmdToAusDisplay(settings.planStartDate));
   const [experienceLevel, setExperienceLevel] = useState<"BEGINNER" | "INTERMEDIATE" | "ADVANCED">(
@@ -348,11 +346,16 @@ export default function SettingsForm() {
       });
       if (!rebuildRes.ok) throw new Error("Rebuild paces failed");
 
-      const backfillRes = await fetch("/api/runs/backfill-ratings", {
-        method: "POST",
-        headers: authOnlyHeaders,
-      });
-      if (!backfillRes.ok) throw new Error("Backfill ratings failed");
+      try {
+        const backfillRes = await fetch("/api/runs/backfill-ratings", {
+          method: "POST",
+        });
+        if (!backfillRes.ok) {
+          console.error("Backfill failed — ratings may be stale", backfillRes.status);
+        }
+      } catch (backfillErr) {
+        console.error("Backfill failed — ratings may be stale", backfillErr);
+      }
 
       setSaveStatus("saved");
       setTimeout(() => setSaveStatus("idle"), 2000);

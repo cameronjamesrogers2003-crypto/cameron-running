@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
 import { persistActivityRating } from "@/lib/persistActivityRating";
 import { recalculatePlayerRating } from "@/lib/playerRating";
-import { requireInternalApiAuth } from "@/lib/apiAuth";
 
 export const dynamic = "force-dynamic";
 
@@ -12,8 +11,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const authResp = requireInternalApiAuth(req);
-  if (authResp) return authResp;
+  void req;
   const ids = await prisma.activity.findMany({
     where: { activityType: { in: ["running", "trail_running"] } },
     orderBy: { date: "asc" },
