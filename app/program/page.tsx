@@ -107,8 +107,8 @@ function getVolumeChange(planWeek: TrainingWeek, plan: TrainingWeek[]): number |
   const idx = plan.indexOf(planWeek);
   if (idx <= 0) return null;
   const prev = plan[idx - 1];
-  const prevKm = getWeeklyTargetKm(prev);
-  const currKm = getWeeklyTargetKm(planWeek);
+  const prevKm = Math.round(getWeeklyTargetKm(prev) * 10) / 10;
+  const currKm = Math.round(getWeeklyTargetKm(planWeek) * 10) / 10;
   if (prevKm === 0) return null;
   return Math.round(((currKm - prevKm) / prevKm) * 100);
 }
@@ -338,7 +338,7 @@ export default async function ProgramPage() {
                       Week{phaseTotal > 1 ? "s" : ""} {phaseStart}{phaseTotal > 1 ? `–${phaseEnd}` : ""}
                     </span>
                     <span className="text-xs" style={{ color: "var(--text-muted)" }}>
-                      ~{avgKm} km/week · easy effort only
+                      ~{avgKm.toFixed(1)} km/week · easy effort only
                     </span>
                   </div>
                 </div>
@@ -357,7 +357,7 @@ export default async function ProgramPage() {
                         Weeks {phaseStart}–{phaseEnd}
                       </span>
                       <span className="text-xs" style={{ color: "var(--text-muted)" }}>
-                        ~{avgKm} km/week avg
+                        ~{avgKm.toFixed(1)} km/week avg
                       </span>
                     </div>
                     <span className="text-xs" style={{ color: "var(--text-muted)" }}>
@@ -543,7 +543,7 @@ export default async function ProgramPage() {
 
                               {/* Target */}
                               <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-                                {session.targetDistanceKm} km · {fmtTargetPace(session.targetPaceMinPerKm)}
+                                {session.targetDistanceKm.toFixed(1)} km · {fmtTargetPace(session.targetPaceMinPerKm)}
                               </p>
 
                               {/* Actual (completed) */}
@@ -552,7 +552,7 @@ export default async function ProgramPage() {
                                   className="text-xs mt-0.5"
                                   style={{ color: "rgba(232,230,224,0.4)" }}
                                 >
-                                  {matchedAct.distanceKm.toFixed(2)} km · {fmtPaceSec(matchedAct.avgPaceSecKm)}
+                                  {matchedAct.distanceKm.toFixed(1)} km · {fmtPaceSec(matchedAct.avgPaceSecKm)}
                                 </p>
                               )}
 
@@ -565,7 +565,7 @@ export default async function ProgramPage() {
 
                       {/* Total km + volume change */}
                       <div className="w-full sm:w-16 shrink-0 text-left sm:text-right pt-0 sm:pt-1 flex sm:block items-center justify-between sm:justify-end gap-2">
-                        <p className="text-sm font-bold text-white">{weekTotalKm}</p>
+                        <p className="text-sm font-bold text-white">{weekTotalKm.toFixed(1)}</p>
                         <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>km</p>
                         {volumeChange !== null && (
                           <span
