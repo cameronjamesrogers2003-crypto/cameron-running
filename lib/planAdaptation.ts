@@ -4,7 +4,7 @@ import { generatePlan } from "@/lib/generatePlan";
 import { dbSettingsToUserSettings, DEFAULT_SETTINGS, type UserSettings } from "@/lib/settings";
 import { loadGeneratedPlan, saveGeneratedPlan } from "@/lib/planStorage";
 import { inferRunType } from "@/lib/rating";
-import { getSessionPacesMinPerKm } from "@/lib/planPaces";
+import { deriveRatingPaceZones, getSessionPacesMinPerKm } from "@/lib/planPaces";
 import {
   getEffectivePlanStart,
   getPlanWeekForDate,
@@ -404,12 +404,15 @@ export async function checkAndAdaptPlan(prisma: PrismaClient): Promise<{
     newPlan.splice(0, newPlan.length, ...rebuilt);
     adaptationType = adaptationType ?? "vdot_improved";
     changes.push(`Updated VDOT from ${prior} to ${vdotEstimate} and rebuilt pace targets for unlocked weeks.`);
+    const settingsWithNewVdot: UserSettings = { ...settings, currentVdot: vdotEstimate };
+    const paceZones = deriveRatingPaceZones(settingsWithNewVdot);
     await prisma.userSettings.update({
       where: { id: 1 },
       data: {
         currentVdot: vdotEstimate,
         lastEstimatedVdot: vdotEstimate,
         lastVdotCheckDate: now,
+        ...paceZones,
       },
     });
     await prisma.planAdaptation.create({
