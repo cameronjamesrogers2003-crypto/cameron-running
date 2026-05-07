@@ -7,7 +7,7 @@ import { planStartAusDisplayToIsoYmd, planStartIsoYmdToAusDisplay } from "@/lib/
 import { DEFAULT_SETTINGS, formatPace, parsePace, formatDuration, parseDuration } from "@/lib/settings";
 import { getVdotPaces } from "@/lib/vdot";
 import type { Day } from "@/data/trainingPlan";
-import { getDefaultLongRunDay } from "@/lib/generatePlan";
+import { getDefaultLongRunDay, getScheduleWarnings } from "@/lib/generatePlan";
 import VdotCalculator from "@/components/VdotCalculator";
 import InterruptionsForm from "./InterruptionsForm";
 
@@ -337,6 +337,10 @@ export default function SettingsForm() {
     if (selectedLongRunDay && sortedTrainingDays.includes(selectedLongRunDay)) return selectedLongRunDay;
     return getDefaultLongRunDay(sortedTrainingDays);
   }, [selectedLongRunDay, sortedTrainingDays]);
+  const scheduleWarnings = useMemo(
+    () => (effectiveLongRunDay ? getScheduleWarnings(sortedTrainingDays, effectiveLongRunDay) : []),
+    [effectiveLongRunDay, sortedTrainingDays],
+  );
 
   function applySuggestion(sug: ZoneSuggestion) {
     const mn = formatPace(sug.newMin);
@@ -620,6 +624,15 @@ export default function SettingsForm() {
                   </button>
                 ))}
               </div>
+              {scheduleWarnings.length > 0 && (
+                <div className="mt-3 space-y-1">
+                  {scheduleWarnings.map((warning) => (
+                    <p key={warning} className="text-xs text-amber-300">
+                      {warning}
+                    </p>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>

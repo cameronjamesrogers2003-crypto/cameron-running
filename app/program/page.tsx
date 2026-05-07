@@ -424,7 +424,10 @@ export default async function ProgramPage() {
                       </div>
 
                       {/* Session cards */}
-                      <div className="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-2 min-w-0 w-full">
+                      <div
+                        className="flex-1 grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-2 min-w-0 w-full"
+                        style={{ gridTemplateColumns: `repeat(${Math.min(planWeek.sessions.length, 6)}, 1fr)` }}
+                      >
                         {planWeek.sessions.map((session) => {
                           const sessionDate = getSessionDate(planWeek.week, session.day, planStart);
                           const isPast      = sessionDate < todayMidnight;
@@ -458,16 +461,8 @@ export default async function ProgramPage() {
                             leftBorder = "1px solid rgba(255,255,255,0.06)";
                           }
 
-                          const pill     = typePillStyle(session.type);
-                          const dayLabel = {
-                            mon: "Mon",
-                            tue: "Tue",
-                            wed: "Wed",
-                            thu: "Thu",
-                            fri: "Fri",
-                            sat: "Sat",
-                            sun: "Sun",
-                          }[session.day];
+                          const pill = typePillStyle(session.type);
+                          const dayLabel = session.day.toUpperCase();
 
                           return (
                             <div

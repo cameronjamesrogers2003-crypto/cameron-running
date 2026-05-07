@@ -40,6 +40,14 @@ function circularDayDistance(a: Day, b: Day): number {
   return Math.min(raw, 7 - raw);
 }
 
+const DAY_COUNT_MULTIPLIER: Record<number, number> = {
+  2: 0.65,
+  3: 1.0,
+  4: 1.2,
+  5: 1.4,
+  6: 1.6,
+};
+
 function nearestTrainingDayDistance(day: Day, trainingSet: Set<Day>): number {
   // distance in days to closest other training day (0 if none / self only)
   if (trainingSet.size <= 1) return 0;
@@ -212,6 +220,36 @@ export function getDefaultLongRunDay(days: Day[]): Day {
   return best;
 }
 
+export function getScheduleWarnings(days: Day[], longRunDay: Day): string[] {
+  const sortedDays = daysSorted(uniqDays(days));
+  if (sortedDays.length === 0 || !sortedDays.includes(longRunDay)) return [];
+
+  const warnings: string[] = [];
+  const dayAfterLongIndex = (DAY_INDEX[longRunDay] + 1) % 7;
+  const dayAfterLong = (Object.keys(DAY_INDEX) as Day[]).find((day) => DAY_INDEX[day] === dayAfterLongIndex);
+
+  if (dayAfterLong && sortedDays.includes(dayAfterLong)) {
+    warnings.push(
+      `⚠️ Consider leaving ${dayAfterLong} free — recovery after your long run improves adaptation.`,
+    );
+  }
+
+  let hardGap = -1;
+  for (const day of sortedDays) {
+    if (day === longRunDay) continue;
+    hardGap = Math.max(hardGap, circularDayDistance(day, longRunDay));
+  }
+  if (hardGap >= 0 && hardGap < 2) {
+    warnings.push("⚠️ Your training days are closely spaced. Try to spread them more evenly for better recovery.");
+  }
+
+  if (sortedDays.length === 2) {
+    warnings.push("ℹ️ With 2 training days, progress will be slower. 3+ days gives better results.");
+  }
+
+  return warnings;
+}
+
 export function assignSessionsTodays(
   days: Day[],
   longRunDay: Day,
@@ -287,8 +325,10 @@ function getLongRunKm(config: PlanConfig, goal: PlanConfig["goal"]) {
 }
 
 function buildWeeklyVolumes(config: PlanConfig): { weeklyKm: number[]; isCutback: boolean[]; peakKm: number } {
-  const peak = round1(getPeakWeeklyKm(config.level, config.goal));
-  const startKm = getStartWeeklyKm(config.level, peak);
+  const peakKm = getPeakWeeklyKm(config.level, config.goal);
+  const adjustedPeakKm = peakKm * (DAY_COUNT_MULTIPLIER[config.days.length] ?? 1.0);
+  const peak = round1(adjustedPeakKm);
+  const startKm = getStartWeeklyKm(config.level, adjustedPeakKm);
   const { every, reduce, maxIncrease } = getCutbackConfig(config.level);
 
   // Determine which weeks are taper weeks.
@@ -479,5 +519,53 @@ export function generatePlan(config: PlanConfig): TrainingWeek[] {
   }
 
   return plan;
+}
+
+export function validateAssignments(): void {
+  const assertAssignment = (
+    name: string,
+    actual: Record<Day, RunType>,
+    expected: Array<[Day, RunType]>,
+  ) => {
+    for (const [day, type] of expected) {
+      if (actual[day] !== type) {
+        throw new Error(`${name} failed: expected ${day}=${type}, got ${day}=${actual[day] ?? "undefined"}`);
+      }
+    }
+  };
+
+  assertAssignment(
+    "SCENARIO 1",
+    assignSessionsTodays(["mon", "thu"], "thu", "BEGINNER", { goal: "hm", weeks: 12 }, 2),
+    [["mon", "easy"], ["thu", "long"]],
+  );
+
+  assertAssignment(
+    "SCENARIO 2",
+    assignSessionsTodays(["tue", "sat"], "sat", "INTERMEDIATE", { goal: "hm", weeks: 16 }, 10),
+    [["tue", "tempo"], ["sat", "long"]],
+  );
+
+  assertAssignment(
+    "SCENARIO 3",
+    assignSessionsTodays(["mon", "wed", "fri", "sun"], "sun", "INTERMEDIATE", { goal: "hm", weeks: 16 }, 10),
+    [["mon", "easy"], ["wed", "interval"], ["fri", "easy"], ["sun", "long"]],
+  );
+
+  assertAssignment(
+    "SCENARIO 4",
+    assignSessionsTodays(["mon", "tue", "wed", "fri", "sun"], "sun", "ADVANCED", { goal: "hm", weeks: 16 }, 8),
+    [["mon", "easy"], ["tue", "easy"], ["wed", "interval"], ["fri", "easy"], ["sun", "long"]],
+  );
+
+  assertAssignment(
+    "SCENARIO 5",
+    assignSessionsTodays(["mon", "tue", "wed", "thu", "fri", "sat"], "sat", "ADVANCED", { goal: "hm", weeks: 16 }, 10),
+    [["mon", "easy"], ["tue", "interval"], ["wed", "easy"], ["thu", "easy"], ["fri", "easy"], ["sat", "long"]],
+  );
+}
+
+if (process.env.NODE_ENV === "development") {
+  validateAssignments();
 }
 
