@@ -1,6 +1,7 @@
-import type { TrainingWeek, Session } from "@/data/trainingPlan";
+import type { TrainingWeek, Session, PlanConfig } from "@/data/trainingPlan";
 import { PACE_ZONES } from "@/data/trainingPlan";
 import { PLAN_START_DATE } from "@/lib/planUtils";
+import { finalizePlanDisplayCopy } from "@/lib/generatePlan";
 
 export type InterruptionType = "break" | "reduced_load" | "illness" | "injury";
 
@@ -135,9 +136,10 @@ export function reconfigurePlan(
     normalWeeklyKm?: number;
     /** Week anchor; defaults to built-in {@link PLAN_START_DATE} when omitted. */
     planStart?: Date;
+    experienceLevel?: PlanConfig["level"];
   } = {},
 ): ReconfigureResult {
-  const { isBeginnerCurve = true, raceDate = null, normalWeeklyKm = 35, planStart: planStartOpt } = options;
+  const { isBeginnerCurve = true, raceDate = null, normalWeeklyKm = 35, planStart: planStartOpt, experienceLevel = "BEGINNER" } = options;
   const planStart = planStartOpt ?? PLAN_START_DATE;
 
   const active = interruptions.filter(i => getWeeksOff(i) > 0);
@@ -158,9 +160,8 @@ export function reconfigurePlan(
       extendsPastRace: checkRace(basePlan),
     };
   }
-
   const sorted = [...active].sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
-  let plan: TrainingWeek[] = basePlan.map(w => ({ ...w, sessions: [...w.sessions] }));
+  const plan: TrainingWeek[] = basePlan.map(w => ({ ...w, sessions: [...w.sessions] }));
   const adjustmentSummary: string[] = [];
   let totalWeeksAdded = 0;
 
@@ -229,6 +230,8 @@ export function reconfigurePlan(
       }
     }
   }
+
+  finalizePlanDisplayCopy(plan, experienceLevel);
 
   return { plan, totalWeeksAdded, adjustmentSummary, extendsPastRace: checkRace(plan) };
 }

@@ -1,6 +1,7 @@
 import prisma from "@/lib/db";
 import { formatPace as fmtPaceSec } from "@/lib/settings";
 import { buildTrainingPlan, type Phase, type RunType, type TrainingWeek } from "@/data/trainingPlan";
+import { finalizePlanDisplayCopy } from "@/lib/generatePlan";
 import {
   getEffectivePlanStart,
   getPlanWeekForDate,
@@ -38,46 +39,11 @@ const WARMUP_COOLDOWN: Record<RunType, string> = {
   interval: "1.5 km easy warm-up · 90 sec rest between reps · 1 km cool-down",
 };
 
-const WEEK_FOCUS: Record<number, string> = {
-  1:  "Introduction to structured training",
-  2:  "Building your aerobic base",
-  3:  "First taste of speed work",
-  4:  "Cutback — let your body adapt",
-  5:  "Returning stronger with more speed",
-  6:  "Completing the base phase",
-  7:  "Entering half marathon build",
-  8:  "Cutback — consolidating gains",
-  9:  "Pushing long run to race distance",
-  10: "Building lactate threshold",
-  11: "Peak interval and long run week",
-  12: "Cutback — absorbing the hardest block",
-  13: "Final hard long run push",
-  14: "Peak half marathon build week",
-  15: "Entering the peak phase",
-  16: "Cutback — final big recovery",
-  17: "Last hard training week",
-  18: "Taper — trust your training",
-};
-
-const PHASE_OVERVIEW: Partial<Record<Phase, string>> = {
-  "Base":
-    "The base phase builds your aerobic engine. Every run is at Zone 2 or below except Wednesday intervals, which introduce speed work gradually. By the end of week 6 you should be able to run 16 km comfortably at an easy pace. Do not rush this phase — aerobic base takes weeks to build and cannot be shortcut.",
-  "Beginner Base":
-    "The base phase builds your aerobic engine. Keep easy sessions truly easy and focus on consistency. Aerobic base takes weeks to build and cannot be shortcut.",
-  "Intermediate Base":
-    "The base phase builds your aerobic engine while introducing controlled intensity. Keep easy days easy so hard sessions can be high quality.",
-  "Advanced Base":
-    "The base phase builds aerobic strength while maintaining speed. Resist the urge to overcook intensity early — save your biggest efforts for the build.",
+const PHASE_OVERVIEW_FALLBACK: Partial<Record<Phase, string>> = {
   "Half Marathon Build":
-    "This phase shifts focus to half marathon-specific fitness. Long runs push toward 21 km, tempo runs get longer, and intervals increase in volume and intensity. Your body is under significant load in weeks 9–11 and 13–14 — sleep and nutrition matter more than ever here. The cutback weeks in weeks 8 and 12 are essential.",
+    "This phase develops race-specific endurance and threshold fitness. Keep easy days easy so quality sessions stay sharp.",
   "Marathon Build":
-    "The peak phase maintains the fitness you've built and prepares you to race. Week 18 is a taper — volume drops sharply but intensity stays. This is normal and intentional. Resist the urge to add extra runs during taper week. Trust the plan.",
-  "Race Specific":
-    "This phase focuses on race-specific fitness. Long runs and quality sessions sharpen endurance and threshold while keeping easy days genuinely easy.",
-  "Taper":
-    "Taper reduces volume so you arrive fresh on race day. Keep intensity controlled, prioritize sleep, and resist the urge to add extra runs.",
-  "Recovery":
-    "These weeks are designed to safely return you to training after a break. Volume is deliberately low and every session is at easy effort. Do not rush or substitute harder runs — connective tissue heals slower than cardiovascular fitness, and starting too hard here leads to re-injury.",
+    "Peak marathon training balances volume and intensity. Trust recovery and cutback weeks as part of the process.",
 };
 
 // ── HR zone bounds per run type ───────────────────────────────────────────────
@@ -248,11 +214,17 @@ export default async function ProgramPage({
       raceDate: settings.raceDate ? new Date(settings.raceDate) : null,
       normalWeeklyKm,
       planStart,
+      experienceLevel: settings.experienceLevel ?? "BEGINNER",
     });
     planToRender = fallback.plan;
     totalWeeksAdded = fallback.totalWeeksAdded;
     adjustmentSummary = fallback.adjustmentSummary;
     extendsPastRace = fallback.extendsPastRace;
+  }
+
+  const runnerLevel = settings.experienceLevel ?? "BEGINNER";
+  if (planToRender.length) {
+    finalizePlanDisplayCopy(planToRender, runnerLevel);
   }
 
   const currentWeek = rawWeek > 0 ? Math.min(planToRender[planToRender.length - 1]?.week ?? 18, rawWeek) : 1;
@@ -383,10 +355,14 @@ export default async function ProgramPage({
                 </div>
               )}
 
-              {/* Phase overview card — only for non-recovery sections */}
-              {!section.isRecovery && PHASE_OVERVIEW[section.phase] && (
-                <PhaseOverview description={PHASE_OVERVIEW[section.phase] as string} />
-              )}
+              {/* Phase overview — dynamic copy from plan; legacy fallback for rare phases */}
+              {(() => {
+                const overview =
+                  section.weeks[0]?.phaseOverviewText
+                  ?? (!section.isRecovery ? PHASE_OVERVIEW_FALLBACK[section.phase] : "")
+                  ?? "";
+                return overview ? <PhaseOverview description={overview} /> : null;
+              })()}
 
               {/* Week rows */}
               {section.weeks.map((planWeek) => {
@@ -394,7 +370,7 @@ export default async function ProgramPage({
                 const isLockedWeek = lockedWeeks.has(planWeek.week);
                 const weekTotalKm   = getWeeklyTargetKm(planWeek);
                 const volumeChange  = getVolumeChange(planWeek, planToRender);
-                const focusLabel    = WEEK_FOCUS[planWeek.originalWeek ?? planWeek.week];
+                const focusLabel = planWeek.weekSubtitle;
 
                 return (
                   <div
@@ -423,25 +399,49 @@ export default async function ProgramPage({
                       <div className="w-full sm:w-[84px] shrink-0 pt-0 sm:pt-1 flex sm:block items-center justify-between sm:justify-start gap-2">
                         <p className="text-xs font-bold text-white leading-tight">
                           Week {planWeek.week}
-                          {planWeek.isCutback && (
-                            <span style={{ color: "#fbbf24" }}>
-                              {planWeek.adaptationNote?.includes("Unplanned recovery week inserted") ? " · Unplanned Recovery" : " · Cutback"}
+                        </p>
+                        <div className="flex flex-wrap gap-1 mt-1 sm:mt-1.5 justify-end sm:justify-start">
+                          {planWeek.phase === "Taper" && (
+                            <span
+                              className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
+                              style={{ background: "#581c87", color: "#e9d5ff" }}
+                            >
+                              Taper
                             </span>
                           )}
                           {planWeek.isRecovery && (
-                            <span style={{ color: "#a78bfa" }}> · Return</span>
+                            <span
+                              className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
+                              style={{ background: "#1e3a8a", color: "#93c5fd" }}
+                            >
+                              Recovery
+                            </span>
                           )}
-                        </p>
-                        {isCurrentWeek && (
-                          <p className="text-[11px] mt-0.5 leading-tight" style={{ color: "#a5b4fc" }}>
-                            Current
-                          </p>
-                        )}
-                        {!isCurrentWeek && isLockedWeek && (
-                          <p className="text-[11px] mt-0.5 leading-tight" style={{ color: "var(--text-muted)" }}>
-                            Completed
-                          </p>
-                        )}
+                          {planWeek.isCutback && (
+                            <span
+                              className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
+                              style={{ background: "#78350f", color: "#fde68a" }}
+                            >
+                              Cutback
+                            </span>
+                          )}
+                          {isCurrentWeek && (
+                            <span
+                              className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
+                              style={{ background: "#134e4a", color: "#5eead4" }}
+                            >
+                              Current
+                            </span>
+                          )}
+                          {!isCurrentWeek && isLockedWeek && (
+                            <span
+                              className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
+                              style={{ background: "#27272a", color: "#a1a1aa" }}
+                            >
+                              Completed
+                            </span>
+                          )}
+                        </div>
                       </div>
 
                       {/* Session cards */}
