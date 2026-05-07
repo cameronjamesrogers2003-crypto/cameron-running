@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useSettings } from "@/context/SettingsContext";
 import { brisbaneMidnightUtcForYmd } from "@/lib/dateUtils";
 import { planStartAusDisplayToIsoYmd, planStartIsoYmdToAusDisplay } from "@/lib/planStartDateFormat";
-import { formatPace, parsePace, formatDuration, parseDuration } from "@/lib/settings";
+import { DEFAULT_SETTINGS, formatPace, parsePace, formatDuration, parseDuration } from "@/lib/settings";
 import { getVdotPaces } from "@/lib/vdot";
 import type { Day } from "@/data/trainingPlan";
 import { getDefaultLongRunDay } from "@/lib/generatePlan";
@@ -167,6 +167,10 @@ function parseLongRunDayValue(value: string | null | undefined): Day | null {
   return DAY_ORDER.includes(value as Day) ? (value as Day) : null;
 }
 
+function safePaceSeconds(value: unknown, fallback: number): number {
+  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+}
+
 export default function SettingsForm() {
   const { settings, loading, updateSettings } = useSettings();
 
@@ -199,7 +203,7 @@ export default function SettingsForm() {
   // ── Performance group ─────────────────────────────────────────────────────
   const [maxHR,   setMaxHR]   = useState(settings.maxHR);
   const [vdot,    setVdot]    = useState(settings.currentVdot);
-  const [startTP, setStartTP] = useState(formatPace(settings.startingTempoPaceSec));
+  const [startTP, setStartTP] = useState(formatPace(safePaceSeconds(settings.startingTempoPaceSec, DEFAULT_SETTINGS.startingTempoPaceSec)));
   const perfGroup = useSaveGroup();
 
   const vdotPaces = getVdotPaces(vdot);
@@ -218,14 +222,14 @@ export default function SettingsForm() {
   })();
 
   // ── Pace zones group ─────────────────────────────────────────────────────
-  const [easyMin,     setEasyMin]     = useState(formatPace(settings.easyPaceMinSec));
-  const [easyMax,     setEasyMax]     = useState(formatPace(settings.easyPaceMaxSec));
-  const [tempoMin,    setTempoMin]    = useState(formatPace(settings.tempoPaceMinSec));
-  const [tempoMax,    setTempoMax]    = useState(formatPace(settings.tempoPaceMaxSec));
-  const [intervalMin, setIntervalMin] = useState(formatPace(settings.intervalPaceMinSec));
-  const [intervalMax, setIntervalMax] = useState(formatPace(settings.intervalPaceMaxSec));
-  const [longMin,     setLongMin]     = useState(formatPace(settings.longPaceMinSec));
-  const [longMax,     setLongMax]     = useState(formatPace(settings.longPaceMaxSec));
+  const [easyMin,     setEasyMin]     = useState(formatPace(safePaceSeconds(settings.easyPaceMinSec, DEFAULT_SETTINGS.easyPaceMinSec)));
+  const [easyMax,     setEasyMax]     = useState(formatPace(safePaceSeconds(settings.easyPaceMaxSec, DEFAULT_SETTINGS.easyPaceMaxSec)));
+  const [tempoMin,    setTempoMin]    = useState(formatPace(safePaceSeconds(settings.tempoPaceMinSec, DEFAULT_SETTINGS.tempoPaceMinSec)));
+  const [tempoMax,    setTempoMax]    = useState(formatPace(safePaceSeconds(settings.tempoPaceMaxSec, DEFAULT_SETTINGS.tempoPaceMaxSec)));
+  const [intervalMin, setIntervalMin] = useState(formatPace(safePaceSeconds(settings.intervalPaceMinSec, DEFAULT_SETTINGS.intervalPaceMinSec)));
+  const [intervalMax, setIntervalMax] = useState(formatPace(safePaceSeconds(settings.intervalPaceMaxSec, DEFAULT_SETTINGS.intervalPaceMaxSec)));
+  const [longMin,     setLongMin]     = useState(formatPace(safePaceSeconds(settings.longPaceMinSec, DEFAULT_SETTINGS.longPaceMinSec)));
+  const [longMax,     setLongMax]     = useState(formatPace(safePaceSeconds(settings.longPaceMaxSec, DEFAULT_SETTINGS.longPaceMaxSec)));
   const zonesGroup = useSaveGroup();
   const [distEasy,     setDistEasy]     = useState(settings.distTargetEasyM / 1000);
   const [distTempo,    setDistTempo]    = useState(settings.distTargetTempoM / 1000);
@@ -310,18 +314,18 @@ export default function SettingsForm() {
       minutes: settings.vdotRaceMinutes ?? 25,
       seconds: settings.vdotRaceSeconds ?? 0,
     });
-    setStartTP(formatPace(settings.startingTempoPaceSec));
+    setStartTP(formatPace(safePaceSeconds(settings.startingTempoPaceSec, DEFAULT_SETTINGS.startingTempoPaceSec)));
     setHmTime(formatDuration(settings.targetHMTimeSec));
     setRaceName(settings.raceName ?? "");
     setRaceDate(settings.raceDate?.slice(0, 10) ?? "");
-    setEasyMin(formatPace(settings.easyPaceMinSec));
-    setEasyMax(formatPace(settings.easyPaceMaxSec));
-    setTempoMin(formatPace(settings.tempoPaceMinSec));
-    setTempoMax(formatPace(settings.tempoPaceMaxSec));
-    setIntervalMin(formatPace(settings.intervalPaceMinSec));
-    setIntervalMax(formatPace(settings.intervalPaceMaxSec));
-    setLongMin(formatPace(settings.longPaceMinSec));
-    setLongMax(formatPace(settings.longPaceMaxSec));
+    setEasyMin(formatPace(safePaceSeconds(settings.easyPaceMinSec, DEFAULT_SETTINGS.easyPaceMinSec)));
+    setEasyMax(formatPace(safePaceSeconds(settings.easyPaceMaxSec, DEFAULT_SETTINGS.easyPaceMaxSec)));
+    setTempoMin(formatPace(safePaceSeconds(settings.tempoPaceMinSec, DEFAULT_SETTINGS.tempoPaceMinSec)));
+    setTempoMax(formatPace(safePaceSeconds(settings.tempoPaceMaxSec, DEFAULT_SETTINGS.tempoPaceMaxSec)));
+    setIntervalMin(formatPace(safePaceSeconds(settings.intervalPaceMinSec, DEFAULT_SETTINGS.intervalPaceMinSec)));
+    setIntervalMax(formatPace(safePaceSeconds(settings.intervalPaceMaxSec, DEFAULT_SETTINGS.intervalPaceMaxSec)));
+    setLongMin(formatPace(safePaceSeconds(settings.longPaceMinSec, DEFAULT_SETTINGS.longPaceMinSec)));
+    setLongMax(formatPace(safePaceSeconds(settings.longPaceMaxSec, DEFAULT_SETTINGS.longPaceMaxSec)));
     setDistEasy(settings.distTargetEasyM / 1000);
     setDistTempo(settings.distTargetTempoM / 1000);
     setDistInterval(settings.distTargetIntervalM / 1000);
