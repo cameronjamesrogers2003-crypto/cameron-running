@@ -127,3 +127,13 @@ model GeneratedPlan {
   configJson  String
   lockedWeeks String?
 }
+
+model PlanAdaptation {
+  id         String   @id @default(cuid())
+  createdAt  DateTime @default(now())
+  weekNumber Int
+  type       String
+  reason     String
+  changes    String
+  dismissed  Boolean  @default(false)
+}
