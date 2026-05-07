@@ -77,6 +77,14 @@ model UserSettings {
   distTargetTempoM      Int       @default(10000)
   distTargetIntervalM   Int       @default(8000)
   distTargetLongM       Int       @default(18000)
+  age                   Int?
+  gender                String?
+  weightKg              Float?
+  runningExperience     String?
+  easyPaceOffsetSec     Int       @default(0)
+  tempoPaceOffsetSec    Int       @default(0)
+  intervalPaceOffsetSec Int       @default(0)
+  longPaceOffsetSec     Int       @default(0)
   easyPaceMinSec        Int       @default(390)
   easyPaceMaxSec        Int       @default(450)
   tempoPaceMinSec       Int       @default(330)

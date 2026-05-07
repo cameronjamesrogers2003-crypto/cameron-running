@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
 import { loadGeneratedPlan, saveGeneratedPlan } from "@/lib/planStorage";
 import { rebuildPaceTargets } from "@/lib/planAdaptation";
+import { dbSettingsToUserSettings, DEFAULT_SETTINGS } from "@/lib/settings";
 
 export async function POST(req: NextRequest) {
   try {
@@ -15,7 +16,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "no_plan" }, { status: 404 });
     }
 
-    const updatedPlan = rebuildPaceTargets(stored.plan, stored.lockedWeeks, body.vdot);
+    const row = await prisma.userSettings.findUnique({ where: { id: 1 } });
+    const settings = row ? dbSettingsToUserSettings(row) : DEFAULT_SETTINGS;
+
+    const updatedPlan = rebuildPaceTargets(stored.plan, stored.lockedWeeks, settings, body.vdot);
     await saveGeneratedPlan(stored.config, updatedPlan, stored.lockedWeeks);
     await prisma.userSettings.update({
       where: { id: 1 },

@@ -278,6 +278,13 @@ export default async function Dashboard({
             ? settings.longRunDay
             : undefined,
         vdot: settings.currentVdot ?? 33,
+        paceAdjust: {
+          easyPaceOffsetSec: settings.easyPaceOffsetSec,
+          tempoPaceOffsetSec: settings.tempoPaceOffsetSec,
+          intervalPaceOffsetSec: settings.intervalPaceOffsetSec,
+          longPaceOffsetSec: settings.longPaceOffsetSec,
+          runningExperience: settings.runningExperience,
+        },
       };
       const regenerated = generatePlan(config);
       await saveGeneratedPlan(config, regenerated);
@@ -449,12 +456,12 @@ export default async function Dashboard({
     week: number;
     dayLabel: string;
   };
+  const DAY_LABEL: Record<Day, string> = { mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat", sun: "Sun" };
   const upcomingCandidates: UpcomingRow[] = [];
-  const upcomingStored = stored;
-  const dayLabels: Record<Day, string> = { mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat", sun: "Sun" };
   const brisbaneToday = startOfDayAEST(today);
-  if (upcomingStored?.plan?.length) {
-    for (const week of upcomingStored.plan) {
+  if (stored?.plan?.length) {
+    for (const week of stored.plan) {
+      if (week.week < currentWeek) continue;
       for (const session of week.sessions) {
         const sessionDate = getSessionDate(week.week, session.day, planStart);
         if (sessionDate <= brisbaneToday) continue;
@@ -463,8 +470,19 @@ export default async function Dashboard({
           session,
           date: sessionDate,
           week: week.week,
-          dayLabel: dayLabels[session.day],
+          dayLabel: DAY_LABEL[session.day],
         });
+      }
+    }
+  } else {
+    for (let w = currentWeek; w <= lastPlanWeekNum; w++) {
+      const pw = planToRender.find((x) => x.week === w);
+      if (!pw) continue;
+      for (const session of pw.sessions) {
+        const date = getSessionDate(w, session.day, planStart);
+        if (date <= todayAESTMidnight) continue;
+        if (hasRunOnCalendarDay(runsPlanForward, date)) continue;
+        upcomingCandidates.push({ session, date, week: w, dayLabel: DAY_LABEL[session.day] });
       }
     }
   }
@@ -472,18 +490,9 @@ export default async function Dashboard({
   const upcomingSessions = upcomingCandidates.slice(0, 5);
 
   // ── Sidebar checklist: same week + sessions as Program page (planToRender) ─
-  const CHECKLIST_DAY_ORDER: Record<Day, number> = {
-    mon: 0,
-    tue: 1,
-    wed: 2,
-    thu: 3,
-    fri: 4,
-    sat: 5,
-    sun: 6,
-  };
-  const DAY_LABEL: Record<Day, string> = { mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat", sun: "Sun" };
+  const CHECKLIST_DAY_ORDER: Day[] = ["sat", "sun", "mon", "tue", "wed", "thu", "fri"]; // matches Saturday-anchored scheduling
   const sessionChecklist = [...(currentPlanWeek?.sessions ?? [])]
-    .sort((a, b) => CHECKLIST_DAY_ORDER[a.day] - CHECKLIST_DAY_ORDER[b.day])
+    .sort((a, b) => CHECKLIST_DAY_ORDER.indexOf(a.day) - CHECKLIST_DAY_ORDER.indexOf(b.day))
     .map((session) => {
       const date = getSessionDate(currentWeek, session.day, planStart);
       const completed = weekActivities.some((a) => {

@@ -1,10 +1,10 @@
 import type { Activity, PrismaClient } from "@prisma/client";
-import type { RunType, TrainingWeek } from "@/data/trainingPlan";
+import type { PlanConfig, RunType, TrainingWeek } from "@/data/trainingPlan";
 import { generatePlan } from "@/lib/generatePlan";
 import { dbSettingsToUserSettings, DEFAULT_SETTINGS, type UserSettings } from "@/lib/settings";
 import { loadGeneratedPlan, saveGeneratedPlan } from "@/lib/planStorage";
-import { getVdotPaces } from "@/lib/vdot";
 import { inferRunType } from "@/lib/rating";
+import { getSessionPacesMinPerKm } from "@/lib/planPaces";
 import {
   getEffectivePlanStart,
   getPlanWeekForDate,
@@ -70,10 +70,12 @@ export function estimateCurrentVdot(activities: Activity[], settings: UserSettin
 export function rebuildPaceTargets(
   plan: TrainingWeek[],
   lockedWeeks: number[],
-  newVdot: number,
+  settings: UserSettings,
+  vdotOverride?: number,
 ): TrainingWeek[] {
   const lockedSet = new Set(lockedWeeks);
-  const paces = getVdotPaces(newVdot);
+  const vdot = Math.round(vdotOverride ?? settings.currentVdot);
+  const pMin = getSessionPacesMinPerKm(vdot, settings);
   return plan.map((week) => {
     if (lockedSet.has(week.week)) return week;
     return {
@@ -81,11 +83,13 @@ export function rebuildPaceTargets(
       sessions: week.sessions.map((session) => ({
         ...session,
         targetPaceMinPerKm:
-          session.type === "tempo"
-            ? paces.tempoSecKm / 60
-            : session.type === "interval"
-              ? paces.intervalSecKm / 60
-              : paces.easyMaxSecKm / 60,
+          session.type === "long"
+            ? pMin.long
+            : session.type === "tempo"
+              ? pMin.tempo
+              : session.type === "interval"
+                ? pMin.interval
+                : pMin.easy,
       })),
     };
   });
@@ -188,7 +192,17 @@ export async function checkAndAdaptPlan(prisma: PrismaClient): Promise<{
 
   const recent3 = weekAverageRating(stored.plan, planStart, activities, 21);
   const recent5 = weekAverageRating(stored.plan, planStart, activities, 35);
-  const plannedBase = generatePlan(stored.config);
+  const mergedConfig: PlanConfig = {
+    ...stored.config,
+    paceAdjust: {
+      easyPaceOffsetSec: settings.easyPaceOffsetSec,
+      tempoPaceOffsetSec: settings.tempoPaceOffsetSec,
+      intervalPaceOffsetSec: settings.intervalPaceOffsetSec,
+      longPaceOffsetSec: settings.longPaceOffsetSec,
+      runningExperience: settings.runningExperience,
+    },
+  };
+  const plannedBase = generatePlan(mergedConfig);
   const baseWeek = plannedBase.find((week) => week.week === targetWeekNumber);
   const baseWeekCapKm = baseWeek
     ? round1(baseWeek.sessions.reduce((sum, session) => sum + session.targetDistanceKm, 0))
@@ -386,7 +400,7 @@ export async function checkAndAdaptPlan(prisma: PrismaClient): Promise<{
 
   if (vdotShouldUpdate) {
     const prior = settings.currentVdot;
-    const rebuilt = rebuildPaceTargets(newPlan, stored.lockedWeeks, vdotEstimate);
+    const rebuilt = rebuildPaceTargets(newPlan, stored.lockedWeeks, settings, vdotEstimate);
     newPlan.splice(0, newPlan.length, ...rebuilt);
     adaptationType = adaptationType ?? "vdot_improved";
     changes.push(`Updated VDOT from ${prior} to ${vdotEstimate} and rebuilt pace targets for unlocked weeks.`);

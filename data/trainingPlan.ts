@@ -1,6 +1,6 @@
-import { getVdotPaces } from "@/lib/vdot";
 import type { UserSettings } from "@/lib/settings";
 import { generatePlan } from "@/lib/generatePlan";
+import { getSessionPacesMinPerKm } from "@/lib/planPaces";
 
 export type RunType = 'easy' | 'tempo' | 'interval' | 'long'
 export type Day = 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun'
@@ -15,6 +15,15 @@ export type Phase =
   | 'Race Specific'
   | 'Taper'
 
+export interface PlanPaceAdjust {
+  easyPaceOffsetSec: number
+  tempoPaceOffsetSec: number
+  intervalPaceOffsetSec: number
+  longPaceOffsetSec: number
+  /** "< 1 year" applies tempo/interval safety buffer */
+  runningExperience: string | null
+}
+
 export interface PlanConfig {
   level: 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED'
   goal: 'hm' | 'full'
@@ -22,6 +31,7 @@ export interface PlanConfig {
   days: Day[]
   longRunDay?: Day
   vdot: number
+  paceAdjust?: PlanPaceAdjust
 }
 
 export interface Session {
@@ -208,20 +218,17 @@ export function buildTrainingPlan(settings: UserSettings): TrainingWeek[] {
   // Backwards compatible: fall back to the legacy hardcoded plan unless the new
   // generator inputs are present.
   if (!settings.experienceLevel || !settings.trainingDays) {
-    const paces = getVdotPaces(settings.currentVdot);
-    const easyPace     = paces.easyMaxSecKm  / 60;
-    const tempoPace    = paces.tempoSecKm    / 60;
-    const intervalPace = paces.intervalSecKm / 60;
+    const pm = getSessionPacesMinPerKm(settings.currentVdot, settings);
 
     return trainingPlan.map(week => ({
       ...week,
       sessions: week.sessions.map(session => ({
         ...session,
         targetPaceMinPerKm:
-          session.type === 'easy'     ? easyPace :
-          session.type === 'long'     ? easyPace :
-          session.type === 'tempo'    ? tempoPace :
-          session.type === 'interval' ? intervalPace :
+          session.type === 'easy'     ? pm.easy :
+          session.type === 'long'     ? pm.long :
+          session.type === 'tempo'    ? pm.tempo :
+          session.type === 'interval' ? pm.interval :
           session.targetPaceMinPerKm,
       })),
     }));
@@ -255,6 +262,13 @@ export function buildTrainingPlan(settings: UserSettings): TrainingWeek[] {
     days: days ?? ["wed", "sat", "sun"], // default fallback
     longRunDay,
     vdot: settings.currentVdot,
+    paceAdjust: {
+      easyPaceOffsetSec: settings.easyPaceOffsetSec,
+      tempoPaceOffsetSec: settings.tempoPaceOffsetSec,
+      intervalPaceOffsetSec: settings.intervalPaceOffsetSec,
+      longPaceOffsetSec: settings.longPaceOffsetSec,
+      runningExperience: settings.runningExperience,
+    },
   };
 
   return generatePlan(config);
