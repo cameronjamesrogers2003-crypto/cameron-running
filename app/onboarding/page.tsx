@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Day, PlanConfig } from "@/data/trainingPlan";
 import { useSettings } from "@/context/SettingsContext";
-import { getDefaultLongRunDay } from "@/lib/generatePlan";
+import { getDefaultLongRunDay, getScheduleWarnings } from "@/lib/generatePlan";
 import VdotCalculator from "@/components/VdotCalculator";
 
 type Level = "BEGINNER" | "INTERMEDIATE" | "ADVANCED";
@@ -126,6 +126,10 @@ export default function OnboardingPage() {
     if (longRunDay && sortedTrainingDays.includes(longRunDay)) return longRunDay;
     return getDefaultLongRunDay(sortedTrainingDays);
   }, [longRunDay, sortedTrainingDays]);
+  const scheduleWarnings = useMemo(
+    () => (effectiveLongRunDay ? getScheduleWarnings(sortedTrainingDays, effectiveLongRunDay) : []),
+    [effectiveLongRunDay, sortedTrainingDays],
+  );
 
   const canNext = (() => {
     if (step === 1) return goalRace != null;
@@ -334,6 +338,15 @@ export default function OnboardingPage() {
               </button>
             ))}
           </div>
+          {scheduleWarnings.length > 0 && (
+            <div className="space-y-1">
+              {scheduleWarnings.map((warning) => (
+                <p key={warning} className="text-xs text-amber-300">
+                  {warning}
+                </p>
+              ))}
+            </div>
+          )}
         </section>
       )}
       {step > 7 && (

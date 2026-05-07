@@ -348,7 +348,10 @@ export default async function Dashboard({
   // ── Stat tile data ────────────────────────────────────────────────────────
   const weekTargetKm = currentPlanWeek ? getWeeklyTargetKm(currentPlanWeek) : 0;
   const weekActualKm = weekActivities.reduce((s, a) => s + a.distanceKm, 0);
-  const weekPlanned = currentPlanWeek?.sessions.length ?? 0;
+  const weekPlanned =
+    Array.isArray(stored?.config?.days) && stored.config.days.length > 0
+      ? stored.config.days.length
+      : (currentPlanWeek?.sessions.length ?? 0);
   const weekDone = weekActivities.length;
 
   const weekRatings = weekActivities
