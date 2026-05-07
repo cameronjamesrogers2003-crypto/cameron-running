@@ -191,8 +191,6 @@ function applySetting(update: SettingsUpdate, key: string, value: unknown): void
 }
 
 export async function PATCH(req: NextRequest) {
-  const authResp = requireInternalApiAuth(req);
-  if (authResp) return authResp;
   let body: Record<string, unknown>;
   try {
     body = await req.json() as Record<string, unknown>;
