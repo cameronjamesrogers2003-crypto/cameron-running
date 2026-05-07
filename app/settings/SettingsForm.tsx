@@ -352,6 +352,7 @@ export default function SettingsForm() {
   }
 
   async function handlePlanSave() {
+    const originalVdot = settings.currentVdot;
     const payload = {
       experienceLevel,
       goalRace,
@@ -381,6 +382,14 @@ export default function SettingsForm() {
     if (!regenRes.ok) {
       alert("Settings saved but plan failed to regenerate");
       throw new Error("Plan regeneration failed");
+    }
+
+    if (vdot !== originalVdot) {
+      await fetch("/api/plans/rebuild-paces", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ vdot }),
+      });
     }
 
     window.location.href = "/program?updated=true";
@@ -466,6 +475,11 @@ export default function SettingsForm() {
             <p className="text-xs mb-2" style={{ color: "#99f6e4" }}>
               Current VDOT: <span className="font-semibold">{vdot}</span>
             </p>
+            {settings.lastEstimatedVdot != null && settings.lastEstimatedVdot === settings.currentVdot && (
+              <p className="text-xs mb-2" style={{ color: "#5eead4" }}>
+                Your VDOT was automatically updated to {settings.currentVdot} based on your recent runs.
+              </p>
+            )}
             <VdotCalculator
               initialDistance={vdotInput.distance}
               initialMinutes={vdotInput.minutes}

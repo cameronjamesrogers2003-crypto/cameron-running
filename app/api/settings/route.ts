@@ -34,6 +34,9 @@ type SettingsUpdate = {
   intervalPaceMaxSec?: number;
   longPaceMinSec?: number;
   longPaceMaxSec?: number;
+  lastEstimatedVdot?: number | null;
+  lastVdotCheckDate?: Date | null;
+  lastAdaptationDate?: Date | null;
 };
 
 function isDay(value: unknown): value is Day {
@@ -86,6 +89,7 @@ const ALLOWED_FIELDS = new Set([
   "tempoPaceMinSec", "tempoPaceMaxSec",
   "intervalPaceMinSec", "intervalPaceMaxSec",
   "longPaceMinSec", "longPaceMaxSec",
+  "lastEstimatedVdot", "lastVdotCheckDate", "lastAdaptationDate",
 ]);
 
 function applySetting(update: SettingsUpdate, key: string, value: unknown): void {
@@ -95,6 +99,12 @@ function applySetting(update: SettingsUpdate, key: string, value: unknown): void
       return;
     case "raceDate":
       update.raceDate = typeof value === "string" && value ? new Date(value) : null;
+      return;
+    case "lastVdotCheckDate":
+      update.lastVdotCheckDate = typeof value === "string" && value ? new Date(value) : null;
+      return;
+    case "lastAdaptationDate":
+      update.lastAdaptationDate = typeof value === "string" && value ? new Date(value) : null;
       return;
     case "phaseOverride":
       if (typeof value === "string" || value === null) update.phaseOverride = value;
@@ -183,6 +193,9 @@ function applySetting(update: SettingsUpdate, key: string, value: unknown): void
       return;
     case "longPaceMaxSec":
       if (typeof value === "number") update.longPaceMaxSec = value;
+      return;
+    case "lastEstimatedVdot":
+      if (typeof value === "number" || value === null) update.lastEstimatedVdot = value;
       return;
   }
 }

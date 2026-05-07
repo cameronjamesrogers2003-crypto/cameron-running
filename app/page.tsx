@@ -242,7 +242,6 @@ export default async function Dashboard({
     prisma.planAdaptation.findMany({
       where: { dismissed: false },
       orderBy: { createdAt: "desc" },
-      take: 5,
     }),
   ]);
 
