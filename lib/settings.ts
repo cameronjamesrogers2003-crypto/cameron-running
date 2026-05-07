@@ -34,6 +34,7 @@ export interface UserSettings {
   intervalPaceMaxSec: number;
   longPaceMinSec: number;
   longPaceMaxSec: number;
+  lastCutbackInsertedWeek: number | null;
 }
 
 export const DEFAULT_SETTINGS: UserSettings = {
@@ -68,6 +69,7 @@ export const DEFAULT_SETTINGS: UserSettings = {
   intervalPaceMaxSec: 330,
   longPaceMinSec: 390,
   longPaceMaxSec: 450,
+  lastCutbackInsertedWeek: null,
 };
 
 export function dbSettingsToUserSettings(row: PrismaUserSettings): UserSettings {
@@ -108,6 +110,7 @@ export function dbSettingsToUserSettings(row: PrismaUserSettings): UserSettings 
     intervalPaceMaxSec:   row.intervalPaceMaxSec    ?? DEFAULT_SETTINGS.intervalPaceMaxSec,
     longPaceMinSec:       row.longPaceMinSec        ?? DEFAULT_SETTINGS.longPaceMinSec,
     longPaceMaxSec:       row.longPaceMaxSec        ?? DEFAULT_SETTINGS.longPaceMaxSec,
+    lastCutbackInsertedWeek: row.lastCutbackInsertedWeek ?? null,
   };
 }
 

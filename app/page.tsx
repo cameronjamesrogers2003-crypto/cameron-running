@@ -491,8 +491,21 @@ export default async function Dashboard({
         const d = new Date(a.date);
         return sameDayAEST(d, date) && isActivityOnOrAfterPlanStart(d, planStart);
       });
-      return { session, date, completed, future: date > todayAESTMidnight, dayLabel: DAY_LABEL[session.day] };
+      const future = date >= todayAESTMidnight;
+      const missed = !completed && !future;
+      return { session, date, completed, future, missed, dayLabel: DAY_LABEL[session.day] };
     });
+
+  const lastWeekPlan = planToRender.find((week) => week.week === currentWeek - 1);
+  const lastWeekMisses = (lastWeekPlan?.sessions ?? []).reduce((count, session) => {
+    const date = getSessionDate(currentWeek - 1, session.day, planStart);
+    if (date >= todayAESTMidnight) return count;
+    const completed = chartActivities.concat(weekActivities, runsPlanForward).some((a) => {
+      const d = new Date(a.date);
+      return sameDayAEST(d, date) && isActivityOnOrAfterPlanStart(d, planStart);
+    });
+    return completed ? count : count + 1;
+  }, 0);
 
   // ── Sidebar: phase progress ───────────────────────────────────────────────
   const phaseWeeks = planToRender.filter((w) => w.phase === currentPhase);
@@ -893,18 +906,25 @@ export default async function Dashboard({
 
           {/* Session checklist */}
           <div className="space-y-2.5">
-            {sessionChecklist.map(({ session, date, completed, future, dayLabel }) => (
+            {lastWeekMisses > 0 && (
+              <p className="text-xs font-medium" style={{ color: "#fbbf24" }}>
+                You missed {lastWeekMisses} session{lastWeekMisses === 1 ? "" : "s"} last week
+              </p>
+            )}
+            {sessionChecklist.map(({ session, date, completed, future, missed, dayLabel }) => (
               <div key={session.day} className="flex items-start gap-2.5">
                 <div
                   className="w-4 h-4 rounded mt-0.5 flex items-center justify-center text-xs flex-shrink-0"
                   style={{
                     background: completed
                       ? "var(--accent)"
+                      : missed
+                        ? "rgba(251,191,36,0.35)"
                       : "rgba(255,255,255,0.08)",
-                    color: completed ? "#fff" : "transparent",
+                    color: completed ? "#fff" : missed ? "#fbbf24" : "transparent",
                   }}
                 >
-                  {completed ? "✓" : ""}
+                  {completed ? "✓" : missed ? "×" : ""}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p

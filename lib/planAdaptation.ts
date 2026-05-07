@@ -1,4 +1,4 @@
-import type { PrismaClient } from "@prisma/client";
+import type { Activity, PrismaClient } from "@prisma/client";
 import type { RunType, TrainingWeek } from "@/data/trainingPlan";
 import { generatePlan } from "@/lib/generatePlan";
 import { dbSettingsToUserSettings, DEFAULT_SETTINGS } from "@/lib/settings";
@@ -6,10 +6,11 @@ import { loadGeneratedPlan, saveGeneratedPlan } from "@/lib/planStorage";
 import {
   getEffectivePlanStart,
   getPlanWeekForDate,
+  getSessionDate,
   isActivityOnOrAfterPlanStart,
   isPlannedRun,
 } from "@/lib/planUtils";
-import { startOfDayAEST } from "@/lib/dateUtils";
+import { sameDayAEST, startOfDayAEST } from "@/lib/dateUtils";
 
 function round1(n: number): number {
   return Math.round(n * 10) / 10;
@@ -44,6 +45,42 @@ function getSessionMinKm(level: "BEGINNER" | "INTERMEDIATE" | "ADVANCED", type: 
   return 5;
 }
 
+function countConsecutiveSignificantMisses(missedCounts: number[]): number {
+  let streak = 0;
+  for (let i = missedCounts.length - 1; i >= 0; i--) {
+    if ((missedCounts[i] ?? 0) >= 2) {
+      streak++;
+      continue;
+    }
+    break;
+  }
+  return streak;
+}
+
+export function getMissedSessionsForWeek(
+  weekNumber: number,
+  plan: TrainingWeek[],
+  activities: Activity[],
+  planStart: Date,
+  lockedWeeks: number[],
+): number {
+  if (lockedWeeks.length > 0 && !lockedWeeks.includes(weekNumber)) return 0;
+  const week = plan.find((entry) => entry.week === weekNumber);
+  if (!week) return 0;
+  const today = startOfDayAEST(new Date());
+  const weekStart = getSessionDate(weekNumber, "sat", planStart);
+  if (weekStart > today) return 0;
+
+  let missed = 0;
+  for (const session of week.sessions) {
+    const sessionDate = getSessionDate(weekNumber, session.day, planStart);
+    if (sessionDate >= today) continue;
+    const done = activities.some((activity) => sameDayAEST(new Date(activity.date), sessionDate));
+    if (!done) missed++;
+  }
+  return missed;
+}
+
 export async function checkAndAdaptPlan(prisma: PrismaClient): Promise<{
   adapted: boolean;
   reason: string | null;
@@ -74,7 +111,6 @@ export async function checkAndAdaptPlan(prisma: PrismaClient): Promise<{
   const targetWeekNumber = nextIncompleteWeek.week;
   const activities = await prisma.activity.findMany({
     where: { activityType: { in: ["running", "trail_running"] } },
-    select: { date: true, rating: true },
     orderBy: { date: "desc" },
     take: 120,
   });
@@ -95,7 +131,14 @@ export async function checkAndAdaptPlan(prisma: PrismaClient): Promise<{
   if (!mutableWeek) return { adapted: false, reason: "no active plan", changes: [] };
 
   const changes: string[] = [];
-  let adaptationType: "volume_reduced" | "volume_increased" | "soft_cutback" | null = null;
+  let adaptationType:
+    | "volume_reduced"
+    | "volume_increased"
+    | "soft_cutback"
+    | "missed_sessions_warning"
+    | "cutback_inserted"
+    | "extended_recovery"
+    | null = null;
 
   const canReduce = !(mutableWeek.adaptationNote ?? "").includes("Volume reduced 10%");
   const canIncrease = !(mutableWeek.adaptationNote ?? "").includes("Volume increased 5%");
@@ -153,6 +196,92 @@ export async function checkAndAdaptPlan(prisma: PrismaClient): Promise<{
     adaptationType = "volume_increased";
   }
 
+  const completedWeeks = [...stored.lockedWeeks].sort((a, b) => a - b);
+  const missedCounts = completedWeeks.map((weekNumber) =>
+    getMissedSessionsForWeek(weekNumber, stored.plan, activities, planStart, stored.lockedWeeks),
+  );
+  const consecutiveMissWeeks = countConsecutiveSignificantMisses(missedCounts);
+  const lastCompletedWeek = completedWeeks.length > 0 ? completedWeeks[completedWeeks.length - 1] : null;
+
+  const canInsertCutback =
+    mutableWeek.phase !== "Taper"
+    && (settings.lastCutbackInsertedWeek == null || (targetWeekNumber - settings.lastCutbackInsertedWeek >= 4));
+
+  if (consecutiveMissWeeks >= 3 && canInsertCutback) {
+    const cutbackWeek: TrainingWeek = {
+      ...mutableWeek,
+      sessions: mutableWeek.sessions.map((session) => ({
+        ...session,
+        targetDistanceKm: round1(Math.max(getSessionMinKm(stored.config.level, session.type), session.targetDistanceKm * 0.7)),
+      })),
+      isCutback: true,
+      adaptationNote:
+        "Unplanned recovery week inserted — you've missed sessions for 2 weeks. Take it easy and rebuild consistency.",
+    };
+
+    const insertIdx = newPlan.findIndex((week) => week.week === targetWeekNumber);
+    if (insertIdx >= 0) {
+      for (let i = insertIdx; i < newPlan.length; i++) {
+        newPlan[i] = { ...newPlan[i], week: newPlan[i].week + 1 };
+      }
+      cutbackWeek.week = targetWeekNumber;
+      newPlan.splice(insertIdx, 0, cutbackWeek);
+      const afterCutback = newPlan.find((week) => week.week === targetWeekNumber + 1);
+      if (afterCutback) {
+        const hardSession = afterCutback.sessions.find((session) => session.type === "tempo" || session.type === "interval");
+        if (hardSession) hardSession.type = "easy";
+        afterCutback.adaptationNote =
+          "Extended recovery — returning to base training for one week before resuming normal schedule.";
+      }
+      changes.push(`Inserted unplanned cutback week before week ${targetWeekNumber}.`);
+      changes.push("Converted the following week's hard session to easy for extended recovery.");
+      adaptationType = "extended_recovery";
+      await prisma.userSettings.update({
+        where: { id: 1 },
+        data: { lastCutbackInsertedWeek: targetWeekNumber },
+      });
+    }
+  } else if (consecutiveMissWeeks >= 2 && canInsertCutback) {
+    const cutbackWeek: TrainingWeek = {
+      ...mutableWeek,
+      sessions: mutableWeek.sessions.map((session) => ({
+        ...session,
+        targetDistanceKm: round1(Math.max(getSessionMinKm(stored.config.level, session.type), session.targetDistanceKm * 0.7)),
+      })),
+      isCutback: true,
+      adaptationNote:
+        "Unplanned recovery week inserted — you've missed sessions for 2 weeks. Take it easy and rebuild consistency.",
+    };
+    const insertIdx = newPlan.findIndex((week) => week.week === targetWeekNumber);
+    if (insertIdx >= 0) {
+      for (let i = insertIdx; i < newPlan.length; i++) {
+        newPlan[i] = { ...newPlan[i], week: newPlan[i].week + 1 };
+      }
+      cutbackWeek.week = targetWeekNumber;
+      newPlan.splice(insertIdx, 0, cutbackWeek);
+      changes.push(`Inserted unplanned cutback week before week ${targetWeekNumber}.`);
+      adaptationType = "cutback_inserted";
+      await prisma.userSettings.update({
+        where: { id: 1 },
+        data: { lastCutbackInsertedWeek: targetWeekNumber },
+      });
+    }
+  } else if (lastCompletedWeek != null) {
+    const missedLastWeek = getMissedSessionsForWeek(
+      lastCompletedWeek,
+      stored.plan,
+      activities,
+      planStart,
+      stored.lockedWeeks,
+    );
+    if (missedLastWeek >= 2 && !changes.some((change) => change.includes("cutback"))) {
+      mutableWeek.adaptationNote =
+        `You missed ${missedLastWeek} sessions last week. This week has been kept as planned — focus on showing up.`;
+      changes.push(`Added missed-session warning note for week ${targetWeekNumber}.`);
+      adaptationType = "missed_sessions_warning";
+    }
+  }
+
   if (changes.length === 0 || adaptationType == null) {
     return { adapted: false, reason: null, changes: [] };
   }
@@ -172,6 +301,12 @@ export async function checkAndAdaptPlan(prisma: PrismaClient): Promise<{
   const reason =
     adaptationType === "soft_cutback"
       ? `Runs averaged ${recent5.avg.toFixed(1)}/10 across 5 weeks.`
+      : adaptationType === "missed_sessions_warning"
+        ? "You missed multiple planned sessions last week."
+        : adaptationType === "cutback_inserted"
+          ? "You missed multiple planned sessions for two consecutive weeks."
+          : adaptationType === "extended_recovery"
+            ? "You missed multiple planned sessions for three consecutive weeks."
       : adaptationType === "volume_reduced"
         ? `Runs averaged ${recent3.avg.toFixed(1)}/10 across 3 weeks.`
         : `Runs averaged ${recent3.avg.toFixed(1)}/10 across 3 weeks.`;

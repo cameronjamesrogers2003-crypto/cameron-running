@@ -98,6 +98,27 @@ function buildRecoveryWeek(
   };
 }
 
+function applyRampUpWeek(
+  week: TrainingWeek,
+  scale: number,
+  forceEasy: boolean,
+  note: string,
+): TrainingWeek {
+  return {
+    ...week,
+    adaptationNote: note,
+    sessions: week.sessions.map((session) => ({
+      ...session,
+      type: forceEasy && (session.type === "tempo" || session.type === "interval") ? "easy" : session.type,
+      targetDistanceKm: Math.max(3, Math.round(session.targetDistanceKm * scale * 10) / 10),
+      description:
+        forceEasy && (session.type === "tempo" || session.type === "interval")
+          ? `${Math.max(3, Math.round(session.targetDistanceKm * scale * 10) / 10)} km easy (ramp-up)`
+          : session.description,
+    })),
+  };
+}
+
 export interface ReconfigureResult {
   plan: TrainingWeek[];
   totalWeeksAdded: number;
@@ -184,6 +205,29 @@ export function reconfigurePlan(
     adjustmentSummary.push(
       `${INTERRUPTION_TYPE_LABEL[interruption.type]} — ${offLabel} off → ${recLabel} added`
     );
+
+    if ((interruption.type === "illness" || interruption.type === "injury") && recoveryR > 0) {
+      const rampWeek1Num = resumeWeek + recoveryR;
+      const rampWeek2Num = rampWeek1Num + 1;
+      const rampWeek1Idx = plan.findIndex((week) => week.week === rampWeek1Num);
+      if (rampWeek1Idx >= 0) {
+        plan[rampWeek1Idx] = applyRampUpWeek(
+          plan[rampWeek1Idx],
+          0.75,
+          true,
+          "Ramp-up week 1 — returning from illness/injury. Keep all runs easy.",
+        );
+      }
+      const rampWeek2Idx = plan.findIndex((week) => week.week === rampWeek2Num);
+      if (rampWeek2Idx >= 0) {
+        plan[rampWeek2Idx] = applyRampUpWeek(
+          plan[rampWeek2Idx],
+          0.9,
+          false,
+          "Ramp-up week 2 — gradually returning to full training.",
+        );
+      }
+    }
   }
 
   return { plan, totalWeeksAdded, adjustmentSummary, extendsPastRace: checkRace(plan) };
