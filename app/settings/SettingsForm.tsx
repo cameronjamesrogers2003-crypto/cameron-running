@@ -383,7 +383,7 @@ export default function SettingsForm() {
       throw new Error("Plan regeneration failed");
     }
 
-    window.location.href = "/program";
+    window.location.href = "/program?updated=true";
   }
 
   if (loading) {

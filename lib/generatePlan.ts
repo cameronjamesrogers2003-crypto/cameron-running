@@ -207,7 +207,7 @@ function resolveHardType(level: PlanConfig["level"], config: PlanConfig, weekNum
 
 export function getDefaultLongRunDay(days: Day[]): Day {
   const uniq = daysSorted(uniqDays(days));
-  if (uniq.length === 0) return "sat";
+  if (uniq.length === 0) return "sat"; // default fallback
   let best = uniq[0];
   let bestGap = nearestTrainingDayDistance(best, new Set(uniq));
   for (const day of uniq) {
@@ -615,7 +615,7 @@ export function validateAssignments(): void {
   );
 }
 
-if (process.env.NODE_ENV === "development") {
+if (process.env.VALIDATE_ASSIGNMENTS === "true") {
   validateAssignments();
 }
 

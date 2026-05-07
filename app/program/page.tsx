@@ -17,6 +17,7 @@ import ProgramSidePanel from "./ProgramSidePanel";
 import PlanAdjustments from "./PlanAdjustments";
 import RaceFlagBanner from "./RaceFlagBanner";
 import TodayLabel from "./TodayLabel";
+import PlanUpdatedBanner from "./PlanUpdatedBanner";
 import Logo from "@/components/Logo";
 
 export const dynamic = "force-dynamic";
@@ -188,7 +189,14 @@ function fmtWeekStartDate(weekNumber: number, planStart: Date): string {
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
-export default async function ProgramPage() {
+export default async function ProgramPage({
+  searchParams,
+}: {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const params = searchParams ? await searchParams : {};
+  const updatedParam = params?.updated;
+  const showUpdatedBanner = updatedParam === "true" || (Array.isArray(updatedParam) && updatedParam.includes("true"));
   const today        = new Date();
   const todayMidnight = startOfDayAEST(today);
 
@@ -250,6 +258,7 @@ export default async function ProgramPage() {
   const currentPlanEntry = planToRender.find(w => w.week === currentWeek) ?? planToRender[0];
 
   const sections = groupIntoSections(planToRender);
+  const lockedWeeks = new Set(storedPlan?.lockedWeeks ?? []);
 
   // Race date warning info
   const lastPlanWeek = planToRender[planToRender.length - 1];
@@ -300,6 +309,9 @@ export default async function ProgramPage() {
             totalWeeksAdded={totalWeeksAdded}
             newPlanEndDate={planEndDateStr}
           />
+        )}
+        {showUpdatedBanner && (
+          <PlanUpdatedBanner fromWeek={currentWeek} />
         )}
 
         {/* Plan sections */}
@@ -378,6 +390,7 @@ export default async function ProgramPage() {
               {/* Week rows */}
               {section.weeks.map((planWeek) => {
                 const isCurrentWeek = planWeek.week === currentWeek;
+                const isLockedWeek = lockedWeeks.has(planWeek.week);
                 const weekTotalKm   = getWeeklyTargetKm(planWeek);
                 const volumeChange  = getVolumeChange(planWeek, planToRender);
                 const focusLabel    = WEEK_FOCUS[planWeek.originalWeek ?? planWeek.week];
@@ -419,6 +432,11 @@ export default async function ProgramPage() {
                         {isCurrentWeek && (
                           <p className="text-[11px] mt-0.5 leading-tight" style={{ color: "#a5b4fc" }}>
                             Current
+                          </p>
+                        )}
+                        {!isCurrentWeek && isLockedWeek && (
+                          <p className="text-[11px] mt-0.5 leading-tight" style={{ color: "var(--text-muted)" }}>
+                            Completed
                           </p>
                         )}
                       </div>

@@ -50,7 +50,7 @@ export const PACE_ZONES = {
   interval: 4.92,   // midpoint of 4:45–5:05
 }
 
-export const trainingPlan: TrainingWeek[] = [
+export const trainingPlan: TrainingWeek[] = [ // legacy fallback
   // ── Phase 1: Base (Weeks 1–6) ──────────────────────────────────────────────
   {
     week: 1, phase: 'Base', isCutback: false,
@@ -250,7 +250,7 @@ export function buildTrainingPlan(settings: UserSettings): TrainingWeek[] {
     level: settings.experienceLevel,
     goal: settings.goalRace === "FULL" ? "full" : "hm",
     weeks: (settings.planLengthWeeks ?? 16) as 12 | 16 | 20,
-    days: days ?? ["wed", "sat", "sun"],
+    days: days ?? ["wed", "sat", "sun"], // default fallback
     longRunDay,
     vdot: settings.currentVdot,
   };

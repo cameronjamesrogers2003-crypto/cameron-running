@@ -100,7 +100,7 @@ export default function OnboardingPage() {
       const parsed = settings.trainingDays ? JSON.parse(settings.trainingDays) as unknown : [];
       if (Array.isArray(parsed)) return parsed.filter((d): d is Day => DAYS.includes(d as Day));
     } catch {}
-    return ["wed", "sat", "sun"];
+    return ["wed", "sat", "sun"]; // default fallback
   });
   const [longRunDay, setLongRunDay] = useState<Day | null>(() => {
     const value = settings.longRunDay;
