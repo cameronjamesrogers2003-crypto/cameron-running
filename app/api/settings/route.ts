@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
 import { dbSettingsToUserSettings, DEFAULT_SETTINGS } from "@/lib/settings";
-import { requireInternalApiAuth } from "@/lib/apiAuth";
 import type { Day } from "@/data/trainingPlan";
 
 type SettingsUpdate = {
@@ -41,9 +40,7 @@ function isDay(value: unknown): value is Day {
   return value === "mon" || value === "tue" || value === "wed" || value === "thu" || value === "fri" || value === "sat" || value === "sun";
 }
 
-export async function GET(req: NextRequest) {
-  const authResp = requireInternalApiAuth(req);
-  if (authResp) return authResp;
+export async function GET(_req: NextRequest) {
   try {
     const row = await prisma.userSettings.upsert({
       where:  { id: 1 },
