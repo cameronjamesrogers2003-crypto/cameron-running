@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generatePlan } from "@/lib/generatePlan";
 import { loadGeneratedPlan, saveGeneratedPlan } from "@/lib/planStorage";
-import { requireInternalApiAuth } from "@/lib/apiAuth";
 import type { Day, PlanConfig } from "@/data/trainingPlan";
 
 function isDay(x: unknown): x is Day {
@@ -37,9 +36,6 @@ function parseConfig(body: unknown): PlanConfig | null {
 }
 
 export async function POST(req: NextRequest) {
-  const authResp = requireInternalApiAuth(req);
-  if (authResp) return authResp;
-
   let body: unknown;
   try {
     body = await req.json();
