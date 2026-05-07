@@ -30,15 +30,17 @@ export function getSessionPacesSecKm(vdot: number, settings: Partial<UserSetting
   const longOff = settings.longPaceOffsetSec ?? 0;
 
   const easySecKm = p.easyMaxSecKm + easyOff;
-  let tempoSecKm = p.tempoSecKm + tempoOff;
-  let intervalSecKm = p.intervalSecKm + intOff;
+  let tempoSecKm: number;
+  let intervalSecKm: number;
+  if (isBeginnerRunningExperience(settings.runningExperience)) {
+    tempoSecKm = Math.round(p.tempoSecKm * 1.05 + tempoOff);
+    intervalSecKm = Math.round(p.intervalSecKm * 1.05 + intOff);
+  } else {
+    tempoSecKm = p.tempoSecKm + tempoOff;
+    intervalSecKm = p.intervalSecKm + intOff;
+  }
   const longBase = Math.round(p.easyMaxSecKm * 1.1);
   const longSecKm = longBase + longOff;
-
-  if (isBeginnerRunningExperience(settings.runningExperience)) {
-    tempoSecKm += Math.round(p.tempoSecKm * 0.05);
-    intervalSecKm += Math.round(p.intervalSecKm * 0.05);
-  }
 
   return { easySecKm, tempoSecKm, intervalSecKm, longSecKm };
 }
@@ -54,7 +56,7 @@ export function getSliderBaseSecKm(
   if (zone === "long") return Math.round(p.easyMaxSecKm * 1.1);
   const base = zone === "tempo" ? p.tempoSecKm : p.intervalSecKm;
   if (isBeginnerRunningExperience(runningExperience)) {
-    return base + Math.round(base * 0.05);
+    return Math.round(base * 1.05);
   }
   return base;
 }
@@ -98,11 +100,22 @@ export function deriveRatingPaceZones(settings: UserSettings): Pick<
   const easyMin = p.easyMinSecKm + easyOff;
   const easyMax = p.easyMaxSecKm + easyOff;
 
-  let tempoMid = p.tempoSecKm + tempoOff;
-  let intMid = p.intervalSecKm + intOff;
+  let tempoPaceMaxSec: number;
+  let tempoPaceMinSec: number;
+  let intervalPaceMaxSec: number;
+  let intervalPaceMinSec: number;
   if (isBeginnerRunningExperience(settings.runningExperience)) {
-    tempoMid += Math.round(p.tempoSecKm * 0.05);
-    intMid += Math.round(p.intervalSecKm * 0.05);
+    tempoPaceMaxSec = Math.round(p.tempoSecKm * 1.05 + tempoOff);
+    intervalPaceMaxSec = Math.round(p.intervalSecKm * 1.05 + intOff);
+    tempoPaceMinSec = Math.max(120, tempoPaceMaxSec - 60);
+    intervalPaceMinSec = Math.max(120, intervalPaceMaxSec - 30);
+  } else {
+    const tempoMid = p.tempoSecKm + tempoOff;
+    const intMid = p.intervalSecKm + intOff;
+    tempoPaceMaxSec = tempoMid + 30;
+    tempoPaceMinSec = Math.max(120, tempoMid - 30);
+    intervalPaceMaxSec = intMid + 15;
+    intervalPaceMinSec = Math.max(120, intMid - 15);
   }
 
   const longMid = Math.round(p.easyMaxSecKm * 1.1) + longOff;
@@ -110,10 +123,10 @@ export function deriveRatingPaceZones(settings: UserSettings): Pick<
   return {
     easyPaceMinSec: easyMin,
     easyPaceMaxSec: easyMax,
-    tempoPaceMinSec: Math.max(120, tempoMid - 30),
-    tempoPaceMaxSec: tempoMid + 30,
-    intervalPaceMinSec: Math.max(120, intMid - 15),
-    intervalPaceMaxSec: intMid + 15,
+    tempoPaceMinSec,
+    tempoPaceMaxSec,
+    intervalPaceMinSec,
+    intervalPaceMaxSec,
     longPaceMinSec: Math.max(120, longMid - 20),
     longPaceMaxSec: longMid + 20,
   };
