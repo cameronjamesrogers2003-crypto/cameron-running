@@ -36,7 +36,6 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
       method:  "PATCH",
       headers: {
         "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
       body:    JSON.stringify(patch),
     });

@@ -348,9 +348,6 @@ export default function SettingsForm() {
   }
 
   async function handlePlanSave() {
-    const token = process.env.NEXT_PUBLIC_PLANS_API_TOKEN;
-    const headers: Record<string, string> = { "Content-Type": "application/json" };
-    if (token) headers.Authorization = `Bearer ${token}`;
     const payload = {
       experienceLevel,
       goalRace,
@@ -374,7 +371,7 @@ export default function SettingsForm() {
 
     const regenRes = await fetch("/api/plans/regenerate", {
       method: "POST",
-      headers,
+      headers: { "Content-Type": "application/json" },
     });
 
     if (!regenRes.ok) {
