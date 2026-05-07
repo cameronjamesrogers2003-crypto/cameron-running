@@ -14,7 +14,7 @@ import { inferRunType } from "@/lib/rating";
 import { dbSettingsToUserSettings, DEFAULT_SETTINGS } from "@/lib/settings";
 import { parseInterruptionType, reconfigurePlan, type PlanInterruption } from "@/lib/interruptions";
 import { loadGeneratedPlan, saveGeneratedPlan } from "@/lib/planStorage";
-import { generatePlan } from "@/lib/generatePlan";
+import { finalizePlanDisplayCopy, generatePlan } from "@/lib/generatePlan";
 import {
   buildPlayerRatingSummaryRows,
   PLAYER_RATING_ATTRIBUTES,
@@ -311,7 +311,12 @@ export default async function Dashboard({
       raceDate: settings.raceDate ? new Date(settings.raceDate) : null,
       normalWeeklyKm,
       planStart,
+      experienceLevel: settings.experienceLevel ?? "BEGINNER",
     }).plan;
+  }
+
+  if (planToRender.length) {
+    finalizePlanDisplayCopy(planToRender, settings.experienceLevel ?? "BEGINNER");
   }
 
   const lastPlanWeekNum = planToRender[planToRender.length - 1]?.week ?? planToRender.length;

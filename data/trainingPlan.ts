@@ -51,6 +51,10 @@ export interface TrainingWeek {
   softCutback?: boolean
   adaptationNote?: string
   sessions: Session[]
+  /** Dynamic subtitle above the week card; generated from actual sessions */
+  weekSubtitle?: string
+  /** Phase intro shown once per phase section; set on first week of each phase */
+  phaseOverviewText?: string
 }
 
 // Pace zones based on VDOT ~33 — reassess every 6–8 weeks

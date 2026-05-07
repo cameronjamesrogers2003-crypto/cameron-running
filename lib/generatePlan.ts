@@ -173,6 +173,37 @@ function isBasePhase(phase: Phase): boolean {
   return phase === "Base" || phase === "Beginner Base" || phase === "Intermediate Base" || phase === "Advanced Base";
 }
 
+function isBuildPhase(phase: Phase): boolean {
+  return phase === "Race Specific" || phase === "Half Marathon Build" || phase === "Marathon Build";
+}
+
+/** Subtitle above each week card — must match actual session types. */
+export function computeWeekSubtitle(
+  sessionTypes: RunType[],
+  phase: Phase,
+  isCutback: boolean,
+  weekNum: number,
+): string {
+  if (phase === "Taper") {
+    return "Taper — preparing for race day";
+  }
+  let core: string;
+  if (weekNum === 1) {
+    core = "Introduction to structured training";
+  } else if (sessionTypes.includes("interval")) {
+    core = "Speed work and endurance building";
+  } else if (sessionTypes.includes("tempo")) {
+    core = "Threshold training and base building";
+  } else {
+    core = "Aerobic base building";
+  }
+  if (isCutback) {
+    const tail = weekNum === 1 ? "introduction to structured training" : core.toLowerCase();
+    return `Recovery week — ${tail}`;
+  }
+  return core;
+}
+
 function getPhaseWindows(config: Pick<PlanConfig, "weeks" | "goal">, weekNumber: number): {
   baseLengthWeeks: number;
   isBase: boolean;
@@ -314,20 +345,97 @@ export function assignSessionsTodays(
   return out;
 }
 
-function descriptionForSession(type: RunType, phase: Phase, isCutback: boolean): string {
+/** Session copy aligned to actual session type and phase. */
+export function sessionDescriptionForPlan(type: RunType, phase: Phase, isCutback: boolean): string {
   if (isCutback) {
     if (type === "easy") return "Recovery week. Keep effort very easy.";
-    if (type === "long") return "Cutback long run. Lower volume and stay relaxed.";
-    if (type === "tempo") return "Cutback week. Controlled effort, don’t push.";
-    return "Cutback week. Keep the hard work controlled.";
+    if (type === "long") return "Cutback long run. Lower volume, stay relaxed.";
+    if (type === "tempo") {
+      return "Recovery week. Keep threshold effort controlled and sustainable.";
+    }
+    return "Recovery week. Keep quality work controlled — focus on form, not speed.";
   }
-  if (type === "easy") return "Easy aerobic run. Conversational pace throughout.";
-  if (type === "long") {
-    if (phase === "Race Specific") return "Progressive long run. Finish feeling strong.";
+  if (type === "easy") {
+    if (isBasePhase(phase)) {
+      return "Easy aerobic run. Conversational pace throughout.";
+    }
+    return "Easy recovery run. Keep effort very comfortable.";
+  }
+  if (type === "tempo") {
+    return "Sustained threshold effort. Comfortably hard pace — you should be able to speak in short sentences.";
+  }
+  if (type === "interval") {
+    return "High intensity intervals. Hard effort with structured recovery between reps.";
+  }
+  if (phase === "Taper") {
+    return "Taper long run. Shorter than peak — stay fresh for race day.";
+  }
+  if (isBasePhase(phase)) {
     return "Base long run. Build time on feet at easy effort.";
   }
-  if (type === "tempo") return "Sustained threshold effort. Comfortably hard pace.";
-  return "High intensity repeats. Hard effort with recovery.";
+  return "Progressive long run. Finish feeling strong, not exhausted.";
+}
+
+function blockHasInterval(block: TrainingWeek[]): boolean {
+  return block.some((w) => w.sessions.some((s) => s.type === "interval"));
+}
+
+/** Phase overview for the first week of a contiguous phase block. */
+export function computePhaseOverviewForBlock(
+  phase: Phase,
+  runnerLevel: PlanConfig["level"],
+  blockWeeks: TrainingWeek[],
+): string {
+  if (phase === "Taper") {
+    return "The taper phase reduces volume to let your body recover and absorb all your training. Trust the process — feeling fresh on race day is the goal.";
+  }
+  if (phase === "Recovery") {
+    return "This recovery week was automatically added based on your recent training load. Keep all runs easy and focus on rest and sleep.";
+  }
+  if (isBasePhase(phase)) {
+    if (runnerLevel === "BEGINNER") {
+      return "The base phase builds your aerobic engine with easy running. Every run should feel comfortable and conversational. Consistency matters more than pace at this stage.";
+    }
+    return "The base phase builds your aerobic engine with easy running and gradual progression. Consistency matters more than pace at this stage.";
+  }
+  if (isBuildPhase(phase)) {
+    const hasIx = blockHasInterval(blockWeeks);
+    if ((runnerLevel === "INTERMEDIATE" || runnerLevel === "ADVANCED") && hasIx) {
+      return "The build phase introduces high intensity interval training alongside tempo work. The hard sessions should feel genuinely hard — the easy days must stay easy.";
+    }
+    return "The build phase introduces tempo running to improve your lactate threshold. Keep easy runs easy and push appropriately on tempo days.";
+  }
+  return "";
+}
+
+/** Fill weekSubtitle, phaseOverviewText, and per-session descriptions from plan content. */
+export function finalizePlanDisplayCopy(
+  plan: TrainingWeek[],
+  runnerLevel: PlanConfig["level"],
+): void {
+  for (let i = 0; i < plan.length; i++) {
+    const prev = i > 0 ? plan[i - 1] : null;
+    if (i === 0 || plan[i].phase !== prev!.phase) {
+      const block: TrainingWeek[] = [];
+      for (let j = i; j < plan.length && plan[j].phase === plan[i].phase; j++) {
+        block.push(plan[j]);
+      }
+      const text = computePhaseOverviewForBlock(plan[i].phase, runnerLevel, block);
+      plan[i].phaseOverviewText = text || undefined;
+    }
+  }
+
+  for (const week of plan) {
+    const types = week.sessions.map((s) => s.type);
+    if (week.phase === "Recovery" || week.isRecovery) {
+      week.weekSubtitle = "Aerobic base building";
+    } else {
+      week.weekSubtitle = computeWeekSubtitle(types, week.phase, week.isCutback, week.week);
+    }
+    for (const session of week.sessions) {
+      session.description = sessionDescriptionForPlan(session.type, week.phase, week.isCutback);
+    }
+  }
 }
 
 function getLongRunKm(config: PlanConfig, goal: PlanConfig["goal"]) {
@@ -540,7 +648,7 @@ export function generatePlan(config: PlanConfig): TrainingWeek[] {
         type,
         targetDistanceKm: round1(km),
         targetPaceMinPerKm: round1(pace),
-        description: descriptionForSession(type, phase, cutback),
+        description: "",
       };
     });
 
@@ -563,6 +671,8 @@ export function generatePlan(config: PlanConfig): TrainingWeek[] {
       }
     }
   }
+
+  finalizePlanDisplayCopy(plan, config.level);
 
   return plan;
 }
