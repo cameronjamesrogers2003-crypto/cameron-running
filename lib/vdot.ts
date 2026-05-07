@@ -40,3 +40,98 @@ export function getVdotPaces(vdot: number): VdotPaces {
 
   return ANCHORS[ANCHORS.length - 1][1];
 }
+
+/** Jack Daniels / Daniels formula: VO₂ from race velocity and duration (minutes). */
+export function estimateVo2FromRace(metres: number, durationMinutes: number): number | null {
+  if (durationMinutes <= 0) return null;
+  const velocity = metres / durationMinutes;
+  const pct =
+    0.8
+    + 0.1894393 * Math.exp(-0.012778 * durationMinutes)
+    + 0.2989558 * Math.exp(-0.1932605 * durationMinutes);
+  if (pct <= 0) return null;
+  const vo2 = (-4.6 + 0.182258 * velocity + 0.000104 * velocity * velocity) / pct;
+  return Number.isFinite(vo2) && vo2 > 0 ? vo2 : null;
+}
+
+/** Unadjusted integer VDOT from a single race (rounded VO₂). */
+export function rawVdotFromRace(metres: number, minutes: number, seconds: number): number | null {
+  const t = minutes + seconds / 60;
+  const vo2 = estimateVo2FromRace(metres, t);
+  if (vo2 == null) return null;
+  return Math.max(1, Math.round(vo2));
+}
+
+export type WinningRaceKey = "5" | "10" | "21.1";
+
+export interface MultiRaceVdotResult {
+  rawVdot: number;
+  adjustedVdot: number;
+  displayVo2: number;
+  winningDistanceKey: WinningRaceKey;
+}
+
+export function adjustedVdotFromRaw(rawVdot: number, age: number | null | undefined, runningExperience: string | null | undefined): number {
+  let v = rawVdot;
+  if (age != null && Number.isFinite(age)) {
+    if (age >= 60) v -= 3;
+    else if (age >= 50) v -= 2;
+    else if (age >= 40) v -= 1;
+  }
+  if (runningExperience === "< 1 year") v -= 2;
+  else if (runningExperience === "1-3 years") v -= 1;
+  return Math.max(28, Math.min(60, v));
+}
+
+/**
+ * From 5K / 10K / HM times (each optional). Uses highest raw VDOT among filled races, then age & experience adjustments.
+ */
+export function computeVdotFromRaceTimes(
+  races: {
+    fiveKm: { minutes: number; seconds: number } | null;
+    tenKm: { minutes: number; seconds: number } | null;
+    half: { minutes: number; seconds: number } | null;
+  },
+  age: number | null | undefined,
+  runningExperience: string | null | undefined,
+): MultiRaceVdotResult | null {
+  type Cand = { key: WinningRaceKey; metres: number; minutes: number; seconds: number; raw: number; vo2: number };
+  const cands: Cand[] = [];
+  const tryPush = (key: WinningRaceKey, metres: number, minutes: number, seconds: number) => {
+    if (minutes < 0 || seconds < 0 || seconds > 59) return;
+    const t = minutes + seconds / 60;
+    if (t <= 0) return;
+    const vo2 = estimateVo2FromRace(metres, t);
+    if (vo2 == null) return;
+    const raw = Math.max(1, Math.round(vo2));
+    cands.push({ key, metres, minutes, seconds, raw, vo2 });
+  };
+  if (races.fiveKm) tryPush("5", 5000, races.fiveKm.minutes, races.fiveKm.seconds);
+  if (races.tenKm) tryPush("10", 10000, races.tenKm.minutes, races.tenKm.seconds);
+  if (races.half) tryPush("21.1", 21097.5, races.half.minutes, races.half.seconds);
+
+  if (cands.length === 0) return null;
+  const best = cands.reduce((a, b) => (b.raw > a.raw ? b : a));
+  const adjustedVdot = adjustedVdotFromRaw(best.raw, age, runningExperience);
+  return {
+    rawVdot: best.raw,
+    adjustedVdot,
+    displayVo2: best.vo2,
+    winningDistanceKey: best.key,
+  };
+}
+
+export function fitnessIdentityLabel(adjustedVdot: number): string {
+  if (adjustedVdot < 35) return "Beginner Aerobic Base";
+  if (adjustedVdot < 45) return "Developing Runner";
+  if (adjustedVdot < 55) return "Intermediate Endurance";
+  return "Advanced Aerobic Fitness";
+}
+
+export type SuggestedTrainingLevel = "BEGINNER" | "INTERMEDIATE" | "ADVANCED";
+
+export function suggestedLevelFromVdot(adjustedVdot: number): SuggestedTrainingLevel {
+  if (adjustedVdot < 35) return "BEGINNER";
+  if (adjustedVdot < 50) return "INTERMEDIATE";
+  return "ADVANCED";
+}

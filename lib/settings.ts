@@ -26,6 +26,15 @@ export interface UserSettings {
   distTargetTempoM: number;
   distTargetIntervalM: number;
   distTargetLongM: number;
+  age: number | null;
+  gender: string | null;
+  weightKg: number | null;
+  /** "< 1 year" | "1-3 years" | "3-5 years" | "5+ years" */
+  runningExperience: string | null;
+  easyPaceOffsetSec: number;
+  tempoPaceOffsetSec: number;
+  intervalPaceOffsetSec: number;
+  longPaceOffsetSec: number;
   easyPaceMinSec: number;
   easyPaceMaxSec: number;
   tempoPaceMinSec: number;
@@ -64,6 +73,14 @@ export const DEFAULT_SETTINGS: UserSettings = {
   distTargetTempoM: 10000,
   distTargetIntervalM: 8000,
   distTargetLongM: 18000,
+  age: null,
+  gender: null,
+  weightKg: null,
+  runningExperience: null,
+  easyPaceOffsetSec: 0,
+  tempoPaceOffsetSec: 0,
+  intervalPaceOffsetSec: 0,
+  longPaceOffsetSec: 0,
   easyPaceMinSec: 390,
   easyPaceMaxSec: 450,
   tempoPaceMinSec: 330,
@@ -79,11 +96,6 @@ export const DEFAULT_SETTINGS: UserSettings = {
 };
 
 export function dbSettingsToUserSettings(row: PrismaUserSettings): UserSettings {
-  const rowWithVdot = row as PrismaUserSettings & {
-    vdotRaceDistance?: string | null;
-    vdotRaceMinutes?: number | null;
-    vdotRaceSeconds?: number | null;
-  };
   return {
     id: row.id,
     planStartDate:        row.planStartDate  ? new Date(row.planStartDate).toISOString()  : null,
@@ -98,9 +110,9 @@ export function dbSettingsToUserSettings(row: PrismaUserSettings): UserSettings 
     maxHR:                row.maxHR                ?? DEFAULT_SETTINGS.maxHR,
     startingTempoPaceSec: row.startingTempoPaceSec ?? DEFAULT_SETTINGS.startingTempoPaceSec,
     currentVdot:          row.currentVdot          ?? DEFAULT_SETTINGS.currentVdot,
-    vdotRaceDistance:     rowWithVdot.vdotRaceDistance     ?? DEFAULT_SETTINGS.vdotRaceDistance,
-    vdotRaceMinutes:      rowWithVdot.vdotRaceMinutes      ?? DEFAULT_SETTINGS.vdotRaceMinutes,
-    vdotRaceSeconds:      rowWithVdot.vdotRaceSeconds      ?? DEFAULT_SETTINGS.vdotRaceSeconds,
+    vdotRaceDistance:     row.vdotRaceDistance     ?? DEFAULT_SETTINGS.vdotRaceDistance,
+    vdotRaceMinutes:      row.vdotRaceMinutes      ?? DEFAULT_SETTINGS.vdotRaceMinutes,
+    vdotRaceSeconds:      row.vdotRaceSeconds      ?? DEFAULT_SETTINGS.vdotRaceSeconds,
     targetHMTimeSec:      row.targetHMTimeSec       ?? DEFAULT_SETTINGS.targetHMTimeSec,
     raceName:             row.raceName              ?? null,
     raceDate:             row.raceDate ? new Date(row.raceDate).toISOString() : null,
@@ -108,6 +120,14 @@ export function dbSettingsToUserSettings(row: PrismaUserSettings): UserSettings 
     distTargetTempoM:     row.distTargetTempoM      ?? DEFAULT_SETTINGS.distTargetTempoM,
     distTargetIntervalM:  row.distTargetIntervalM   ?? DEFAULT_SETTINGS.distTargetIntervalM,
     distTargetLongM:      row.distTargetLongM       ?? DEFAULT_SETTINGS.distTargetLongM,
+    age:                  row.age                   ?? null,
+    gender:               row.gender                ?? null,
+    weightKg:             row.weightKg              ?? null,
+    runningExperience:    row.runningExperience     ?? null,
+    easyPaceOffsetSec:    row.easyPaceOffsetSec     ?? 0,
+    tempoPaceOffsetSec:   row.tempoPaceOffsetSec    ?? 0,
+    intervalPaceOffsetSec: row.intervalPaceOffsetSec ?? 0,
+    longPaceOffsetSec:    row.longPaceOffsetSec     ?? 0,
     easyPaceMinSec:       row.easyPaceMinSec        ?? DEFAULT_SETTINGS.easyPaceMinSec,
     easyPaceMaxSec:       row.easyPaceMaxSec        ?? DEFAULT_SETTINGS.easyPaceMaxSec,
     tempoPaceMinSec:      row.tempoPaceMinSec       ?? DEFAULT_SETTINGS.tempoPaceMinSec,

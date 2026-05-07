@@ -1,38 +1,24 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSettings } from "@/context/SettingsContext";
 import { brisbaneMidnightUtcForYmd } from "@/lib/dateUtils";
 import { planStartAusDisplayToIsoYmd, planStartIsoYmdToAusDisplay } from "@/lib/planStartDateFormat";
-import { DEFAULT_SETTINGS, formatPace, parsePace, formatDuration, parseDuration } from "@/lib/settings";
-import { getVdotPaces } from "@/lib/vdot";
+import { type UserSettings } from "@/lib/settings";
+import { deriveRatingPaceZones } from "@/lib/planPaces";
 import type { Day } from "@/data/trainingPlan";
 import { getDefaultLongRunDay, getScheduleWarnings } from "@/lib/generatePlan";
-import VdotCalculator from "@/components/VdotCalculator";
-import InterruptionsForm from "./InterruptionsForm";
+import VdotCalculator, { type VdotPersonalFields } from "@/components/VdotCalculator";
+import PaceZoneOffsetSlider from "@/components/PaceZoneOffsetSlider";
 
 type SaveStatus = "idle" | "saving" | "saved" | "error";
 
-function useSaveGroup() {
-  const [status, setStatus] = useState<SaveStatus>("idle");
-  return {
-    status,
-    async save(fn: () => Promise<void>) {
-      setStatus("saving");
-      try {
-        await fn();
-        setStatus("saved");
-        setTimeout(() => setStatus("idle"), 2500);
-      } catch {
-        setStatus("error");
-        setTimeout(() => setStatus("idle"), 3000);
-      }
-    },
-  };
-}
-
 function SaveButton({ status, onClick }: { status: SaveStatus; onClick: () => void }) {
-  const label = status === "saving" ? "Saving…" : status === "saved" ? "Saved" : status === "error" ? "Error" : "Save";
+  const label =
+    status === "saving" ? "Saving…"
+    : status === "saved" ? "Saved"
+    : status === "error" ? "Error"
+    : "Save";
   const color =
     status === "saved"  ? "#5DCAA5" :
     status === "error"  ? "#F09595" :
@@ -93,44 +79,6 @@ function TextInput({ value, onChange, placeholder }: { value: string; onChange: 
   );
 }
 
-function NumberInput({ value, onChange, min, max }: { value: number | string; onChange: (v: number) => void; min?: number; max?: number }) {
-  return (
-    <input
-      type="number"
-      value={value}
-      onChange={e => onChange(Number(e.target.value))}
-      min={min}
-      max={max}
-      className="w-full sm:w-24 rounded-md px-3 py-2 min-h-11 text-sm text-white outline-none focus:ring-1"
-      style={{
-        background: "rgba(255,255,255,0.06)",
-        border: "1px solid rgba(255,255,255,0.1)",
-      }}
-    />
-  );
-}
-
-function PaceInput({ value, onChange, placeholder = "0:00" }: { value: string; onChange: (v: string) => void; placeholder?: string }) {
-  return (
-    <input
-      type="text"
-      value={value}
-      onChange={e => onChange(e.target.value)}
-      placeholder={placeholder}
-      className="w-full max-w-[5.5rem] sm:w-16 rounded-md px-2 py-2 min-h-11 text-sm text-white outline-none focus:ring-1 text-center"
-      style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}
-    />
-  );
-}
-
-type ZoneSuggestion = {
-  type: "easy" | "tempo" | "interval" | "long";
-  avgPace: number;
-  midpoint: number;
-  newMin: number;
-  newMax: number;
-};
-
 const DAY_ORDER: Day[] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 const DAYS: Day[] = DAY_ORDER;
 const DAY_LABEL: Record<Day, string> = {
@@ -141,12 +89,6 @@ const DAY_LABEL: Record<Day, string> = {
   fri: "Fri",
   sat: "Sat",
   sun: "Sun",
-};
-
-type VdotCalculatorInput = {
-  distance: string;
-  minutes: number;
-  seconds: number;
 };
 
 function parseTrainingDaysValue(value: string | null | undefined): Day[] {
@@ -167,81 +109,56 @@ function parseLongRunDayValue(value: string | null | undefined): Day | null {
   return DAY_ORDER.includes(value as Day) ? (value as Day) : null;
 }
 
-function safePaceSeconds(value: unknown, fallback: number): number {
-  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+function buildDraftSettings(
+  base: UserSettings,
+  patch: Partial<UserSettings>,
+): UserSettings {
+  return { ...base, ...patch };
 }
 
 export default function SettingsForm() {
   const { settings, loading, updateSettings } = useSettings();
+  const token = process.env.NEXT_PUBLIC_PLANS_API_TOKEN;
+  const authJsonHeaders: Record<string, string> = { "Content-Type": "application/json" };
+  if (token) authJsonHeaders.Authorization = `Bearer ${token}`;
+  const authOnlyHeaders: Record<string, string> = {};
+  if (token) authOnlyHeaders.Authorization = `Bearer ${token}`;
 
-  // ── Training Plan group ────────────────────────────────────────────────────
-  const [planStartDate,       setPlanStartDate]       = useState(
-    () => planStartIsoYmdToAusDisplay(settings.planStartDate),
-  );
-  const [currentWeekOverride, setCurrentWeekOverride] = useState(String(settings.currentWeekOverride ?? ""));
-  const planGroup = useSaveGroup();
+  const [planStartDate, setPlanStartDate] = useState(() => planStartIsoYmdToAusDisplay(settings.planStartDate));
   const [experienceLevel, setExperienceLevel] = useState<"BEGINNER" | "INTERMEDIATE" | "ADVANCED">(
     settings.experienceLevel ?? "BEGINNER",
   );
   const [goalRace, setGoalRace] = useState<"HALF" | "FULL">(settings.goalRace ?? "HALF");
   const [planLengthWeeks, setPlanLengthWeeks] = useState<12 | 16 | 20>((settings.planLengthWeeks ?? 16) as 12 | 16 | 20);
   const [trainingDays, setTrainingDays] = useState<Day[]>(() => parseTrainingDaysValue(settings.trainingDays));
-  const [selectedLongRunDay, setSelectedLongRunDay] = useState<Day | null>(() =>
-    parseLongRunDayValue(settings.longRunDay),
-  );
+  const [selectedLongRunDay, setSelectedLongRunDay] = useState<Day | null>(() => parseLongRunDayValue(settings.longRunDay));
+
   const [vdotUpdatedMsg, setVdotUpdatedMsg] = useState<string | null>(null);
-  const [vdotInput, setVdotInput] = useState<VdotCalculatorInput>({
-    distance: settings.vdotRaceDistance ?? "5",
-    minutes: settings.vdotRaceMinutes ?? 25,
-    seconds: settings.vdotRaceSeconds ?? 0,
-  });
   const [suggestedLevel, setSuggestedLevel] = useState<"BEGINNER" | "INTERMEDIATE" | "ADVANCED" | null>(null);
   const [showTooManyDaysWarning, setShowTooManyDaysWarning] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const planConfigGroup = useSaveGroup();
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
 
-  // ── Performance group ─────────────────────────────────────────────────────
-  const [maxHR,   setMaxHR]   = useState(settings.maxHR);
-  const [vdot,    setVdot]    = useState(settings.currentVdot);
-  const [startTP, setStartTP] = useState(formatPace(safePaceSeconds(settings.startingTempoPaceSec, DEFAULT_SETTINGS.startingTempoPaceSec)));
-  const perfGroup = useSaveGroup();
+  const [maxHR, setMaxHR] = useState(settings.maxHR);
+  const [vdot, setVdot] = useState(settings.currentVdot);
 
-  const vdotPaces = getVdotPaces(vdot);
+  const [vdotPersonal, setVdotPersonal] = useState<VdotPersonalFields>({
+    ageInput: "",
+    gender: "",
+    weightInput: "",
+    runningExperience: "",
+  });
 
-  // ── HM Goal group ─────────────────────────────────────────────────────────
-  const [hmTime,    setHmTime]    = useState(formatDuration(settings.targetHMTimeSec));
-  const [raceName,  setRaceName]  = useState(settings.raceName ?? "");
-  const [raceDate,  setRaceDate]  = useState(settings.raceDate?.slice(0, 10) ?? "");
-  const hmGroup = useSaveGroup();
+  const [easyOff, setEasyOff] = useState(settings.easyPaceOffsetSec);
+  const [tempoOff, setTempoOff] = useState(settings.tempoPaceOffsetSec);
+  const [intervalOff, setIntervalOff] = useState(settings.intervalPaceOffsetSec);
+  const [longOff, setLongOff] = useState(settings.longPaceOffsetSec);
 
-  const hmPacePreview = (() => {
-    const secs = parseDuration(hmTime);
-    if (!secs) return null;
-    const perKm = secs / 21.0975;
-    return formatPace(perKm);
-  })();
-
-  // ── Pace zones group ─────────────────────────────────────────────────────
-  const [easyMin,     setEasyMin]     = useState(formatPace(safePaceSeconds(settings.easyPaceMinSec, DEFAULT_SETTINGS.easyPaceMinSec)));
-  const [easyMax,     setEasyMax]     = useState(formatPace(safePaceSeconds(settings.easyPaceMaxSec, DEFAULT_SETTINGS.easyPaceMaxSec)));
-  const [tempoMin,    setTempoMin]    = useState(formatPace(safePaceSeconds(settings.tempoPaceMinSec, DEFAULT_SETTINGS.tempoPaceMinSec)));
-  const [tempoMax,    setTempoMax]    = useState(formatPace(safePaceSeconds(settings.tempoPaceMaxSec, DEFAULT_SETTINGS.tempoPaceMaxSec)));
-  const [intervalMin, setIntervalMin] = useState(formatPace(safePaceSeconds(settings.intervalPaceMinSec, DEFAULT_SETTINGS.intervalPaceMinSec)));
-  const [intervalMax, setIntervalMax] = useState(formatPace(safePaceSeconds(settings.intervalPaceMaxSec, DEFAULT_SETTINGS.intervalPaceMaxSec)));
-  const [longMin,     setLongMin]     = useState(formatPace(safePaceSeconds(settings.longPaceMinSec, DEFAULT_SETTINGS.longPaceMinSec)));
-  const [longMax,     setLongMax]     = useState(formatPace(safePaceSeconds(settings.longPaceMaxSec, DEFAULT_SETTINGS.longPaceMaxSec)));
-  const zonesGroup = useSaveGroup();
-  const [distEasy,     setDistEasy]     = useState(settings.distTargetEasyM / 1000);
-  const [distTempo,    setDistTempo]    = useState(settings.distTargetTempoM / 1000);
-  const [distInterval, setDistInterval] = useState(settings.distTargetIntervalM / 1000);
-  const [distLong,     setDistLong]     = useState(settings.distTargetLongM / 1000);
-  const distGroup = useSaveGroup();
-
-  const [suggestions, setSuggestions] = useState<ZoneSuggestion[]>([]);
   const sortedTrainingDays = useMemo(
     () => [...trainingDays].sort((a, b) => DAY_ORDER.indexOf(a) - DAY_ORDER.indexOf(b)),
     [trainingDays],
   );
+
   function toggleTrainingDay(day: Day) {
     setTrainingDays((prev) => {
       if (prev.includes(day)) {
@@ -257,142 +174,195 @@ export default function SettingsForm() {
     });
   }
 
-  useEffect(() => {
-    fetch("/api/runs?perPage=100&sort=date&order=desc")
-      .then(r => r.json())
-      .then((data: { data: Array<{ avgPaceSecKm: number; runType: string }> }) => {
-        const byType: Record<string, number[]> = { easy: [], tempo: [], interval: [], long: [] };
-        for (const run of data.data) {
-          if (run.avgPaceSecKm > 0 && run.runType in byType) {
-            byType[run.runType].push(run.avgPaceSecKm);
-          }
-        }
-        const zoneConfigs: Array<{
-          type: ZoneSuggestion["type"];
-          minSec: number;
-          maxSec: number;
-        }> = [
-          { type: "easy",     minSec: settings.easyPaceMinSec,     maxSec: settings.easyPaceMaxSec },
-          { type: "tempo",    minSec: settings.tempoPaceMinSec,    maxSec: settings.tempoPaceMaxSec },
-          { type: "interval", minSec: settings.intervalPaceMinSec, maxSec: settings.intervalPaceMaxSec },
-          { type: "long",     minSec: settings.longPaceMinSec,     maxSec: settings.longPaceMaxSec },
-        ];
-        const sug: ZoneSuggestion[] = [];
-        for (const zc of zoneConfigs) {
-          const paces = byType[zc.type].slice(0, 8);
-          if (!paces.length) continue;
-          const avgPace  = Math.round(paces.reduce((s, p) => s + p, 0) / paces.length);
-          const midpoint = (zc.minSec + zc.maxSec) / 2;
-          const width    = zc.maxSec - zc.minSec;
-          if (midpoint - avgPace > 15) {
-            const newMin = Math.round((avgPace - width / 2) / 5) * 5;
-            const newMax = Math.round((avgPace + width / 2) / 5) * 5;
-            sug.push({ type: zc.type, avgPace, midpoint, newMin, newMax });
-          }
-        }
-        setSuggestions(sug);
-      })
-      .catch(() => {});
-  }, [settings]);
-
+  // Sync remote settings into local form state when /api/settings returns fresh data.
+  /* eslint-disable react-hooks/set-state-in-effect -- single batch hydrate from API */
   useEffect(() => {
     if (loading) return;
-    const parsedDays = parseTrainingDaysValue(settings.trainingDays);
-    const parsedLongRunDay = parseLongRunDayValue(settings.longRunDay);
 
     setPlanStartDate(planStartIsoYmdToAusDisplay(settings.planStartDate));
-    setCurrentWeekOverride(String(settings.currentWeekOverride ?? ""));
     setExperienceLevel(settings.experienceLevel ?? "BEGINNER");
     setGoalRace(settings.goalRace ?? "HALF");
     setPlanLengthWeeks((settings.planLengthWeeks ?? 16) as 12 | 16 | 20);
-    setTrainingDays(parsedDays);
-    setSelectedLongRunDay(parsedLongRunDay);
+    setTrainingDays(parseTrainingDaysValue(settings.trainingDays));
+    setSelectedLongRunDay(parseLongRunDayValue(settings.longRunDay));
     setMaxHR(settings.maxHR);
     setVdot(settings.currentVdot);
-    setVdotInput({
-      distance: settings.vdotRaceDistance ?? "5",
-      minutes: settings.vdotRaceMinutes ?? 25,
-      seconds: settings.vdotRaceSeconds ?? 0,
+    setVdotPersonal({
+      ageInput: settings.age != null ? String(settings.age) : "",
+      gender: settings.gender ?? "",
+      weightInput: settings.weightKg != null && Number.isFinite(settings.weightKg) ? String(settings.weightKg) : "",
+      runningExperience: settings.runningExperience ?? "",
     });
-    setStartTP(formatPace(safePaceSeconds(settings.startingTempoPaceSec, DEFAULT_SETTINGS.startingTempoPaceSec)));
-    setHmTime(formatDuration(settings.targetHMTimeSec));
-    setRaceName(settings.raceName ?? "");
-    setRaceDate(settings.raceDate?.slice(0, 10) ?? "");
-    setEasyMin(formatPace(safePaceSeconds(settings.easyPaceMinSec, DEFAULT_SETTINGS.easyPaceMinSec)));
-    setEasyMax(formatPace(safePaceSeconds(settings.easyPaceMaxSec, DEFAULT_SETTINGS.easyPaceMaxSec)));
-    setTempoMin(formatPace(safePaceSeconds(settings.tempoPaceMinSec, DEFAULT_SETTINGS.tempoPaceMinSec)));
-    setTempoMax(formatPace(safePaceSeconds(settings.tempoPaceMaxSec, DEFAULT_SETTINGS.tempoPaceMaxSec)));
-    setIntervalMin(formatPace(safePaceSeconds(settings.intervalPaceMinSec, DEFAULT_SETTINGS.intervalPaceMinSec)));
-    setIntervalMax(formatPace(safePaceSeconds(settings.intervalPaceMaxSec, DEFAULT_SETTINGS.intervalPaceMaxSec)));
-    setLongMin(formatPace(safePaceSeconds(settings.longPaceMinSec, DEFAULT_SETTINGS.longPaceMinSec)));
-    setLongMax(formatPace(safePaceSeconds(settings.longPaceMaxSec, DEFAULT_SETTINGS.longPaceMaxSec)));
-    setDistEasy(settings.distTargetEasyM / 1000);
-    setDistTempo(settings.distTargetTempoM / 1000);
-    setDistInterval(settings.distTargetIntervalM / 1000);
-    setDistLong(settings.distTargetLongM / 1000);
+    setEasyOff(settings.easyPaceOffsetSec);
+    setTempoOff(settings.tempoPaceOffsetSec);
+    setIntervalOff(settings.intervalPaceOffsetSec);
+    setLongOff(settings.longPaceOffsetSec);
   }, [loading, settings]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const effectiveLongRunDay = useMemo<Day | null>(() => {
     if (sortedTrainingDays.length < 2) return null;
     if (selectedLongRunDay && sortedTrainingDays.includes(selectedLongRunDay)) return selectedLongRunDay;
     return getDefaultLongRunDay(sortedTrainingDays);
   }, [selectedLongRunDay, sortedTrainingDays]);
+
   const scheduleWarnings = useMemo(
     () => (effectiveLongRunDay ? getScheduleWarnings(sortedTrainingDays, effectiveLongRunDay, experienceLevel) : []),
     [effectiveLongRunDay, sortedTrainingDays, experienceLevel],
   );
 
-  function applySuggestion(sug: ZoneSuggestion) {
-    const mn = formatPace(sug.newMin);
-    const mx = formatPace(sug.newMax);
-    if (sug.type === "easy")     { setEasyMin(mn);     setEasyMax(mx); }
-    if (sug.type === "tempo")    { setTempoMin(mn);    setTempoMax(mx); }
-    if (sug.type === "interval") { setIntervalMin(mn); setIntervalMax(mx); }
-    if (sug.type === "long")     { setLongMin(mn);     setLongMax(mx); }
+  const runningExperienceForPaces =
+    vdotPersonal.runningExperience || settings.runningExperience;
+
+  async function applyVdotCalculatorPatch(payload: {
+    vdot: number;
+    maxHR: number;
+    vdotRaceDistance: string;
+    vdotRaceMinutes: number;
+    vdotRaceSeconds: number;
+    age: number | null;
+    gender: string | null;
+    weightKg: number | null;
+    runningExperience: string | null;
+  }) {
+    setSaveError(null);
+    const draft = buildDraftSettings(settings, {
+      currentVdot: payload.vdot,
+      maxHR: payload.maxHR,
+      vdotRaceDistance: payload.vdotRaceDistance,
+      vdotRaceMinutes: payload.vdotRaceMinutes,
+      vdotRaceSeconds: payload.vdotRaceSeconds,
+      age: payload.age,
+      gender: payload.gender,
+      weightKg: payload.weightKg,
+      runningExperience: payload.runningExperience,
+      easyPaceOffsetSec: 0,
+      tempoPaceOffsetSec: 0,
+      intervalPaceOffsetSec: 0,
+      longPaceOffsetSec: 0,
+    });
+    const zones = deriveRatingPaceZones(draft);
+    try {
+      await updateSettings({
+        currentVdot: payload.vdot,
+        maxHR: payload.maxHR,
+        vdotRaceDistance: payload.vdotRaceDistance,
+        vdotRaceMinutes: payload.vdotRaceMinutes,
+        vdotRaceSeconds: payload.vdotRaceSeconds,
+        age: payload.age,
+        gender: payload.gender,
+        weightKg: payload.weightKg,
+        runningExperience: payload.runningExperience,
+        easyPaceOffsetSec: 0,
+        tempoPaceOffsetSec: 0,
+        intervalPaceOffsetSec: 0,
+        longPaceOffsetSec: 0,
+        ...zones,
+      });
+      setVdot(payload.vdot);
+      setMaxHR(payload.maxHR);
+      setEasyOff(0);
+      setTempoOff(0);
+      setIntervalOff(0);
+      setLongOff(0);
+      setVdotUpdatedMsg(`VDOT updated to ${payload.vdot}`);
+    } catch {
+      setSaveError("Failed to save VDOT. Please try again.");
+    }
   }
 
-  async function handlePlanSave() {
-    const originalVdot = settings.currentVdot;
-    const payload = {
-      experienceLevel,
-      goalRace,
-      planLengthWeeks,
-      trainingDays: JSON.stringify(sortedTrainingDays),
-      longRunDay: effectiveLongRunDay,
-      currentVdot: vdot,
-      vdotRaceDistance: vdotInput.distance,
-      vdotRaceMinutes: vdotInput.minutes,
-      vdotRaceSeconds: vdotInput.seconds,
-      planStartDate: settings.planStartDate,
-      maxHR,
-    } as const;
-
+  async function handleMainSave() {
+    setSaveError(null);
+    setSaveStatus("saving");
     try {
-      await updateSettings(payload);
-    } catch {
-      alert("Failed to save settings");
-      throw new Error("Failed to save settings");
-    }
+      const trimmed = planStartDate.trim();
+      let planIso: string | null = null;
+      if (trimmed) {
+        const isoYmd = planStartAusDisplayToIsoYmd(planStartDate);
+        if (!isoYmd) throw new Error("Invalid plan start date (use DD/MM/YYYY)");
+        planIso = brisbaneMidnightUtcForYmd(isoYmd).toISOString();
+      }
 
-    const regenRes = await fetch("/api/plans/regenerate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-    });
+      if (sortedTrainingDays.length < 2) {
+        throw new Error("Select at least 2 training days.");
+      }
 
-    if (!regenRes.ok) {
-      alert("Settings saved but plan failed to regenerate");
-      throw new Error("Plan regeneration failed");
-    }
+      const ageParsed = vdotPersonal.ageInput.trim() === "" ? null : Number(vdotPersonal.ageInput);
+      const age = ageParsed != null && Number.isFinite(ageParsed) ? Math.round(ageParsed) : null;
+      const wParsed = vdotPersonal.weightInput.trim() === "" ? null : Number(vdotPersonal.weightInput);
+      const weightKg = wParsed != null && Number.isFinite(wParsed) ? wParsed : null;
 
-    if (vdot !== originalVdot) {
-      await fetch("/api/plans/rebuild-paces", {
+      const draft = buildDraftSettings(settings, {
+        planStartDate: planIso,
+        experienceLevel,
+        goalRace,
+        planLengthWeeks,
+        trainingDays: JSON.stringify(sortedTrainingDays),
+        longRunDay: effectiveLongRunDay,
+        maxHR,
+        currentVdot: vdot,
+        age,
+        gender: vdotPersonal.gender || null,
+        weightKg,
+        runningExperience: vdotPersonal.runningExperience || null,
+        easyPaceOffsetSec: easyOff,
+        tempoPaceOffsetSec: tempoOff,
+        intervalPaceOffsetSec: intervalOff,
+        longPaceOffsetSec: longOff,
+      });
+      const zones = deriveRatingPaceZones(draft);
+
+      await updateSettings({
+        planStartDate: planIso,
+        experienceLevel,
+        goalRace,
+        planLengthWeeks,
+        trainingDays: JSON.stringify(sortedTrainingDays),
+        longRunDay: effectiveLongRunDay,
+        maxHR,
+        currentVdot: vdot,
+        vdotRaceDistance: settings.vdotRaceDistance,
+        vdotRaceMinutes: settings.vdotRaceMinutes,
+        vdotRaceSeconds: settings.vdotRaceSeconds,
+        age,
+        gender: vdotPersonal.gender || null,
+        weightKg,
+        runningExperience: vdotPersonal.runningExperience || null,
+        easyPaceOffsetSec: easyOff,
+        tempoPaceOffsetSec: tempoOff,
+        intervalPaceOffsetSec: intervalOff,
+        longPaceOffsetSec: longOff,
+        ...zones,
+      });
+
+      const regenRes = await fetch("/api/plans/regenerate", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: authJsonHeaders,
+      });
+      if (!regenRes.ok) throw new Error("Plan regeneration failed");
+
+      const rebuildRes = await fetch("/api/plans/rebuild-paces", {
+        method: "POST",
+        headers: authJsonHeaders,
         body: JSON.stringify({ vdot }),
       });
-    }
+      if (!rebuildRes.ok) throw new Error("Rebuild paces failed");
 
-    window.location.href = "/program?updated=true";
+      const backfillRes = await fetch("/api/runs/backfill-ratings", {
+        method: "POST",
+        headers: authOnlyHeaders,
+      });
+      if (!backfillRes.ok) throw new Error("Backfill ratings failed");
+
+      setSaveStatus("saved");
+      setTimeout(() => setSaveStatus("idle"), 2000);
+      window.location.href = "/program";
+    } catch (e) {
+      console.error(e);
+      setSaveStatus("error");
+      setSaveError(e instanceof Error ? e.message : "Save failed");
+      setTimeout(() => setSaveStatus("idle"), 3000);
+    }
   }
 
   if (loading) {
@@ -405,45 +375,14 @@ export default function SettingsForm() {
 
   return (
     <div className="space-y-5 w-full max-w-2xl min-w-0">
-      {/* Training Plan */}
-      <Panel title="Training Plan">
+      <Panel title="1. Training plan configuration">
         <Field label="Plan start date" hint="First day your program counts (Brisbane calendar)">
           <TextInput value={planStartDate} onChange={setPlanStartDate} placeholder="DD/MM/YYYY" />
         </Field>
-        <Field label="Week override" hint="Force a specific week number">
-          <TextInput
-            value={currentWeekOverride}
-            onChange={setCurrentWeekOverride}
-            placeholder="Auto"
-          />
-        </Field>
-        <div className="flex justify-stretch sm:justify-end pt-1">
-          <SaveButton
-            status={planGroup.status}
-            onClick={() =>
-              planGroup.save(async () => {
-                const trimmed = planStartDate.trim();
-                let planIso: string | null = null;
-                if (trimmed) {
-                  const isoYmd = planStartAusDisplayToIsoYmd(planStartDate);
-                  if (!isoYmd) throw new Error("Invalid plan start date (use DD/MM/YYYY)");
-                  planIso = brisbaneMidnightUtcForYmd(isoYmd).toISOString();
-                }
-                await updateSettings({
-                  planStartDate: planIso,
-                  currentWeekOverride: currentWeekOverride ? parseInt(currentWeekOverride, 10) : null,
-                });
-              })
-            }
-          />
-        </div>
-      </Panel>
 
-      {/* Training Plan Configuration */}
-      <Panel title="Training Plan Configuration">
         <div className="space-y-4">
           <div>
-            <p className="text-sm text-white mb-2">Experience Level</p>
+            <p className="text-sm text-white mb-2">Experience level</p>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               {([
                 ["BEGINNER", "0–12 months running. Conservative progression."],
@@ -467,73 +406,8 @@ export default function SettingsForm() {
             </div>
           </div>
 
-          <div className="rounded-lg p-3" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)" }}>
-            <p className="text-sm text-white">Calculate your VDOT</p>
-            <p className="text-xs mb-2" style={{ color: "var(--text-muted)" }}>
-              Enter a recent race time to calculate your fitness score and training paces.
-            </p>
-            <p className="text-xs mb-2" style={{ color: "#99f6e4" }}>
-              Current VDOT: <span className="font-semibold">{vdot}</span>
-            </p>
-            {settings.lastEstimatedVdot != null && settings.lastEstimatedVdot === settings.currentVdot && (
-              <p className="text-xs mb-2" style={{ color: "#5eead4" }}>
-                Your VDOT was automatically updated to {settings.currentVdot} based on your recent runs.
-              </p>
-            )}
-            <VdotCalculator
-              initialDistance={vdotInput.distance}
-              initialMinutes={vdotInput.minutes}
-              initialSeconds={vdotInput.seconds}
-              onApply={(nextVdot) => {
-                setVdot(nextVdot);
-                setVdotUpdatedMsg(`VDOT updated to ${nextVdot}`);
-              }}
-              onApplyDetails={async (payload) => {
-                try {
-                  setSaveError(null);
-                  const vdotPatchPayload = {
-                    currentVdot: payload.vdot,
-                    vdotRaceDistance: payload.distance,
-                    vdotRaceMinutes: payload.minutes,
-                    vdotRaceSeconds: payload.seconds,
-                  };
-                  await updateSettings(vdotPatchPayload);
-                  setVdotInput({
-                    distance: payload.distance,
-                    minutes: payload.minutes,
-                    seconds: payload.seconds,
-                  });
-                } catch {
-                  setSaveError("Failed to save VDOT. Please try again.");
-                }
-              }}
-              onLevelSuggested={(lvl) => setSuggestedLevel(lvl)}
-            />
-            {vdotUpdatedMsg && (
-              <p className="text-xs mt-2" style={{ color: "#5eead4" }}>{vdotUpdatedMsg}</p>
-            )}
-            {suggestedLevel && suggestedLevel !== experienceLevel && (
-              <div
-                className="mt-2 rounded-md p-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2"
-                style={{ background: "rgba(45,212,191,0.08)", border: "1px solid rgba(45,212,191,0.22)" }}
-              >
-                <p className="text-xs" style={{ color: "#99f6e4" }}>
-                  Based on your VDOT, we suggest: {suggestedLevel === "BEGINNER" ? "Beginner" : suggestedLevel === "INTERMEDIATE" ? "Intermediate" : "Advanced"}
-                </p>
-                <button
-                  type="button"
-                  onClick={() => setExperienceLevel(suggestedLevel)}
-                  className="min-h-11 rounded-md px-3 py-2 text-xs font-medium"
-                  style={{ background: "rgba(45,212,191,0.18)", color: "#5eead4", border: "1px solid rgba(45,212,191,0.32)" }}
-                >
-                  Apply suggestion
-                </button>
-              </div>
-            )}
-          </div>
-
           <div>
-            <p className="text-sm text-white mb-2">Goal Race</p>
+            <p className="text-sm text-white mb-2">Goal race</p>
             <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
@@ -563,7 +437,7 @@ export default function SettingsForm() {
           </div>
 
           <div>
-            <p className="text-sm text-white mb-2">Plan Length</p>
+            <p className="text-sm text-white mb-2">Plan length</p>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               {([12, 16, 20] as const).map((weeks) => (
                 <button
@@ -586,7 +460,7 @@ export default function SettingsForm() {
           </div>
 
           <div>
-            <p className="text-sm text-white mb-2">Training Days</p>
+            <p className="text-sm text-white mb-2">Training days</p>
             <div className="grid grid-cols-7 gap-1.5 sm:gap-2">
               {DAYS.map((day) => {
                 const selected = trainingDays.includes(day);
@@ -617,7 +491,7 @@ export default function SettingsForm() {
 
           {trainingDays.length >= 2 && (
             <div>
-              <p className="text-sm text-white mb-1">Long Run Day</p>
+              <p className="text-sm text-white mb-1">Long run day</p>
               <p className="text-xs mb-3" style={{ color: "var(--text-muted)" }}>
                 Which day do you want to do your long run?
               </p>
@@ -650,224 +524,75 @@ export default function SettingsForm() {
             </div>
           )}
         </div>
-        <div className="flex justify-stretch sm:justify-end pt-1">
-          <SaveButton
-            status={planConfigGroup.status}
-            onClick={() => planConfigGroup.save(handlePlanSave)}
-          />
-        </div>
+      </Panel>
+
+      <Panel title="2. Your fitness">
+        <p className="text-xs mb-2" style={{ color: "var(--text-muted)" }}>
+          Current VDOT: <span className="font-semibold text-white">{vdot}</span>
+        </p>
+        {settings.lastEstimatedVdot != null && settings.lastEstimatedVdot === settings.currentVdot && (
+          <p className="text-xs mb-2" style={{ color: "#5eead4" }}>
+            Your VDOT was automatically updated to {settings.currentVdot} based on your recent runs.
+          </p>
+        )}
+        <VdotCalculator
+          maxHR={maxHR}
+          onMaxHRChange={setMaxHR}
+          personal={vdotPersonal}
+          onPersonalChange={setVdotPersonal}
+          seedRaceDistance={settings.vdotRaceDistance}
+          seedRaceMinutes={settings.vdotRaceMinutes}
+          seedRaceSeconds={settings.vdotRaceSeconds ?? 0}
+          onApply={(nextVdot) => {
+            setVdot(nextVdot);
+            setVdotUpdatedMsg(`VDOT updated to ${nextVdot}`);
+          }}
+          onFitnessSave={applyVdotCalculatorPatch}
+          onLevelSuggested={(lvl) => setSuggestedLevel(lvl)}
+        />
+        {vdotUpdatedMsg && (
+          <p className="text-xs mt-2" style={{ color: "#5eead4" }}>{vdotUpdatedMsg}</p>
+        )}
+        {suggestedLevel && suggestedLevel !== experienceLevel && (
+          <div
+            className="mt-2 rounded-md p-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2"
+            style={{ background: "rgba(45,212,191,0.08)", border: "1px solid rgba(45,212,191,0.22)" }}
+          >
+            <p className="text-xs" style={{ color: "#99f6e4" }}>
+              Based on your VDOT, we suggest: {suggestedLevel === "BEGINNER" ? "Beginner" : suggestedLevel === "INTERMEDIATE" ? "Intermediate" : "Advanced"}
+            </p>
+            <button
+              type="button"
+              onClick={() => setExperienceLevel(suggestedLevel)}
+              className="min-h-11 rounded-md px-3 py-2 text-xs font-medium"
+              style={{ background: "rgba(45,212,191,0.18)", color: "#5eead4", border: "1px solid rgba(45,212,191,0.32)" }}
+            >
+              Apply suggestion
+            </button>
+          </div>
+        )}
         {saveError && <p className="text-xs text-red-300 mt-2">{saveError}</p>}
       </Panel>
 
-      {/* My Pace Zones */}
-      <Panel title="My Pace Zones">
-        <div className="space-y-4">
-          {([
-            {
-              label: "Easy",
-              min: easyMin, setMin: setEasyMin,
-              max: easyMax, setMax: setEasyMax,
-              hint: "Your comfortable conversational pace.",
-              vdotRef: `${formatPace(vdotPaces.easyMinSecKm)}–${formatPace(vdotPaces.easyMaxSecKm)}`,
-            },
-            {
-              label: "Tempo",
-              min: tempoMin, setMin: setTempoMin,
-              max: tempoMax, setMax: setTempoMax,
-              hint: "Controlled hard effort — comfortably uncomfortable.",
-              vdotRef: formatPace(vdotPaces.tempoSecKm),
-            },
-            {
-              label: "Interval",
-              min: intervalMin, setMin: setIntervalMin,
-              max: intervalMax, setMax: setIntervalMax,
-              hint: "Hard rep pace — 9/10 effort.",
-              vdotRef: formatPace(vdotPaces.intervalSecKm),
-            },
-            {
-              label: "Long",
-              min: longMin, setMin: setLongMin,
-              max: longMax, setMax: setLongMax,
-              hint: "Easy effort sustained over distance — same as easy pace.",
-              vdotRef: `${formatPace(vdotPaces.easyMinSecKm)}–${formatPace(vdotPaces.easyMaxSecKm)}`,
-            },
-          ] as Array<{
-            label: string;
-            min: string; setMin: (v: string) => void;
-            max: string; setMax: (v: string) => void;
-            hint: string;
-            vdotRef: string;
-          }>).map(({ label, min, setMin, max, setMax, hint, vdotRef }) => (
-            <div key={label}>
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:flex-wrap">
-                <span className="text-sm text-white sm:w-16 shrink-0">{label}</span>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <PaceInput value={min} onChange={setMin} />
-                  <span className="text-xs" style={{ color: "var(--text-muted)" }}>to</span>
-                  <PaceInput value={max} onChange={setMax} />
-                  <span className="text-xs" style={{ color: "var(--text-muted)" }}>/km</span>
-                </div>
-                <span className="text-[11px] sm:ml-0" style={{ color: "rgba(156,163,175,0.4)" }}>
-                  VDOT target: {vdotRef} /km
-                </span>
-              </div>
-              <p className="text-xs mt-1 sm:ml-20" style={{ color: "var(--text-muted)" }}>{hint}</p>
-            </div>
-          ))}
-        </div>
-
-        {/* Suggested updates */}
-        {suggestions.length > 0 && (
-          <div
-            className="rounded-[8px] p-4 space-y-3 mt-2"
-            style={{ background: "rgba(167,139,250,0.06)", border: "1px solid rgba(167,139,250,0.15)" }}
-          >
-            <p className="text-xs uppercase tracking-wider font-semibold" style={{ color: "#a78bfa" }}>
-              Suggested Updates
-            </p>
-            {suggestions.map(sug => (
-              <div key={sug.type} className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
-                <p className="text-xs flex-1 min-w-0" style={{ color: "var(--text-muted)" }}>
-                  Your recent <span className="text-white">{sug.type}</span> runs average{" "}
-                  <span className="text-white">{formatPace(sug.avgPace)}/km</span> — faster than your current{" "}
-                  {sug.type} zone midpoint of {formatPace(sug.midpoint)}/km.{" "}
-                  Consider updating to{" "}
-                  <span className="text-white">{formatPace(sug.newMin)}–{formatPace(sug.newMax)} /km</span>.
-                </p>
-                <button
-                  type="button"
-                  onClick={() => applySuggestion(sug)}
-                  className="shrink-0 min-h-11 px-3 py-2 rounded-md text-xs font-medium w-full sm:w-auto"
-                  style={{ background: "rgba(167,139,250,0.12)", color: "#a78bfa", border: "1px solid rgba(167,139,250,0.2)" }}
-                >
-                  Apply
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-
-        <div className="flex justify-stretch sm:justify-end pt-1">
-          <SaveButton
-            status={zonesGroup.status}
-            onClick={() =>
-              zonesGroup.save(() =>
-                updateSettings({
-                  easyPaceMinSec:      parsePace(easyMin)     ?? settings.easyPaceMinSec,
-                  easyPaceMaxSec:      parsePace(easyMax)     ?? settings.easyPaceMaxSec,
-                  tempoPaceMinSec:     parsePace(tempoMin)    ?? settings.tempoPaceMinSec,
-                  tempoPaceMaxSec:     parsePace(tempoMax)    ?? settings.tempoPaceMaxSec,
-                  intervalPaceMinSec:  parsePace(intervalMin) ?? settings.intervalPaceMinSec,
-                  intervalPaceMaxSec:  parsePace(intervalMax) ?? settings.intervalPaceMaxSec,
-                  longPaceMinSec:      parsePace(longMin)     ?? settings.longPaceMinSec,
-                  longPaceMaxSec:      parsePace(longMax)     ?? settings.longPaceMaxSec,
-                })
-              )
-            }
-          />
+      <Panel title="3. Your pace zones">
+        <p className="text-xs mb-4" style={{ color: "var(--text-muted)" }}>
+          Adjust how your planned paces relate to your VDOT. Offsets stay fixed when VDOT changes so your feel preference carries over.
+        </p>
+        <div className="space-y-6">
+          <PaceZoneOffsetSlider zone="easy" label="Easy" vdot={vdot} runningExperience={runningExperienceForPaces} offsetSec={easyOff} onOffsetChange={setEasyOff} />
+          <PaceZoneOffsetSlider zone="tempo" label="Tempo" vdot={vdot} runningExperience={runningExperienceForPaces} offsetSec={tempoOff} onOffsetChange={setTempoOff} />
+          <PaceZoneOffsetSlider zone="interval" label="Interval" vdot={vdot} runningExperience={runningExperienceForPaces} offsetSec={intervalOff} onOffsetChange={setIntervalOff} />
+          <PaceZoneOffsetSlider zone="long" label="Long run" vdot={vdot} runningExperience={runningExperienceForPaces} offsetSec={longOff} onOffsetChange={setLongOff} />
         </div>
       </Panel>
 
-      {/* Performance Constants */}
-      <Panel title="Performance Constants">
-        <Field label="Max heart rate" hint="bpm">
-          <NumberInput value={maxHR} onChange={setMaxHR} min={140} max={220} />
-        </Field>
-        <Field label="Current VDOT" hint="Jack Daniels (28–60)">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
-            <NumberInput value={vdot} onChange={setVdot} min={28} max={60} />
-            <span className="text-xs break-words" style={{ color: "var(--text-muted)" }}>
-              Easy {formatPace(vdotPaces.easyMaxSecKm)} · Tempo {formatPace(vdotPaces.tempoSecKm)} · Interval {formatPace(vdotPaces.intervalSecKm)} /km
-            </span>
-          </div>
-        </Field>
-        <Field label="Starting tempo pace" hint="min/km at plan start">
-          <TextInput value={startTP} onChange={setStartTP} placeholder="6:30" />
-        </Field>
-        <div className="flex justify-stretch sm:justify-end pt-1">
-          <SaveButton
-            status={perfGroup.status}
-            onClick={() => {
-              const parsedPace = parsePace(startTP);
-              return perfGroup.save(() =>
-                updateSettings({
-                  maxHR,
-                  currentVdot: vdot,
-                  ...(parsedPace != null ? { startingTempoPaceSec: parsedPace } : {}),
-                })
-              );
-            }}
-          />
-        </div>
+      <Panel title="4. Save">
+        <p className="text-xs mb-3" style={{ color: "var(--text-muted)" }}>
+          Saves your plan, fitness, and pace zones, regenerates your program, rebuilds future target paces, and refreshes run ratings.
+        </p>
+        <SaveButton status={saveStatus} onClick={() => { void handleMainSave(); }} />
+        {saveError && <p className="text-xs text-red-300 mt-2">{saveError}</p>}
       </Panel>
-
-      {/* HM Goal */}
-      <Panel title="Half Marathon Goal">
-        <Field label="Target time" hint="H:MM:SS">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
-            <TextInput value={hmTime} onChange={setHmTime} placeholder="1:55:00" />
-            {hmPacePreview && (
-              <span className="text-xs" style={{ color: "var(--text-muted)" }}>
-                = {hmPacePreview}/km pace
-              </span>
-            )}
-          </div>
-        </Field>
-        <Field label="Race name">
-          <TextInput value={raceName} onChange={setRaceName} placeholder="Gold Coast HM" />
-        </Field>
-        <Field label="Race date" hint="AEST date">
-          <TextInput value={raceDate} onChange={setRaceDate} placeholder="YYYY-MM-DD" />
-        </Field>
-        <div className="flex justify-stretch sm:justify-end pt-1">
-          <SaveButton
-            status={hmGroup.status}
-            onClick={() => {
-              const secs = parseDuration(hmTime);
-              return hmGroup.save(() =>
-                updateSettings({
-                  ...(secs != null ? { targetHMTimeSec: secs } : {}),
-                  raceName: raceName || null,
-                  raceDate: raceDate || null,
-                })
-              );
-            }}
-          />
-        </div>
-      </Panel>
-
-      {/* Distance Targets */}
-      <Panel title="Distance Targets">
-        {([
-          { label: "Easy run",    value: distEasy,     set: setDistEasy },
-          { label: "Tempo run",   value: distTempo,    set: setDistTempo },
-          { label: "Interval",    value: distInterval, set: setDistInterval },
-          { label: "Long run",    value: distLong,     set: setDistLong },
-        ] as Array<{ label: string; value: number; set: (v: number) => void }>).map(({ label, value, set }) => (
-          <Field key={label} label={label} hint="km target">
-            <NumberInput value={value} onChange={set} min={1} max={50} />
-          </Field>
-        ))}
-        <div className="flex justify-stretch sm:justify-end pt-1">
-          <SaveButton
-            status={distGroup.status}
-            onClick={() =>
-              distGroup.save(() =>
-                updateSettings({
-                  distTargetEasyM:      Math.round(distEasy     * 1000),
-                  distTargetTempoM:     Math.round(distTempo    * 1000),
-                  distTargetIntervalM:  Math.round(distInterval * 1000),
-                  distTargetLongM:      Math.round(distLong     * 1000),
-                })
-              )
-            }
-          />
-        </div>
-      </Panel>
-
-      {/* Plan Interruptions */}
-      <InterruptionsForm />
-
     </div>
   );
 }

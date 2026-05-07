@@ -40,6 +40,13 @@ async function regenerateFromSettings(_req: NextRequest) {
     days,
     longRunDay: isDay(settings.longRunDay) ? settings.longRunDay : undefined,
     vdot: settings.currentVdot ?? 33,
+    paceAdjust: {
+      easyPaceOffsetSec: settings.easyPaceOffsetSec,
+      tempoPaceOffsetSec: settings.tempoPaceOffsetSec,
+      intervalPaceOffsetSec: settings.intervalPaceOffsetSec,
+      longPaceOffsetSec: settings.longPaceOffsetSec,
+      runningExperience: settings.runningExperience,
+    },
   };
   const generatedPlan = generatePlan(config);
   const planStart = getEffectivePlanStart(settings.planStartDate);

@@ -278,6 +278,13 @@ export default async function Dashboard({
             ? settings.longRunDay
             : undefined,
         vdot: settings.currentVdot ?? 33,
+        paceAdjust: {
+          easyPaceOffsetSec: settings.easyPaceOffsetSec,
+          tempoPaceOffsetSec: settings.tempoPaceOffsetSec,
+          intervalPaceOffsetSec: settings.intervalPaceOffsetSec,
+          longPaceOffsetSec: settings.longPaceOffsetSec,
+          runningExperience: settings.runningExperience,
+        },
       };
       const regenerated = generatePlan(config);
       await saveGeneratedPlan(config, regenerated);

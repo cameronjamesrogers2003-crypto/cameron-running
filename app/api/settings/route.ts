@@ -26,6 +26,14 @@ type SettingsUpdate = {
   distTargetTempoM?: number;
   distTargetIntervalM?: number;
   distTargetLongM?: number;
+  age?: number | null;
+  gender?: string | null;
+  weightKg?: number | null;
+  runningExperience?: string | null;
+  easyPaceOffsetSec?: number;
+  tempoPaceOffsetSec?: number;
+  intervalPaceOffsetSec?: number;
+  longPaceOffsetSec?: number;
   easyPaceMinSec?: number;
   easyPaceMaxSec?: number;
   tempoPaceMinSec?: number;
@@ -85,6 +93,8 @@ const ALLOWED_FIELDS = new Set([
   "vdotRaceDistance", "vdotRaceMinutes", "vdotRaceSeconds",
   "targetHMTimeSec", "raceName", "raceDate",
   "distTargetEasyM", "distTargetTempoM", "distTargetIntervalM", "distTargetLongM",
+  "age", "gender", "weightKg", "runningExperience",
+  "easyPaceOffsetSec", "tempoPaceOffsetSec", "intervalPaceOffsetSec", "longPaceOffsetSec",
   "easyPaceMinSec", "easyPaceMaxSec",
   "tempoPaceMinSec", "tempoPaceMaxSec",
   "intervalPaceMinSec", "intervalPaceMaxSec",
@@ -169,6 +179,30 @@ function applySetting(update: SettingsUpdate, key: string, value: unknown): void
       return;
     case "distTargetLongM":
       if (typeof value === "number") update.distTargetLongM = value;
+      return;
+    case "age":
+      if (typeof value === "number" || value === null) update.age = value;
+      return;
+    case "gender":
+      if (typeof value === "string" || value === null) update.gender = value;
+      return;
+    case "weightKg":
+      if (typeof value === "number" || value === null) update.weightKg = value;
+      return;
+    case "runningExperience":
+      if (typeof value === "string" || value === null) update.runningExperience = value;
+      return;
+    case "easyPaceOffsetSec":
+      if (typeof value === "number") update.easyPaceOffsetSec = value;
+      return;
+    case "tempoPaceOffsetSec":
+      if (typeof value === "number") update.tempoPaceOffsetSec = value;
+      return;
+    case "intervalPaceOffsetSec":
+      if (typeof value === "number") update.intervalPaceOffsetSec = value;
+      return;
+    case "longPaceOffsetSec":
+      if (typeof value === "number") update.longPaceOffsetSec = value;
       return;
     case "easyPaceMinSec":
       if (typeof value === "number") update.easyPaceMinSec = value;

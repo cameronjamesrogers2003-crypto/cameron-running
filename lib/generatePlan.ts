@@ -1,5 +1,5 @@
-import { getVdotPaces } from "@/lib/vdot";
-import type { Day, Phase, PlanConfig, RunType, Session, TrainingWeek } from "@/data/trainingPlan";
+import { getSessionPacesMinPerKm } from "@/lib/planPaces";
+import type { Day, Phase, PlanConfig, PlanPaceAdjust, RunType, Session, TrainingWeek } from "@/data/trainingPlan";
 
 const DAY_INDEX: Record<Day, number> = {
   mon: 0,
@@ -452,11 +452,19 @@ export function generatePlan(config: PlanConfig): TrainingWeek[] {
   const { weeklyKm, isCutback, peakKm } = buildWeeklyVolumes({ ...config, days });
   const longKm = buildLongRuns({ ...config, days }, weeklyKm, isCutback);
 
-  const paces = getVdotPaces(config.vdot);
-  const easyPace = paces.easyMaxSecKm / 60;
-  const tempoPace = paces.tempoSecKm / 60;
-  const intervalPace = paces.intervalSecKm / 60;
-  const longRunPace = (paces.easyMaxSecKm * 1.1) / 60;
+  const paceAdjust: PlanPaceAdjust | undefined = config.paceAdjust;
+  const partialAdjust = {
+    easyPaceOffsetSec: paceAdjust?.easyPaceOffsetSec ?? 0,
+    tempoPaceOffsetSec: paceAdjust?.tempoPaceOffsetSec ?? 0,
+    intervalPaceOffsetSec: paceAdjust?.intervalPaceOffsetSec ?? 0,
+    longPaceOffsetSec: paceAdjust?.longPaceOffsetSec ?? 0,
+    runningExperience: paceAdjust?.runningExperience ?? null,
+  };
+  const pMin = getSessionPacesMinPerKm(config.vdot, partialAdjust);
+  const easyPace = pMin.easy;
+  const tempoPace = pMin.tempo;
+  const intervalPace = pMin.interval;
+  const longRunPace = pMin.long;
 
   const plan: TrainingWeek[] = [];
 
