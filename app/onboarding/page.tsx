@@ -127,8 +127,8 @@ export default function OnboardingPage() {
     return getDefaultLongRunDay(sortedTrainingDays);
   }, [longRunDay, sortedTrainingDays]);
   const scheduleWarnings = useMemo(
-    () => (effectiveLongRunDay ? getScheduleWarnings(sortedTrainingDays, effectiveLongRunDay) : []),
-    [effectiveLongRunDay, sortedTrainingDays],
+    () => (effectiveLongRunDay ? getScheduleWarnings(sortedTrainingDays, effectiveLongRunDay, level ?? undefined) : []),
+    [effectiveLongRunDay, sortedTrainingDays, level],
   );
 
   const canNext = (() => {

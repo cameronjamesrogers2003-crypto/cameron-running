@@ -338,8 +338,8 @@ export default function SettingsForm() {
     return getDefaultLongRunDay(sortedTrainingDays);
   }, [selectedLongRunDay, sortedTrainingDays]);
   const scheduleWarnings = useMemo(
-    () => (effectiveLongRunDay ? getScheduleWarnings(sortedTrainingDays, effectiveLongRunDay) : []),
-    [effectiveLongRunDay, sortedTrainingDays],
+    () => (effectiveLongRunDay ? getScheduleWarnings(sortedTrainingDays, effectiveLongRunDay, experienceLevel) : []),
+    [effectiveLongRunDay, sortedTrainingDays, experienceLevel],
   );
 
   function applySuggestion(sug: ZoneSuggestion) {

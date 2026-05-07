@@ -220,7 +220,11 @@ export function getDefaultLongRunDay(days: Day[]): Day {
   return best;
 }
 
-export function getScheduleWarnings(days: Day[], longRunDay: Day): string[] {
+export function getScheduleWarnings(
+  days: Day[],
+  longRunDay: Day,
+  level?: PlanConfig["level"],
+): string[] {
   const sortedDays = daysSorted(uniqDays(days));
   if (sortedDays.length === 0 || !sortedDays.includes(longRunDay)) return [];
 
@@ -247,6 +251,12 @@ export function getScheduleWarnings(days: Day[], longRunDay: Day): string[] {
     warnings.push("ℹ️ With 2 training days, progress will be slower. 3+ days gives better results.");
   }
 
+  if (level === "BEGINNER" && sortedDays.length >= 5) {
+    warnings.push(
+      "⚠️ 5-6 day plans are recommended for intermediate and advanced runners only. Consider starting with 3-4 days.",
+    );
+  }
+
   return warnings;
 }
 
@@ -267,8 +277,17 @@ export function assignSessionsTodays(
 
   if (dayList.length === 2) {
     const other = dayList.find((d) => d !== longRunDay)!;
-    const { isBuild } = getPhaseWindows(config, weekNumber);
-    out[other] = level === "BEGINNER" ? "easy" : (isBuild ? "tempo" : "easy");
+    const { isBase, isBuild, isTaper } = getPhaseWindows(config, weekNumber);
+    if (isTaper) {
+      out[other] = "easy";
+      return out;
+    }
+    if (level === "BEGINNER") {
+      out[other] = isBase ? "easy" : "tempo";
+      return out;
+    }
+    // Keep 2-day plans conservative: never interval, always one long + one tempo in non-taper.
+    out[other] = isBase || isBuild ? "tempo" : "easy";
     return out;
   }
 
@@ -470,10 +489,29 @@ export function generatePlan(config: PlanConfig): TrainingWeek[] {
     const wkLongKm = round1(clamp(Math.max(baseLongKm, constrainedWeekKm * 0.35), 5, constrainedWeekKm));
 
     // Rule 2: non-long sessions should not exceed 85% of the long run distance.
-    const remaining = round1(Math.max(0, constrainedWeekKm - wkLongKm));
-    const eachOtherRaw = round1(nonLongCount > 0 ? remaining / nonLongCount : 0);
+    // For 4+ day plans, protect easy-day minimums so frequency plans don't degrade into very short runs.
+    const easySessionCount = otherDays.filter((day) => typesForWeek[day] === "easy").length;
+    const minEasyKm = (
+      config.level === "BEGINNER" ? 3 :
+      config.level === "INTERMEDIATE" ? 4 :
+      5
+    );
     const nonLongCap = round1(wkLongKm * 0.85);
-    const eachOther = round1(Math.min(eachOtherRaw, nonLongCap));
+    let distributedWeekKm = constrainedWeekKm;
+    let remaining = round1(Math.max(0, distributedWeekKm - wkLongKm));
+    let eachOther = round1(nonLongCount > 0 ? remaining / nonLongCount : 0);
+
+    if (dayList.length >= 4 && easySessionCount > 0 && eachOther < minEasyKm) {
+      const minRequiredWeeklyKm = round1(wkLongKm + (minEasyKm * easySessionCount));
+      distributedWeekKm = round1(Math.min(peakKm, Math.max(distributedWeekKm, minRequiredWeeklyKm)));
+      remaining = round1(Math.max(0, distributedWeekKm - wkLongKm));
+      eachOther = round1(nonLongCount > 0 ? remaining / nonLongCount : 0);
+    }
+
+    if (eachOther > nonLongCap) {
+      eachOther = nonLongCap;
+      distributedWeekKm = round1(wkLongKm + (eachOther * nonLongCount));
+    }
 
     const sessions: Session[] = dayList.map((day) => {
       const type = typesForWeek[day];
@@ -481,7 +519,7 @@ export function generatePlan(config: PlanConfig): TrainingWeek[] {
       const km =
         type === "long"
           ? wkLongKm
-          : round1(clamp(eachOther, 3, Math.max(3, wkLongKm * 0.85)));
+          : round1(clamp(eachOther, 3, Math.max(3, nonLongCap)));
 
       const pace =
         type === "long" ? longRunPace :
@@ -543,6 +581,18 @@ export function validateAssignments(): void {
   assertAssignment(
     "SCENARIO 2",
     assignSessionsTodays(["tue", "sat"], "sat", "INTERMEDIATE", { goal: "hm", weeks: 16 }, 10),
+    [["tue", "tempo"], ["sat", "long"]],
+  );
+
+  assertAssignment(
+    "SCENARIO 2B",
+    assignSessionsTodays(["tue", "sat"], "sat", "BEGINNER", { goal: "hm", weeks: 16 }, 10),
+    [["tue", "tempo"], ["sat", "long"]],
+  );
+
+  assertAssignment(
+    "SCENARIO 2C",
+    assignSessionsTodays(["tue", "sat"], "sat", "ADVANCED", { goal: "hm", weeks: 16 }, 10),
     [["tue", "tempo"], ["sat", "long"]],
   );
 
