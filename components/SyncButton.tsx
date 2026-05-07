@@ -30,7 +30,11 @@ export default function SyncButton({ lastSynced, stravaConnected }: SyncButtonPr
     setResult(null);
     setWarning(null);
     try {
-      const res = await fetch("/api/strava/sync", { method: "POST" });
+      const token = process.env.NEXT_PUBLIC_PLANS_API_TOKEN;
+      const res = await fetch("/api/strava/sync", {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
       const data = await res.json();
       if (res.ok) {
         setResult(`Synced ${data.synced} new activities`);

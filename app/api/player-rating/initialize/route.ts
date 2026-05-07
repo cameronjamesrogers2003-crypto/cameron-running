@@ -1,10 +1,13 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
 import { initializePlayerRating } from "@/lib/playerRating";
+import { requireInternalApiAuth } from "@/lib/apiAuth";
 
 export const dynamic = "force-dynamic";
 
-async function runInitialize() {
+async function runInitialize(req: NextRequest) {
+  const authResp = requireInternalApiAuth(req);
+  if (authResp) return authResp;
   try {
     const rating = await initializePlayerRating(prisma);
     return NextResponse.json(rating);
@@ -14,10 +17,10 @@ async function runInitialize() {
   }
 }
 
-export async function GET() {
-  return runInitialize();
+export async function GET(req: NextRequest) {
+  return runInitialize(req);
 }
 
-export async function POST() {
-  return runInitialize();
+export async function POST(req: NextRequest) {
+  return runInitialize(req);
 }

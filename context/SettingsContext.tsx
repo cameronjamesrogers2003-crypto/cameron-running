@@ -19,18 +19,25 @@ const SettingsContext = createContext<SettingsContextValue>({
 export function SettingsProvider({ children }: { children: React.ReactNode }) {
   const [settings, setSettings] = useState<UserSettings>(DEFAULT_SETTINGS);
   const [loading,  setLoading]  = useState(true);
+  const token = process.env.NEXT_PUBLIC_PLANS_API_TOKEN;
 
   useEffect(() => {
-    fetch("/api/settings", { cache: "no-store" })
+    fetch("/api/settings", {
+      cache: "no-store",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
       .then(r => r.json())
       .then(data => { setSettings(data); setLoading(false); })
       .catch(() => setLoading(false));
-  }, []);
+  }, [token]);
 
   const updateSettings = useCallback(async (patch: Partial<UserSettings>) => {
     const res  = await fetch("/api/settings", {
       method:  "PATCH",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
       body:    JSON.stringify(patch),
     });
     if (!res.ok) {
@@ -38,7 +45,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     }
     const updated = await res.json();
     setSettings(updated);
-  }, []);
+  }, [token]);
 
   return (
     <SettingsContext.Provider value={{ settings, loading, updateSettings }}>

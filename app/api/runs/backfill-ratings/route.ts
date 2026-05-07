@@ -1,16 +1,19 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
 import { persistActivityRating } from "@/lib/persistActivityRating";
 import { recalculatePlayerRating } from "@/lib/playerRating";
+import { requireInternalApiAuth } from "@/lib/apiAuth";
 
 export const dynamic = "force-dynamic";
 
 /** GET/POST — recompute rating + classifiedRunType for every running activity (oldest first for stable medians). */
-export async function GET() {
-  return POST();
+export async function GET(req: NextRequest) {
+  return POST(req);
 }
 
-export async function POST() {
+export async function POST(req: NextRequest) {
+  const authResp = requireInternalApiAuth(req);
+  if (authResp) return authResp;
   const ids = await prisma.activity.findMany({
     where: { activityType: { in: ["running", "trail_running"] } },
     orderBy: { date: "asc" },

@@ -46,25 +46,6 @@ function parseSettingsDays(trainingDaysJson: string | null): Day[] {
 
 // ── Style helpers ─────────────────────────────────────────────────────────────
 
-const DAY_OFFSET_FROM_MONDAY: Record<Day, number> = {
-  mon: 0,
-  tue: 1,
-  wed: 2,
-  thu: 3,
-  fri: 4,
-  sat: 5,
-  sun: 6,
-};
-
-function getMondayAnchoredSessionDate(week: number, day: Day, planStart: Date): Date {
-  const planStartDay = startOfDayAEST(planStart);
-  const dowAest = (new Date(planStartDay.getTime() + 10 * 60 * 60 * 1000).getUTCDay() + 6) % 7; // Mon=0..Sun=6
-  const mondayOfPlanWeek0 = new Date(planStartDay.getTime() - dowAest * 24 * 60 * 60 * 1000);
-  return new Date(
-    mondayOfPlanWeek0.getTime() + ((week - 1) * 7 + DAY_OFFSET_FROM_MONDAY[day]) * 24 * 60 * 60 * 1000,
-  );
-}
-
 function ratingBadgeStyle(score: number): { background: string; color: string } {
   if (score >= 9)   return { background: "#2e1065", color: "#c4b5fd" };
   if (score >= 7.5) return { background: "#052e16", color: "#4ade80" };
@@ -461,22 +442,13 @@ export default async function Dashboard({
     dayLabel: string;
   };
   const upcomingCandidates: UpcomingRow[] = [];
-  const upcomingStored = stored ?? (await loadGeneratedPlan());
-  const dayOffsets: Record<Day, number> = { mon: 0, tue: 1, wed: 2, thu: 3, fri: 4, sat: 5, sun: 6 };
+  const upcomingStored = stored;
   const dayLabels: Record<Day, string> = { mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat", sun: "Sun" };
   const brisbaneToday = startOfDayAEST(today);
-  if (upcomingStored?.plan?.length && settings.planStartDate) {
-    const d = new Date(settings.planStartDate);
-    const day = d.getUTCDay(); // 0=Sun,1=Mon...6=Sat
-    const mondayOffset = day === 0 ? -6 : 1 - day;
-    const monday = new Date(d);
-    monday.setUTCDate(d.getUTCDate() + mondayOffset);
-
+  if (upcomingStored?.plan?.length) {
     for (const week of upcomingStored.plan) {
       for (const session of week.sessions) {
-        const offset = dayOffsets[session.day];
-        const sessionDate = new Date(monday);
-        sessionDate.setUTCDate(monday.getUTCDate() + ((week.week - 1) * 7) + offset);
+        const sessionDate = getSessionDate(week.week, session.day, planStart);
         if (sessionDate <= brisbaneToday) continue;
         if (hasRunOnCalendarDay(runsPlanForward, sessionDate)) continue;
         upcomingCandidates.push({

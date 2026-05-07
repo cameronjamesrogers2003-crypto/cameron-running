@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { useRouter } from "next/navigation";
 import { useSettings } from "@/context/SettingsContext";
 import { brisbaneMidnightUtcForYmd } from "@/lib/dateUtils";
 import { planStartAusDisplayToIsoYmd, planStartIsoYmdToAusDisplay } from "@/lib/planStartDateFormat";
@@ -144,15 +143,6 @@ const DAY_LABEL: Record<Day, string> = {
   sun: "Sun",
 };
 
-type PlanConfigSnapshot = {
-  experienceLevel: "BEGINNER" | "INTERMEDIATE" | "ADVANCED" | null;
-  goalRace: "HALF" | "FULL" | null;
-  planLengthWeeks: 12 | 16 | 20 | null;
-  trainingDays: Day[];
-  longRunDay: Day | null;
-  currentVdot: number;
-};
-
 type VdotCalculatorInput = {
   distance: string;
   minutes: number;
@@ -178,7 +168,6 @@ function parseLongRunDayValue(value: string | null | undefined): Day | null {
 }
 
 export default function SettingsForm() {
-  const router = useRouter();
   const { settings, loading, updateSettings } = useSettings();
 
   // ── Training Plan group ────────────────────────────────────────────────────
@@ -204,9 +193,7 @@ export default function SettingsForm() {
   });
   const [suggestedLevel, setSuggestedLevel] = useState<"BEGINNER" | "INTERMEDIATE" | "ADVANCED" | null>(null);
   const [showTooManyDaysWarning, setShowTooManyDaysWarning] = useState(false);
-  const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [initialPlanSnapshot, setInitialPlanSnapshot] = useState<PlanConfigSnapshot | null>(null);
   const planConfigGroup = useSaveGroup();
 
   // ── Performance group ─────────────────────────────────────────────────────
@@ -339,14 +326,6 @@ export default function SettingsForm() {
     setDistTempo(settings.distTargetTempoM / 1000);
     setDistInterval(settings.distTargetIntervalM / 1000);
     setDistLong(settings.distTargetLongM / 1000);
-    setInitialPlanSnapshot({
-      experienceLevel: settings.experienceLevel,
-      goalRace: settings.goalRace,
-      planLengthWeeks: settings.planLengthWeeks,
-      trainingDays: parsedDays,
-      longRunDay: parsedLongRunDay,
-      currentVdot: settings.currentVdot,
-    });
   }, [loading, settings]);
 
   const effectiveLongRunDay = useMemo<Day | null>(() => {
@@ -365,9 +344,12 @@ export default function SettingsForm() {
   }
 
   async function handlePlanSave() {
+    const token = process.env.NEXT_PUBLIC_PLANS_API_TOKEN;
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (token) headers.Authorization = `Bearer ${token}`;
     const res = await fetch("/api/settings", {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify({
         experienceLevel,
         goalRace,
@@ -375,6 +357,11 @@ export default function SettingsForm() {
         trainingDays: JSON.stringify(sortedTrainingDays),
         longRunDay: effectiveLongRunDay,
         currentVdot: vdot,
+        vdotRaceDistance: vdotInput.distance,
+        vdotRaceMinutes: vdotInput.minutes,
+        vdotRaceSeconds: vdotInput.seconds,
+        planStartDate: settings.planStartDate,
+        maxHR,
       }),
     });
     if (!res.ok) {
@@ -384,10 +371,8 @@ export default function SettingsForm() {
 
     const regenRes = await fetch("/api/plans/regenerate", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
     });
-
-    console.log("REGENERATE RESPONSE STATUS:", regenRes.status);
 
     if (!regenRes.ok) {
       alert("Settings saved but plan failed to regenerate");
@@ -483,7 +468,6 @@ export default function SettingsForm() {
               initialSeconds={vdotInput.seconds}
               onApply={(nextVdot) => {
                 setVdot(nextVdot);
-                setInitialPlanSnapshot((prev) => prev ? { ...prev, currentVdot: nextVdot } : prev);
                 setVdotUpdatedMsg(`VDOT updated to ${nextVdot}`);
               }}
               onApplyDetails={async (payload) => {
@@ -495,7 +479,6 @@ export default function SettingsForm() {
                     vdotRaceMinutes: payload.minutes,
                     vdotRaceSeconds: payload.seconds,
                   };
-                  console.info("[settings] PATCH /api/settings payload", vdotPatchPayload);
                   await updateSettings(vdotPatchPayload);
                   setVdotInput({
                     distance: payload.distance,
@@ -646,7 +629,6 @@ export default function SettingsForm() {
             onClick={() => planConfigGroup.save(handlePlanSave)}
           />
         </div>
-        {saveMessage && <p className="text-xs text-green-300 mt-2">{saveMessage}</p>}
         {saveError && <p className="text-xs text-red-300 mt-2">{saveError}</p>}
       </Panel>
 

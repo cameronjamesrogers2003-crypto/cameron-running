@@ -1,11 +1,14 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
 import { fetchHistoricalWeather, BRISBANE_LAT, BRISBANE_LON } from "@/lib/weather";
+import { requireInternalApiAuth } from "@/lib/apiAuth";
 
 const BATCH_SIZE    = 10;
 const BATCH_DELAY   = 1000; // ms between batches
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const authResp = requireInternalApiAuth(req);
+  if (authResp) return authResp;
   try {
     const activities = await prisma.activity.findMany({
       where:   { temperatureC: null },

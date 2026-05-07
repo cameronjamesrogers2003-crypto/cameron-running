@@ -3,6 +3,7 @@ import prisma from "@/lib/db";
 import { dbSettingsToUserSettings, DEFAULT_SETTINGS } from "@/lib/settings";
 import { generatePlan } from "@/lib/generatePlan";
 import { saveGeneratedPlan } from "@/lib/planStorage";
+import { requireInternalApiAuth } from "@/lib/apiAuth";
 import type { Day, PlanConfig } from "@/data/trainingPlan";
 
 function isDay(x: unknown): x is Day {
@@ -21,7 +22,6 @@ function parseTrainingDays(raw: string | null): Day[] {
 }
 
 async function regenerateFromSettings(_req: NextRequest) {
-  console.log("REGENERATE ENDPOINT HIT");
   const settingsRow = await prisma.userSettings.findUnique({ where: { id: 1 } });
   const settings = settingsRow ? dbSettingsToUserSettings(settingsRow) : DEFAULT_SETTINGS;
 
@@ -41,8 +41,6 @@ async function regenerateFromSettings(_req: NextRequest) {
     longRunDay: isDay(settings.longRunDay) ? settings.longRunDay : undefined,
     vdot: settings.currentVdot ?? 33,
   };
-  console.log("REGENERATE CONFIG:", JSON.stringify(config, null, 2));
-
   const plan = generatePlan(config);
   await saveGeneratedPlan(config, plan);
 
@@ -55,6 +53,8 @@ async function regenerateFromSettings(_req: NextRequest) {
 
 export async function GET(req: NextRequest) {
   try {
+    const authResp = requireInternalApiAuth(req);
+    if (authResp) return authResp;
     return await regenerateFromSettings(req);
   } catch (err) {
     console.error("[plans/regenerate] GET failed:", err);
@@ -64,6 +64,8 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    const authResp = requireInternalApiAuth(req);
+    if (authResp) return authResp;
     return await regenerateFromSettings(req);
   } catch (err) {
     console.error("[plans/regenerate] POST failed:", err);

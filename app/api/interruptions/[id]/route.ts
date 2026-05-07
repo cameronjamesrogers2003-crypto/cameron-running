@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
+import { requireInternalApiAuth } from "@/lib/apiAuth";
 
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const authResp = requireInternalApiAuth(req);
+  if (authResp) return authResp;
   try {
     const { id } = await params;
     const body = await req.json();
@@ -32,6 +35,8 @@ export async function DELETE(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const authResp = requireInternalApiAuth(_req);
+  if (authResp) return authResp;
   try {
     const { id } = await params;
     await prisma.planInterruption.delete({ where: { id } });

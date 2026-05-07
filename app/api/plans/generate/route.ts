@@ -1,19 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generatePlan } from "@/lib/generatePlan";
 import { loadGeneratedPlan, saveGeneratedPlan } from "@/lib/planStorage";
+import { requireInternalApiAuth } from "@/lib/apiAuth";
 import type { Day, PlanConfig } from "@/data/trainingPlan";
-
-function requirePlansAuth(req: NextRequest): NextResponse | null {
-  const token = process.env.PLANS_API_TOKEN;
-  if (!token) {
-    return NextResponse.json({ error: "auth_not_configured" }, { status: 500 });
-  }
-  const auth = req.headers.get("authorization") ?? "";
-  if (auth !== `Bearer ${token}`) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  }
-  return null;
-}
 
 function isDay(x: unknown): x is Day {
   return x === "mon" || x === "tue" || x === "wed" || x === "thu" || x === "fri" || x === "sat" || x === "sun";
@@ -48,7 +37,7 @@ function parseConfig(body: unknown): PlanConfig | null {
 }
 
 export async function POST(req: NextRequest) {
-  const authResp = requirePlansAuth(req);
+  const authResp = requireInternalApiAuth(req);
   if (authResp) return authResp;
 
   let body: unknown;
