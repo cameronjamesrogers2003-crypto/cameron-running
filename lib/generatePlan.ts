@@ -35,10 +35,9 @@ function daysSorted(days: Day[]): Day[] {
   return [...days].sort((a, b) => DAY_INDEX[a] - DAY_INDEX[b]);
 }
 
-function dayDistance(a: Day, b: Day): number {
-  const da = DAY_INDEX[a];
-  const db = DAY_INDEX[b];
-  return Math.abs(da - db);
+function circularDayDistance(a: Day, b: Day): number {
+  const raw = Math.abs(DAY_INDEX[a] - DAY_INDEX[b]);
+  return Math.min(raw, 7 - raw);
 }
 
 function nearestTrainingDayDistance(day: Day, trainingSet: Set<Day>): number {
@@ -47,30 +46,10 @@ function nearestTrainingDayDistance(day: Day, trainingSet: Set<Day>): number {
   let best = 7;
   for (const d of trainingSet) {
     if (d === day) continue;
-    const raw = Math.abs(DAY_INDEX[d] - DAY_INDEX[day]);
-    // wrap-around week distance
-    const dist = Math.min(raw, 7 - raw);
+    const dist = circularDayDistance(d, day);
     best = Math.min(best, dist);
   }
   return best === 7 ? 0 : best;
-}
-
-function restNeighborsScore(day: Day, trainingSet: Set<Day>): number {
-  // how much rest surrounds the day (consecutive non-training days on both sides)
-  const idx = DAY_INDEX[day];
-  let before = 0;
-  for (let i = 1; i <= 6; i++) {
-    const d = Object.keys(DAY_INDEX).find((k) => DAY_INDEX[k as Day] === (idx - i + 7) % 7) as Day;
-    if (trainingSet.has(d)) break;
-    before++;
-  }
-  let after = 0;
-  for (let i = 1; i <= 6; i++) {
-    const d = Object.keys(DAY_INDEX).find((k) => DAY_INDEX[k as Day] === (idx + i) % 7) as Day;
-    if (trainingSet.has(d)) break;
-    after++;
-  }
-  return before + after;
 }
 
 function isHard(t: RunType): boolean {
@@ -182,232 +161,77 @@ function taperWeeklyKm(config: PlanConfig, peak: number, week: number): number {
   return peak * 0.50;
 }
 
-function chooseSessionAssignment(config: PlanConfig): Record<Day, RunType> {
-  const days = uniqDays(config.days);
-  const trainingSet = new Set(days);
-  const locked: Partial<Record<Day, RunType>> = {};
-  for (const d of days) {
-    const t = config.sessionAssignment?.[d];
-    if (t === "easy" || t === "tempo" || t === "interval" || t === "long") {
-      locked[d] = t;
+function isBasePhase(phase: Phase): boolean {
+  return phase === "Base" || phase === "Beginner Base" || phase === "Intermediate Base" || phase === "Advanced Base";
+}
+
+function resolveHardType(level: PlanConfig["level"], phase: Phase, weekNumber: number): RunType {
+  if (level === "BEGINNER") {
+    if (isBasePhase(phase)) return weekNumber <= 3 ? "easy" : "tempo";
+    return "tempo";
+  }
+  if (level === "INTERMEDIATE") {
+    if (isBasePhase(phase)) return "tempo";
+    return weekNumber <= 2 ? "tempo" : "interval";
+  }
+  if (isBasePhase(phase)) return "tempo";
+  return "interval";
+}
+
+export function getDefaultLongRunDay(days: Day[]): Day {
+  const uniq = daysSorted(uniqDays(days));
+  if (uniq.length === 0) return "sat";
+  let best = uniq[0];
+  let bestGap = nearestTrainingDayDistance(best, new Set(uniq));
+  for (const day of uniq) {
+    const minGap = nearestTrainingDayDistance(day, new Set(uniq));
+    if (minGap > bestGap) {
+      best = day;
+      bestGap = minGap;
     }
   }
-  const lockedDays = new Set(Object.keys(locked) as Day[]);
+  return best;
+}
 
-  // Two-day rule override.
-  if (days.length === 2) {
-    const sorted = daysSorted(days);
-    const out: Record<Day, RunType> = {} as Record<Day, RunType>;
-    for (const d of sorted) {
-      if (locked[d]) out[d] = locked[d]!;
-    }
+export function assignSessionsTodays(
+  days: Day[],
+  longRunDay: Day,
+  level: PlanConfig["level"],
+  phase: Phase,
+  weekNumber: number,
+): Record<Day, RunType> {
+  const dayList = daysSorted(uniqDays(days));
+  if (!dayList.includes(longRunDay)) {
+    throw new Error(`longRunDay ${longRunDay} must be included in training days`);
+  }
 
-    const beginner = config.level === "BEGINNER";
-    const secondType: RunType = beginner ? "easy" : "tempo";
+  const out = Object.fromEntries(dayList.map((day) => [day, "easy"])) as Record<Day, RunType>;
+  out[longRunDay] = "long";
 
-    // Fill only unassigned days; explicit assignments remain untouched.
-    const explicitLong = sorted.find((d) => out[d] === "long");
-    if (explicitLong) {
-      for (const d of sorted) {
-        if (!out[d]) out[d] = secondType;
-      }
-    } else {
-      const unlocked = sorted.filter((d) => !out[d]);
-      if (unlocked.length > 0) {
-        const longDay = restNeighborsScore(unlocked[0], trainingSet) >= restNeighborsScore(unlocked[unlocked.length - 1], trainingSet)
-          ? unlocked[0]
-          : unlocked[unlocked.length - 1];
-        out[longDay] = "long";
-        for (const d of unlocked) {
-          if (!out[d]) out[d] = secondType;
-        }
-      }
-    }
-
-    // No intervals on 2-day plans unless explicitly locked by runner.
-    for (const d of sorted) {
-      if (!lockedDays.has(d) && out[d] === "interval") out[d] = secondType;
-    }
+  if (dayList.length === 2) {
+    const other = dayList.find((d) => d !== longRunDay)!;
+    const isBuild = !isBasePhase(phase);
+    out[other] = level === "BEGINNER" ? "easy" : (isBuild ? "tempo" : "easy");
     return out;
   }
 
-  // Start with locked runner-provided assignment (only for chosen days).
-  const out: Partial<Record<Day, RunType>> = {};
-  for (const d of days) if (locked[d]) out[d] = locked[d]!;
+  const afterLong = dayList.find((day) => (DAY_INDEX[longRunDay] + 1) % 7 === DAY_INDEX[day]);
+  if (afterLong) out[afterLong] = "easy";
 
-  // Fallback algorithm to fill gaps.
-  const missing = days.filter((d) => !out[d]);
-  if (missing.length > 0) {
-    // 1) Long on day with most rest around it (only if no explicit long exists).
-    if (!Object.values(out).includes("long")) {
-      const unlocked = days.filter((d) => !lockedDays.has(d));
-      if (unlocked.length > 0) {
-        let best = unlocked[0];
-        for (const d of unlocked) {
-          if (restNeighborsScore(d, trainingSet) > restNeighborsScore(best, trainingSet)) best = d;
-        }
-        out[best] = "long";
-      }
-    }
-
-    // 2) Interval (or Tempo for beginners) far from long (48h+), only for unlocked days.
-    const longDay = days.find((d) => out[d] === "long");
-    const beginner = config.level === "BEGINNER";
-    const hard1: RunType = beginner ? "tempo" : "interval";
-    if (longDay && !Object.values(out).includes(hard1)) {
-      const candidates = days
-        .filter((d) => !out[d] && !lockedDays.has(d))
-        .filter((d) => nearestTrainingDayDistance(d, new Set([longDay])) >= 2)
-        .sort((a, b) => dayDistance(b, longDay) - dayDistance(a, longDay));
-      if (candidates[0]) out[candidates[0]] = hard1;
-    }
-
-    // 3) Tempo far from interval/hard1, only for unlocked days.
-    if (!Object.values(out).includes("tempo")) {
-      const hardDay = days.find((d) => out[d] === "interval" || out[d] === "tempo");
-      const candidates = days
-        .filter((d) => !out[d] && !lockedDays.has(d))
-        .filter((d) => !hardDay || nearestTrainingDayDistance(d, new Set([hardDay])) >= 2)
-        .sort((a, b) => (hardDay ? dayDistance(b, hardDay) - dayDistance(a, hardDay) : 0));
-      if (candidates[0]) out[candidates[0]] = "tempo";
-    }
-
-    // Remaining unlocked => easy.
-    for (const d of days) {
-      if (!out[d] && !lockedDays.has(d)) out[d] = "easy";
+  const hardType = resolveHardType(level, phase, weekNumber);
+  let hardDay: Day | null = null;
+  let hardGap = -1;
+  for (const day of dayList) {
+    if (day === longRunDay || day === afterLong) continue;
+    const gap = circularDayDistance(day, longRunDay);
+    if (gap > hardGap) {
+      hardGap = gap;
+      hardDay = day;
     }
   }
+  if (hardDay) out[hardDay] = hardType;
 
-  // Enforce no consecutive hard sessions only on unlocked days.
-  const sorted = daysSorted(days);
-  for (let i = 1; i < sorted.length; i++) {
-    const prev = sorted[i - 1];
-    const curr = sorted[i];
-    if (Math.abs(DAY_INDEX[curr] - DAY_INDEX[prev]) === 1) {
-      const pt = out[prev]!;
-      const ct = out[curr]!;
-      if (isHard(pt) && isHard(ct) && !lockedDays.has(curr)) {
-        out[curr] = "easy";
-      }
-    }
-  }
-
-  // Ensure only one long, but never move/remove explicit long.
-  const explicitLongDays = days.filter((d) => locked[d] === "long");
-  const longs = days.filter((d) => out[d] === "long");
-  if (explicitLongDays.length > 0) {
-    const keep = explicitLongDays[0];
-    for (const d of longs) {
-      if (d !== keep && !lockedDays.has(d)) out[d] = "easy";
-    }
-  } else {
-    if (longs.length > 1) {
-      // keep the best rest-scored day as long, downgrade others to easy
-      let keep = longs[0];
-      for (const d of longs) {
-        if (restNeighborsScore(d, trainingSet) > restNeighborsScore(keep, trainingSet)) keep = d;
-      }
-      for (const d of longs) {
-        if (d !== keep && !lockedDays.has(d)) out[d] = "easy";
-      }
-    }
-    const noLong = days.every((d) => out[d] !== "long");
-    if (noLong) {
-      const unlocked = days.filter((d) => !lockedDays.has(d));
-      if (unlocked.length > 0) {
-        let best = unlocked[0];
-        for (const d of unlocked) {
-          if (restNeighborsScore(d, trainingSet) > restNeighborsScore(best, trainingSet)) best = d;
-        }
-        out[best] = "long";
-      }
-    }
-  }
-
-  return out as Record<Day, RunType>;
-}
-
-export function recommendSessionAssignment(
-  level: PlanConfig["level"],
-  days: Day[],
-  current: Partial<Record<Day, RunType>> = {},
-): Record<Day, RunType> {
-  const normalizedDays = uniqDays(days);
-  const result = chooseSessionAssignment({
-    level,
-    goal: "hm",
-    weeks: 16,
-    days: normalizedDays,
-    sessionAssignment: current as Record<Day, RunType>,
-    vdot: 33,
-  });
-  for (const day of normalizedDays) {
-    const explicit = current[day];
-    if (!explicit) continue;
-    if (result[day] !== explicit) {
-      throw new Error(`recommendSessionAssignment overrode explicit assignment for day ${day}`);
-    }
-  }
-  return result;
-}
-
-function getDefaultSessionType(day: Day, config: PlanConfig): RunType {
-  // Default used only when runner has not explicitly assigned a day.
-  if (day === "sat") return "long";
-  if (config.level === "BEGINNER") return "easy";
-  if (config.level === "INTERMEDIATE") return day === "wed" ? "tempo" : "easy";
-  return day === "wed" ? "interval" : "easy";
-}
-
-function gateSessionType(
-  config: PlanConfig,
-  type: RunType,
-  week: number,
-  phase: Phase,
-): RunType {
-  const beginner = config.level === "BEGINNER";
-  const intermediate = config.level === "INTERMEDIATE";
-  const advanced = config.level === "ADVANCED";
-
-  const buildWeeksStart = (() => {
-    for (let w = 1; w <= config.weeks; w++) {
-      if (phaseForWeek(config, w) === "Race Specific") return w;
-    }
-    return 1;
-  })();
-
-  // 2-day plans never use intervals.
-  if (config.days.length === 2 && type === "interval") return beginner ? "easy" : "tempo";
-
-  if (beginner) {
-    // Base phase: easy + long only.
-    if (phase === "Beginner Base" || phase === "Base") {
-      return type === "long" ? "long" : "easy";
-    }
-    // Tempo intro week: week 7 of a 16-week plan, proportionally for 12/20.
-    const tempoIntro = Math.max(2, Math.round((7 / 16) * config.weeks));
-    if (week < tempoIntro) {
-      return type === "long" ? "long" : "easy";
-    }
-    // Intervals not until build phase week 3+.
-    const intervalAllowedWeek = buildWeeksStart + 2;
-    if (type === "interval" && week < intervalAllowedWeek) return "tempo";
-    return type;
-  }
-
-  if (intermediate) {
-    // Week 1: easy + long only.
-    if (week === 1) return type === "long" ? "long" : "easy";
-    // Week 2+: tempo introduced (but intervals wait for build phase).
-    if (type === "interval" && phase !== "Race Specific") return "tempo";
-    if (type === "interval" && phase === "Race Specific") return "interval";
-    return type;
-  }
-
-  // advanced
-  if (advanced) return type;
-
-  return type;
+  return out;
 }
 
 function descriptionForSession(type: RunType, phase: Phase, isCutback: boolean): string {
@@ -538,17 +362,6 @@ function buildLongRuns(config: PlanConfig, weeklyKm: number[], isCutback: boolea
 }
 
 export function generatePlan(config: PlanConfig): TrainingWeek[] {
-  console.log("GENERATEPLAN RECEIVED CONFIG:", JSON.stringify(config.sessionAssignment));
-  /*
-   * ROOT CAUSE ANALYSIS (requested):
-   * 1) Sessions are created in the `sessions` mapping inside the per-week loop
-   *    (the `dayList.map(...)` block below).
-   * 2) Session days come from `dayList`, which is derived from `days`.
-   * 3) `days` is derived from `config.days` (`uniqDays(config.days)`), so this is
-   *    the source used for session creation.
-   * 4) Session type fallback exists (recommendation/gating), but there should be no
-   *    fallback that introduces extra days outside `config.days`.
-   */
   const days = uniqDays(config.days);
   if (days.length < 2) {
     throw new Error("PlanConfig.days must include at least 2 training days");
@@ -572,25 +385,10 @@ export function generatePlan(config: PlanConfig): TrainingWeek[] {
     // Week sessions: one per chosen training day.
     const dayList = daysSorted(days);
 
-    // Determine final session types: explicit assignment is always final.
-    const finalAssignment: Record<Day, RunType> = {} as Record<Day, RunType>;
-    for (const day of dayList) {
-      const explicit = config.sessionAssignment?.[day];
-      if (explicit === "easy" || explicit === "tempo" || explicit === "interval" || explicit === "long") {
-        finalAssignment[day] = explicit;
-      } else {
-        finalAssignment[day] = getDefaultSessionType(day, config);
-      }
-    }
-    if (w === 1) {
-      console.log("WEEK 1 FINAL ASSIGNMENT:", JSON.stringify(finalAssignment));
-    }
-
-    // Use fixed assignment for all weeks; no recommendation overrides in generator.
-    const typesForWeek: Record<Day, RunType> = {} as Record<Day, RunType>;
-    for (const d of dayList) {
-      typesForWeek[d] = finalAssignment[d];
-    }
+    const longRunDay = config.longRunDay && dayList.includes(config.longRunDay)
+      ? config.longRunDay
+      : getDefaultLongRunDay(dayList);
+    const typesForWeek = assignSessionsTodays(dayList, longRunDay, config.level, phase, w);
 
     const weekKm = weeklyKm[w - 1] ?? peakKm;
     const baseLongKm = clamp(longKm[w - 1] ?? 0, 5, weekKm);
