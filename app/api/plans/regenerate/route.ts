@@ -3,7 +3,6 @@ import prisma from "@/lib/db";
 import { dbSettingsToUserSettings, DEFAULT_SETTINGS } from "@/lib/settings";
 import { generatePlan } from "@/lib/generatePlan";
 import { saveGeneratedPlan } from "@/lib/planStorage";
-import { requireInternalApiAuth } from "@/lib/apiAuth";
 import type { Day, PlanConfig } from "@/data/trainingPlan";
 
 function isDay(x: unknown): x is Day {
@@ -53,8 +52,6 @@ async function regenerateFromSettings(_req: NextRequest) {
 
 export async function GET(req: NextRequest) {
   try {
-    const authResp = requireInternalApiAuth(req);
-    if (authResp) return authResp;
     return await regenerateFromSettings(req);
   } catch (err) {
     console.error("[plans/regenerate] GET failed:", err);
@@ -64,8 +61,6 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const authResp = requireInternalApiAuth(req);
-    if (authResp) return authResp;
     return await regenerateFromSettings(req);
   } catch (err) {
     console.error("[plans/regenerate] POST failed:", err);
