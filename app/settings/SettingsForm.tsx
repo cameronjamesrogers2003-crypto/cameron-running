@@ -351,24 +351,23 @@ export default function SettingsForm() {
     const token = process.env.NEXT_PUBLIC_PLANS_API_TOKEN;
     const headers: Record<string, string> = { "Content-Type": "application/json" };
     if (token) headers.Authorization = `Bearer ${token}`;
-    const res = await fetch("/api/settings", {
-      method: "PATCH",
-      headers,
-      body: JSON.stringify({
-        experienceLevel,
-        goalRace,
-        planLengthWeeks,
-        trainingDays: JSON.stringify(sortedTrainingDays),
-        longRunDay: effectiveLongRunDay,
-        currentVdot: vdot,
-        vdotRaceDistance: vdotInput.distance,
-        vdotRaceMinutes: vdotInput.minutes,
-        vdotRaceSeconds: vdotInput.seconds,
-        planStartDate: settings.planStartDate,
-        maxHR,
-      }),
-    });
-    if (!res.ok) {
+    const payload = {
+      experienceLevel,
+      goalRace,
+      planLengthWeeks,
+      trainingDays: JSON.stringify(sortedTrainingDays),
+      longRunDay: effectiveLongRunDay,
+      currentVdot: vdot,
+      vdotRaceDistance: vdotInput.distance,
+      vdotRaceMinutes: vdotInput.minutes,
+      vdotRaceSeconds: vdotInput.seconds,
+      planStartDate: settings.planStartDate,
+      maxHR,
+    } as const;
+
+    try {
+      await updateSettings(payload);
+    } catch {
       alert("Failed to save settings");
       throw new Error("Failed to save settings");
     }

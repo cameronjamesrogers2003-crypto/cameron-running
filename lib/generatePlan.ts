@@ -165,17 +165,36 @@ function isBasePhase(phase: Phase): boolean {
   return phase === "Base" || phase === "Beginner Base" || phase === "Intermediate Base" || phase === "Advanced Base";
 }
 
-function resolveHardType(level: PlanConfig["level"], phase: Phase, weekNumber: number): RunType {
+function getPhaseWindows(config: Pick<PlanConfig, "weeks" | "goal">, weekNumber: number): {
+  baseLengthWeeks: number;
+  isBase: boolean;
+  isBuild: boolean;
+  isTaper: boolean;
+} {
+  const baseLengthWeeks = config.weeks === 12 ? 4 : config.weeks === 16 ? 6 : 8;
+  const isBase = weekNumber <= baseLengthWeeks;
+  const taperLength = config.goal === "full" ? 3 : 2;
+  const isTaper = weekNumber > config.weeks - taperLength;
+  const isBuild = !isBase && !isTaper;
+  return { baseLengthWeeks, isBase, isBuild, isTaper };
+}
+
+function resolveHardType(level: PlanConfig["level"], config: PlanConfig, weekNumber: number): RunType {
+  const { baseLengthWeeks, isBase, isBuild } = getPhaseWindows(config, weekNumber);
+
   if (level === "BEGINNER") {
-    if (isBasePhase(phase)) return weekNumber <= 3 ? "easy" : "tempo";
-    return "tempo";
+    if (isBase) return weekNumber <= 3 ? "easy" : "tempo";
+    if (isBuild) return "tempo";
+    return "easy";
   }
   if (level === "INTERMEDIATE") {
-    if (isBasePhase(phase)) return "tempo";
-    return weekNumber <= 2 ? "tempo" : "interval";
+    if (isBase) return "tempo";
+    if (isBuild) return weekNumber <= baseLengthWeeks + 2 ? "tempo" : "interval";
+    return "easy";
   }
-  if (isBasePhase(phase)) return "tempo";
-  return "interval";
+  if (isBase) return "tempo";
+  if (isBuild) return "interval";
+  return "easy";
 }
 
 export function getDefaultLongRunDay(days: Day[]): Day {
@@ -197,7 +216,7 @@ export function assignSessionsTodays(
   days: Day[],
   longRunDay: Day,
   level: PlanConfig["level"],
-  phase: Phase,
+  config: Pick<PlanConfig, "goal" | "weeks">,
   weekNumber: number,
 ): Record<Day, RunType> {
   const dayList = daysSorted(uniqDays(days));
@@ -210,7 +229,7 @@ export function assignSessionsTodays(
 
   if (dayList.length === 2) {
     const other = dayList.find((d) => d !== longRunDay)!;
-    const isBuild = !isBasePhase(phase);
+    const { isBuild } = getPhaseWindows(config, weekNumber);
     out[other] = level === "BEGINNER" ? "easy" : (isBuild ? "tempo" : "easy");
     return out;
   }
@@ -218,7 +237,11 @@ export function assignSessionsTodays(
   const afterLong = dayList.find((day) => (DAY_INDEX[longRunDay] + 1) % 7 === DAY_INDEX[day]);
   if (afterLong) out[afterLong] = "easy";
 
-  const hardType = resolveHardType(level, phase, weekNumber);
+  const hardType = resolveHardType(
+    level,
+    { level, goal: config.goal, weeks: config.weeks, days: dayList, longRunDay, vdot: 33 },
+    weekNumber,
+  );
   let hardDay: Day | null = null;
   let hardGap = -1;
   for (const day of dayList) {
@@ -388,7 +411,13 @@ export function generatePlan(config: PlanConfig): TrainingWeek[] {
     const longRunDay = config.longRunDay && dayList.includes(config.longRunDay)
       ? config.longRunDay
       : getDefaultLongRunDay(dayList);
-    const typesForWeek = assignSessionsTodays(dayList, longRunDay, config.level, phase, w);
+    const typesForWeek = assignSessionsTodays(
+      dayList,
+      longRunDay,
+      config.level,
+      { goal: config.goal, weeks: config.weeks },
+      w,
+    );
 
     const weekKm = round1(weeklyKm[w - 1] ?? peakKm);
     const baseLongKm = round1(clamp(longKm[w - 1] ?? 0, 5, weekKm));
