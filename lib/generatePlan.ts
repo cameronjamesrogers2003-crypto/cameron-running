@@ -264,7 +264,7 @@ function getLongRunKm(config: PlanConfig, goal: PlanConfig["goal"]) {
 }
 
 function buildWeeklyVolumes(config: PlanConfig): { weeklyKm: number[]; isCutback: boolean[]; peakKm: number } {
-  const peak = getPeakWeeklyKm(config.level, config.goal);
+  const peak = round1(getPeakWeeklyKm(config.level, config.goal));
   const startKm = getStartWeeklyKm(config.level, peak);
   const { every, reduce, maxIncrease } = getCutbackConfig(config.level);
 
@@ -305,7 +305,7 @@ function buildWeeklyVolumes(config: PlanConfig): { weeklyKm: number[]; isCutback
     prev = next;
   }
 
-  return { weeklyKm, isCutback: isCutbackArr, peakKm: peak };
+  return { weeklyKm, isCutback: isCutbackArr, peakKm: round1(peak) };
 }
 
 function buildLongRuns(config: PlanConfig, weeklyKm: number[], isCutback: boolean[]): number[] {
@@ -390,21 +390,21 @@ export function generatePlan(config: PlanConfig): TrainingWeek[] {
       : getDefaultLongRunDay(dayList);
     const typesForWeek = assignSessionsTodays(dayList, longRunDay, config.level, phase, w);
 
-    const weekKm = weeklyKm[w - 1] ?? peakKm;
-    const baseLongKm = clamp(longKm[w - 1] ?? 0, 5, weekKm);
+    const weekKm = round1(weeklyKm[w - 1] ?? peakKm);
+    const baseLongKm = round1(clamp(longKm[w - 1] ?? 0, 5, weekKm));
     const otherDays = dayList.filter((d) => typesForWeek[d] !== "long");
     const nonLongCount = otherDays.length;
 
     // Rule 1/3: long run should be at least 35% of weekly volume.
     // If base long run would be <35%, reduce weekly volume to match the long run.
-    const constrainedWeekKm = Math.min(weekKm, baseLongKm / 0.35);
-    const wkLongKm = clamp(Math.max(baseLongKm, constrainedWeekKm * 0.35), 5, constrainedWeekKm);
+    const constrainedWeekKm = round1(Math.min(weekKm, baseLongKm / 0.35));
+    const wkLongKm = round1(clamp(Math.max(baseLongKm, constrainedWeekKm * 0.35), 5, constrainedWeekKm));
 
     // Rule 2: non-long sessions should not exceed 85% of the long run distance.
-    const remaining = Math.max(0, constrainedWeekKm - wkLongKm);
-    const eachOtherRaw = nonLongCount > 0 ? remaining / nonLongCount : 0;
-    const nonLongCap = wkLongKm * 0.85;
-    const eachOther = Math.min(eachOtherRaw, nonLongCap);
+    const remaining = round1(Math.max(0, constrainedWeekKm - wkLongKm));
+    const eachOtherRaw = round1(nonLongCount > 0 ? remaining / nonLongCount : 0);
+    const nonLongCap = round1(wkLongKm * 0.85);
+    const eachOther = round1(Math.min(eachOtherRaw, nonLongCap));
 
     const sessions: Session[] = dayList.map((day) => {
       const type = typesForWeek[day];
@@ -412,7 +412,7 @@ export function generatePlan(config: PlanConfig): TrainingWeek[] {
       const km =
         type === "long"
           ? wkLongKm
-          : clamp(eachOther, 3, Math.max(3, wkLongKm * 0.85));
+          : round1(clamp(eachOther, 3, Math.max(3, wkLongKm * 0.85)));
 
       const pace =
         type === "long" ? longRunPace :
