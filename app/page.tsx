@@ -27,6 +27,7 @@ import TrainingLoadChart from "@/components/charts/TrainingLoadChart";
 import SyncButton from "@/components/SyncButton";
 import Logo from "@/components/Logo";
 import PlayerRatingDeltaPanel from "@/components/PlayerRatingDeltaPanel";
+import PlanAdaptationCards from "@/components/PlanAdaptationCards";
 import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
@@ -229,7 +230,7 @@ export default async function Dashboard({
   const today = new Date();
   const todayAESTMidnight = startOfDayAEST(today);
 
-  const [profile, userSettingsRow, lastSyncRow, interruptionRows, playerRating] = await Promise.all([
+  const [profile, userSettingsRow, lastSyncRow, interruptionRows, playerRating, planAdaptations] = await Promise.all([
     prisma.profile.findUnique({ where: { id: 1 } }),
     prisma.userSettings.findUnique({ where: { id: 1 } }),
     prisma.activity.findFirst({
@@ -238,6 +239,11 @@ export default async function Dashboard({
     }),
     prisma.planInterruption.findMany({ orderBy: { startDate: "asc" } }),
     prisma.playerRating.findFirst({ orderBy: { updatedAt: "desc" } }),
+    prisma.planAdaptation.findMany({
+      where: { dismissed: false },
+      orderBy: { createdAt: "desc" },
+      take: 5,
+    }),
   ]);
 
   const settings = userSettingsRow ? dbSettingsToUserSettings(userSettingsRow) : DEFAULT_SETTINGS;
@@ -852,6 +858,13 @@ export default async function Dashboard({
 
       {/* ── Sidebar ──────────────────────────────────────────────────────── */}
       <aside className="w-[220px] shrink-0 space-y-3 hidden lg:block">
+        <PlanAdaptationCards initialItems={planAdaptations.map((item) => ({
+          id: item.id,
+          weekNumber: item.weekNumber,
+          type: item.type,
+          reason: item.reason,
+          changes: item.changes,
+        }))} />
 
         {/* This week panel */}
         <Card className="p-4">

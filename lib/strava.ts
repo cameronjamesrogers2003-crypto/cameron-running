@@ -1,6 +1,7 @@
 import prisma from "./db";
 import { persistActivityRating } from "./persistActivityRating";
 import { updatePlayerRating } from "./playerRating";
+import { checkAndAdaptPlan } from "./planAdaptation";
 import { fetchHistoricalWeather, BRISBANE_LAT, BRISBANE_LON } from "./weather";
 
 const STRAVA_AUTH_URL = "https://www.strava.com/oauth/authorize";
@@ -208,6 +209,11 @@ export async function syncActivities(): Promise<{ synced: number; errors: number
   async function refreshPlayerRating(id: string, activityType: string): Promise<void> {
     try {
       await updatePlayerRating(prisma, { id, activityType });
+      try {
+        await checkAndAdaptPlan(prisma);
+      } catch (err) {
+        console.error("Plan adaptation error:", err);
+      }
     } catch (err) {
       console.error("[player-rating] update failed:", err);
       playerRatingError = "Player rating failed to update";

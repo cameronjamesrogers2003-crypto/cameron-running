@@ -38,6 +38,8 @@ export interface TrainingWeek {
   isCutback: boolean
   isRecovery?: boolean
   originalWeek?: number
+  softCutback?: boolean
+  adaptationNote?: string
   sessions: Session[]
 }
 
