@@ -308,7 +308,6 @@ export default function OnboardingPage() {
               );
             })}
           </div>
-          {trainingDays.length > 6 && <p className="text-xs text-orange-300">Running every day increases injury risk. Maximum 6 days recommended.</p>}
           {trainingDays.length < 2 && <p className="text-xs text-orange-300">Select at least 2 training days.</p>}
         </section>
       )}

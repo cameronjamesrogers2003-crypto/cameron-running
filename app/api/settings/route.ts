@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
 import { dbSettingsToUserSettings, DEFAULT_SETTINGS } from "@/lib/settings";
+import { requireInternalApiAuth } from "@/lib/apiAuth";
+import type { Day } from "@/data/trainingPlan";
 
 type SettingsUpdate = {
   planStartDate?: Date | null;
@@ -10,7 +12,7 @@ type SettingsUpdate = {
   goalRace?: "HALF" | "FULL" | null;
   planLengthWeeks?: 12 | 16 | 20 | null;
   trainingDays?: string | null;
-  longRunDay?: string | null;
+  longRunDay?: Day | null;
   targetFinishTime?: number | null;
   maxHR?: number;
   startingTempoPaceSec?: number;
@@ -35,7 +37,13 @@ type SettingsUpdate = {
   longPaceMaxSec?: number;
 };
 
-export async function GET() {
+function isDay(value: unknown): value is Day {
+  return value === "mon" || value === "tue" || value === "wed" || value === "thu" || value === "fri" || value === "sat" || value === "sun";
+}
+
+export async function GET(req: NextRequest) {
+  const authResp = requireInternalApiAuth(req);
+  if (authResp) return authResp;
   try {
     const row = await prisma.userSettings.upsert({
       where:  { id: 1 },
@@ -111,7 +119,7 @@ function applySetting(update: SettingsUpdate, key: string, value: unknown): void
       if (typeof value === "string" || value === null) update.trainingDays = value;
       return;
     case "longRunDay":
-      if (typeof value === "string" || value === null) update.longRunDay = value;
+      if (isDay(value) || value === null) update.longRunDay = value;
       return;
     case "targetFinishTime":
       if (typeof value === "number" || value === null) update.targetFinishTime = value;
@@ -183,6 +191,8 @@ function applySetting(update: SettingsUpdate, key: string, value: unknown): void
 }
 
 export async function PATCH(req: NextRequest) {
+  const authResp = requireInternalApiAuth(req);
+  if (authResp) return authResp;
   let body: Record<string, unknown>;
   try {
     body = await req.json() as Record<string, unknown>;

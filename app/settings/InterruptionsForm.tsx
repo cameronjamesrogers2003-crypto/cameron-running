@@ -46,6 +46,8 @@ function fmtDate(iso: string | null): string {
 }
 
 export default function InterruptionsForm() {
+  const token = process.env.NEXT_PUBLIC_PLANS_API_TOKEN;
+  const authHeader: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
   const [rows, setRows]           = useState<InterruptionRow[]>([]);
   const [loading, setLoading]     = useState(true);
   const [form, setForm]           = useState(BLANK_FORM);
@@ -88,7 +90,7 @@ export default function InterruptionsForm() {
       };
       const res = await fetch("/api/interruptions", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { ...authHeader, "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
       if (!res.ok) throw new Error();
@@ -106,7 +108,7 @@ export default function InterruptionsForm() {
   async function handleDelete(id: string) {
     setDeletingId(id);
     try {
-      await fetch(`/api/interruptions/${id}`, { method: "DELETE" });
+      await fetch(`/api/interruptions/${id}`, { method: "DELETE", headers: authHeader });
       setRows(prev => prev.filter(r => r.id !== id));
     } finally {
       setDeletingId(null);

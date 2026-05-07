@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
+import { requireInternalApiAuth } from "@/lib/apiAuth";
 
 export async function GET() {
   try {
@@ -14,6 +15,8 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  const authResp = requireInternalApiAuth(req);
+  if (authResp) return authResp;
   try {
     const body = await req.json();
     const { reason, type, startDate, endDate, weeklyKmEstimate, notes, weeksAffected } = body;
