@@ -190,15 +190,26 @@ export async function syncActivities(): Promise<{ synced: number; errors: number
   if (!token) return { synced: 0, errors: 0 };
 
   const thirtyDaysAgo = Math.floor((Date.now() - 30 * 24 * 60 * 60 * 1000) / 1000);
+  const perPage = 50;
+  let page = 1;
+  const allActivities: StravaActivity[] = [];
 
-  const res = await fetch(
-    `${STRAVA_API}/athlete/activities?after=${thirtyDaysAgo}&per_page=50`,
-    { headers: { Authorization: `Bearer ${token}` } }
-  );
+  while (true) {
+    const res = await fetch(
+      `${STRAVA_API}/athlete/activities?after=${thirtyDaysAgo}&per_page=${perPage}&page=${page}`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
 
-  if (!res.ok) return { synced: 0, errors: 1 };
+    if (!res.ok) return { synced: 0, errors: 1 };
 
-  const activities: StravaActivity[] = (await res.json()).sort((a: StravaActivity, b: StravaActivity) =>
+    const batch: StravaActivity[] = await res.json();
+    if (batch.length === 0) break;
+    allActivities.push(...batch);
+    if (batch.length < perPage) break;
+    page++;
+  }
+
+  const activities = allActivities.sort((a: StravaActivity, b: StravaActivity) =>
     new Date(a.start_date).getTime() - new Date(b.start_date).getTime()
   );
 
