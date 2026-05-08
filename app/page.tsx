@@ -17,7 +17,6 @@ import { finalizePlanDisplayCopy, generatePlan } from "@/lib/generatePlan";
 import {
   buildPlayerRatingSummaryRows,
   PLAYER_RATING_ATTRIBUTES,
-  playerRatingAccent,
   type PlayerRatingLike,
 } from "@/lib/playerRating";
 import WeeklyKmChart from "@/components/charts/WeeklyKmChart";
@@ -28,6 +27,7 @@ import Logo from "@/components/Logo";
 import PlayerRatingDeltaPanel from "@/components/PlayerRatingDeltaPanel";
 import PlanAdaptationCards from "@/components/PlanAdaptationCards";
 import { RunTypePill } from "@/components/RunTypePill";
+import { runTypeColor } from "@/lib/runTypeStyles";
 import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
@@ -56,9 +56,9 @@ function ratingBadgeStyle(score: number): { background: string; color: string } 
 }
 
 function ratingStatColor(score: number): string {
-  if (score >= 7.5) return "#4ade80";
-  if (score >= 6)   return "#60a5fa";
-  if (score >= 4)   return "#fb923c";
+  if (score >= 7.0) return "#4ade80";
+  if (score >= 5.5) return "var(--accent)";
+  if (score >= 4.0) return "#f5b454";
   return "#f87171";
 }
 
@@ -87,6 +87,15 @@ function formatTargetPace(minPerKm: number): string {
   return `${mins}:${secs.toString().padStart(2, "0")} /km`;
 }
 
+function playerAttributeColor(label: string): string {
+  if (label === "SPD") return "var(--c-interval)";
+  if (label === "END") return "var(--c-long)";
+  if (label === "CON") return "var(--c-tempo)";
+  if (label === "EFF") return "var(--c-easy)";
+  if (label === "TGH") return "#f5b454";
+  return "var(--accent)";
+}
+
 function PlayerCard({ rating }: { rating: PlayerRatingLike | null }) {
   if (!rating) {
     return (
@@ -106,7 +115,6 @@ function PlayerCard({ rating }: { rating: PlayerRatingLike | null }) {
   }
 
   const overall = Math.round(rating.overall);
-  const accent = playerRatingAccent(overall);
 
   return (
     <Card className="p-4 sm:p-5 overflow-hidden">
@@ -114,7 +122,7 @@ function PlayerCard({ rating }: { rating: PlayerRatingLike | null }) {
         className="relative rounded-3xl p-5 sm:p-6"
         style={{
           background:
-            "radial-gradient(circle at 22% 0%, rgba(250,204,21,0.25), transparent 32%), linear-gradient(145deg, #101827 0%, #0b1020 48%, #050816 100%)",
+            "linear-gradient(135deg, rgba(45,212,191,0.08) 0%, rgba(10,11,12,0.8) 50%, rgba(167,139,250,0.06) 100%)",
           border: "1px solid rgba(250,204,21,0.32)",
           boxShadow: "inset 0 0 60px rgba(250,204,21,0.05)",
         }}
@@ -126,14 +134,14 @@ function PlayerCard({ rating }: { rating: PlayerRatingLike | null }) {
         <div className="relative flex flex-col gap-5 md:flex-row md:items-center">
           <div className="flex items-center gap-4 md:w-48 md:flex-col md:items-start">
             <div>
-              <p className="text-6xl sm:text-7xl font-black leading-none tabular-nums" style={{ color: accent }}>
+              <p className="text-6xl font-black tabular-nums leading-none" style={{ color: "var(--accent)" }}>
                 {overall}
               </p>
               <p className="text-xs uppercase tracking-[0.35em] font-extrabold text-white">OVR</p>
             </div>
             <div className="min-w-0">
-              <p className="text-lg font-black uppercase tracking-wide text-white">Cameron</p>
-              <p className="text-xs uppercase tracking-[0.2em]" style={{ color: "rgba(255,255,255,0.55)" }}>
+              <p className="text-lg font-black tracking-wider uppercase text-white">Cameron</p>
+              <p className="text-xs tracking-widest uppercase" style={{ color: "var(--text-muted)" }}>
                 Running Card
               </p>
             </div>
@@ -143,11 +151,11 @@ function PlayerCard({ rating }: { rating: PlayerRatingLike | null }) {
             {PLAYER_RATING_ATTRIBUTES.map((attr) => {
               const value = Math.round(rating[attr.key]);
               const width = Math.min(100, Math.max(0, (value / 99) * 100));
-              const barColor = playerRatingAccent(value);
+              const barColor = playerAttributeColor(attr.label);
               return (
                 <div key={attr.key} className="grid grid-cols-[42px_1fr_34px] items-center gap-3">
                   <div>
-                    <p className="text-xs font-black tracking-wider text-white">{attr.label}</p>
+                    <p className="text-xs font-bold tracking-widest" style={{ color: "var(--text-muted)" }}>{attr.label}</p>
                     <p className="text-[10px] hidden sm:block" style={{ color: "rgba(255,255,255,0.45)" }}>
                       {attr.name}
                     </p>
@@ -157,11 +165,11 @@ function PlayerCard({ rating }: { rating: PlayerRatingLike | null }) {
                       className="h-full rounded-full"
                       style={{
                         width: `${width}%`,
-                        background: `linear-gradient(90deg, ${barColor}, rgba(255,255,255,0.88))`,
+                        background: barColor,
                       }}
                     />
                   </div>
-                  <p className="text-sm font-black text-right tabular-nums text-white">{value}</p>
+                  <p className="text-sm font-mono font-semibold tabular-nums text-white text-right">{value}</p>
                 </div>
               );
             })}
@@ -650,21 +658,17 @@ export default async function Dashboard({
           {/* Weekly distance */}
           <Card className="p-4">
             <SectionLabel>Weekly Distance</SectionLabel>
-            <p className="text-xl sm:text-2xl font-bold text-white mt-2 tabular-nums">
+            <p className="text-4xl font-black font-mono tabular-nums text-white mt-2">
               {weekActualKm.toFixed(1)}
-              <span className="text-xs sm:text-sm font-normal ml-1" style={{ color: "var(--text-muted)" }}>
+              <span className="text-sm font-mono ml-1" style={{ color: "var(--text-muted)" }}>
                 / {weekTargetKm.toFixed(1)} km
               </span>
             </p>
-            <div
-              className="mt-3 h-1 rounded-full overflow-hidden"
-              style={{ background: "rgba(255,255,255,0.08)" }}
-            >
+            <div className="h-1 rounded-full bg-white/[0.08] mt-3 overflow-hidden">
               <div
-                className="h-full rounded-full transition-all"
+                className="h-1 rounded-full bg-teal-400 transition-all duration-500"
                 style={{
                   width: `${Math.min(100, weekTargetKm > 0 ? (weekActualKm / weekTargetKm) * 100 : 0)}%`,
-                  background: "var(--accent)",
                 }}
               />
             </div>
@@ -673,15 +677,24 @@ export default async function Dashboard({
           {/* Runs completed */}
           <Card className="p-4">
             <SectionLabel>Runs Completed</SectionLabel>
-            <p className="text-xl sm:text-2xl font-bold text-white mt-2 tabular-nums">
+            <p className="text-4xl font-black font-mono tabular-nums text-white mt-2">
               {weekDone}
-              <span className="text-xs sm:text-sm font-normal ml-1" style={{ color: "var(--text-muted)" }}>
+              <span className="text-xl font-mono ml-1" style={{ color: "var(--text-muted)" }}>
                 / {weekPlanned}
               </span>
             </p>
-            <p className="text-xs mt-3" style={{ color: "var(--text-muted)" }}>
+            <p className="text-xs mt-1" style={{ color: "var(--text-dim)" }}>
               this week
             </p>
+            <div className="flex gap-1.5 mt-3">
+              {Array.from({ length: weekPlanned }).map((_, i) => (
+                <div
+                  key={`week-dot-${i}`}
+                  className="w-2 h-2 rounded-full"
+                  style={{ background: i < weekDone ? "var(--accent)" : "rgba(255,255,255,0.15)" }}
+                />
+              ))}
+            </div>
           </Card>
 
           {/* Avg rating */}
@@ -690,13 +703,13 @@ export default async function Dashboard({
             {avgWeekRating !== null ? (
               <>
                 <p
-                  className="text-xl sm:text-2xl font-bold mt-2 tabular-nums"
+                  className="text-4xl font-black font-mono tabular-nums mt-2"
                   style={{ color: ratingStatColor(avgWeekRating) }}
                 >
                   {avgWeekRating.toFixed(1)}
-                  <span className="text-xs sm:text-sm font-normal ml-1 text-white">/ 10</span>
+                  <span className="text-sm font-mono ml-1" style={{ color: "var(--text-muted)" }}>/ 10</span>
                 </p>
-                <p className="text-xs mt-3" style={{ color: "var(--text-muted)" }}>
+                <p className="text-xs mt-1" style={{ color: "var(--text-dim)" }}>
                   from {weekRatings.length} {weekRatings.length === 1 ? "run" : "runs"}
                 </p>
               </>
@@ -809,40 +822,31 @@ export default async function Dashboard({
                 </p>
               </div>
             ) : (
-              upcomingSessions.map((row, idx) => {
+              upcomingSessions.map((row) => {
                 const s = row.session;
+                const dayNumber = formatAEST(row.date, "d");
                 return (
                   <div
                     key={`upcoming-${row.week}-${s.day}`}
-                    className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center"
-                    style={{ borderTop: idx === 0 ? undefined : "1px solid rgba(255,255,255,0.06)" }}
+                    className="flex items-center gap-3 py-3 border-b border-white/[0.06] last:border-0"
                   >
-                    <div className="flex items-start gap-3 min-w-0 flex-1">
-                      <div
-                        className="w-11 h-11 shrink-0 rounded-lg flex items-center justify-center text-xs font-bold"
-                        style={{ background: "rgba(255,255,255,0.06)", color: "var(--text-muted)" }}
-                      >
+                    <div
+                      className="flex flex-col items-center justify-center w-10 h-10 rounded-xl text-center shrink-0"
+                      style={{ background: "rgba(255,255,255,0.06)" }}
+                    >
+                      <p className="text-xs font-bold uppercase" style={{ color: "var(--text-muted)" }}>
                         {row.dayLabel}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-white font-semibold text-sm capitalize">{s.type}</span>
-                          <RunTypePill type={s.type} size="sm" />
-                        </div>
-                        <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
-                          {row.dayLabel} {formatAEST(row.date, "d MMM yyyy")}
-                        </p>
-                      </div>
+                      </p>
+                      <p className="text-sm font-mono font-semibold text-white">{dayNumber}</p>
                     </div>
-                    <div className="grid grid-cols-2 gap-3 text-xs sm:flex sm:gap-4 sm:ml-auto sm:text-right">
-                      <div>
-                        <p className="text-white font-medium font-mono">{s.targetDistanceKm} km</p>
-                        <p style={{ color: "var(--text-muted)" }}>target</p>
-                      </div>
-                      <div>
-                        <p className="text-white font-medium tabular-nums">{formatTargetPace(s.targetPaceMinPerKm)}</p>
-                        <p style={{ color: "var(--text-muted)" }}>target pace</p>
-                      </div>
+                    <div className="flex-1 min-w-0 space-y-1">
+                      <RunTypePill type={s.type} size="sm" />
+                      <p className="text-sm font-mono text-white">
+                        {s.targetDistanceKm} km
+                      </p>
+                      <p className="text-xs font-mono" style={{ color: "var(--text-muted)" }}>
+                        {formatTargetPace(s.targetPaceMinPerKm)}
+                      </p>
                     </div>
                   </div>
                 );
@@ -917,40 +921,51 @@ export default async function Dashboard({
                 You missed {lastWeekMisses} session{lastWeekMisses === 1 ? "" : "s"} last week
               </p>
             )}
-            {sessionChecklist.map(({ session, date, completed, future, missed, active, dayLabel }) => (
-              <div key={session.day} className="flex items-start gap-2.5">
+            {sessionChecklist.map(({ session, date, completed, future, missed, active, dayLabel }) => {
+              const prePlan = !active;
+              const baseColor = runTypeColor(session.type);
+              const leftBorderColor = completed
+                ? baseColor
+                : missed
+                  ? "rgba(249,115,22,0.6)"
+                  : future
+                    ? `${baseColor}80`
+                    : "rgba(255,255,255,0.15)";
+              const rowOpacity = completed ? 1 : missed ? 0.6 : future ? 0.7 : 0.35;
+              return (
                 <div
-                  className="w-4 h-4 rounded mt-0.5 flex items-center justify-center text-xs flex-shrink-0"
-                  style={{
-                    background: completed
-                      ? "var(--accent)"
-                      : missed
-                        ? "rgba(251,191,36,0.35)"
-                      : "rgba(255,255,255,0.08)",
-                    color: completed ? "#fff" : missed ? "#fbbf24" : "transparent",
-                  }}
+                  key={session.day}
+                  className={`flex items-center gap-2.5 ${completed ? "opacity-100" : missed ? "opacity-60" : future ? "opacity-70" : ""}`}
+                  style={{ borderLeft: `3px solid ${leftBorderColor}`, paddingLeft: "10px", opacity: rowOpacity }}
                 >
-                  {completed ? "✓" : missed ? "×" : ""}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p
-                    className="text-xs font-medium leading-tight capitalize"
-                    style={{ color: !active || completed ? "var(--text-muted)" : "white" }}
+                  <div
+                    className="w-4 h-4 rounded-full mt-0.5 flex items-center justify-center text-xs flex-shrink-0"
+                    style={{
+                      border: completed
+                        ? "1px solid var(--accent)"
+                        : missed
+                          ? "1px solid rgba(249,115,22,0.6)"
+                          : prePlan
+                            ? "1px solid rgba(255,255,255,0.15)"
+                            : "1px solid rgba(255,255,255,0.25)",
+                      background: completed ? "var(--accent)" : "transparent",
+                      color: completed ? "#fff" : missed ? "#f5b454" : "var(--text-dim)",
+                    }}
                   >
-                    {dayLabel} · {session.type}{" "}
-                    {session.targetDistanceKm} km @ {formatTargetPace(session.targetPaceMinPerKm)}
-                  </p>
-                  {future && !completed && (
-                    <p
-                      className="text-xs leading-tight"
-                      style={{ color: "rgba(156,163,175,0.5)" }}
-                    >
+                    {completed ? "✓" : missed ? "×" : prePlan ? "—" : ""}
+                  </div>
+                  <div className="flex-1 min-w-0 flex items-center justify-between gap-2">
+                    <p className="text-sm font-semibold text-white">{dayLabel}</p>
+                    <p className="text-sm font-mono text-white capitalize min-w-0 truncate">
+                      {session.type} {session.targetDistanceKm} km
+                    </p>
+                    <p className="text-xs shrink-0" style={{ color: "var(--text-dim)" }}>
                       {formatAEST(date, "d MMM")}
                     </p>
-                  )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
             {sessionChecklist.length === 0 && (
               <p className="text-xs" style={{ color: "var(--text-muted)" }}>
                 No sessions this week
