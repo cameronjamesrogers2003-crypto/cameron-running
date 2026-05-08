@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Activity, Calendar, CircleHelp, ClipboardList, LayoutDashboard, RefreshCw, Settings } from "lucide-react";
+import { Activity, Calendar, CircleHelp, ClipboardList, LayoutDashboard, RefreshCw, Settings, Trophy } from "lucide-react";
 import Logo from "@/components/Logo";
 
 const mainLinks = [
@@ -11,6 +11,7 @@ const mainLinks = [
   { href: "/calendar", label: "Calendar", Icon: Calendar },
   { href: "/runs", label: "Runs", Icon: Activity },
   { href: "/settings", label: "Settings", Icon: Settings },
+  { href: "/rating", label: "Rating", Icon: Trophy },
   { href: "/help", label: "Help", Icon: CircleHelp },
 ] as const;
 

@@ -12,7 +12,7 @@ interface PlayerCardProps {
   mode?: "dashboard" | "full";
 }
 
-type TierConfig = {
+export type TierConfig = {
   min: number;
   max: number;
   name: string;
@@ -25,7 +25,7 @@ type TierConfig = {
   patternOpacity: number;
 };
 
-const TIERS: TierConfig[] = [
+export const TIERS: TierConfig[] = [
   {
     min: 1, max: 20,
     name: "Newcomer",
@@ -94,7 +94,7 @@ const TIERS: TierConfig[] = [
   },
 ];
 
-function getTier(ovr: number): TierConfig {
+export function getTier(ovr: number): TierConfig {
   return TIERS.find((t) => ovr >= t.min && ovr <= t.max) ?? TIERS[0];
 }
 
@@ -134,14 +134,25 @@ export default function PlayerCard({
 }: PlayerCardProps) {
   const tier = getTier(ovr);
   const attrs = [
-    { key: "SPD", val: spd, color: "var(--c-interval)" },
-    { key: "END", val: end, color: "var(--c-long)" },
-    { key: "CON", val: con, color: "var(--c-tempo)" },
-    { key: "EFF", val: eff, color: "var(--c-easy)" },
-    { key: "TGH", val: tgh, color: "#f5b454" },
+    { key: "SPD", fullName: "Speed", val: spd, color: "var(--c-interval)" },
+    { key: "END", fullName: "Endurance", val: end, color: "var(--c-long)" },
+    { key: "CON", fullName: "Consistency", val: con, color: "var(--c-tempo)" },
+    { key: "EFF", fullName: "HR Efficiency", val: eff, color: "var(--c-easy)" },
+    { key: "TGH", fullName: "Toughness", val: tgh, color: "#f5b454" },
   ] as const;
 
   const isDashboard = mode === "dashboard";
+
+  const layoutStyle = isDashboard
+    ? {
+        display: "flex",
+        gap: "20px",
+        alignItems: "center",
+      }
+    : {
+        display: "grid",
+        gap: "20px",
+      };
 
   return (
     <div
@@ -150,11 +161,9 @@ export default function PlayerCard({
         border: `1px solid ${tier.borderColor}`,
         borderRadius: "16px",
         padding: isDashboard ? "20px" : "24px",
-        display: "flex",
-        gap: "20px",
-        alignItems: "center",
         position: "relative",
         overflow: "hidden",
+        ...layoutStyle,
       }}
     >
       <div
@@ -183,83 +192,136 @@ export default function PlayerCard({
         />
       )}
 
-      <div style={{ position: "relative", zIndex: 1 }}>
-        <RunnerSilhouette color={tier.accentColor} size={isDashboard ? 80 : 96} />
-        <p style={{ fontWeight: 900, fontSize: "0.85rem", letterSpacing: "0.1em", color: "white", marginTop: "6px", textAlign: "center" }}>
-          {name}
-        </p>
-        <p style={{ fontSize: "0.6rem", letterSpacing: "0.15em", color: tier.accentColor, textAlign: "center", opacity: 0.8 }}>
-          RUNNING CARD
-        </p>
-      </div>
-
-      <div style={{ position: "relative", zIndex: 1 }}>
-        <p
-          style={{
-            fontSize: isDashboard ? "3.5rem" : "4rem",
-            fontWeight: 900,
-            lineHeight: 1,
-            color: tier.ovrColor,
-            fontFamily: "monospace",
-            fontVariantNumeric: "tabular-nums",
-          }}
-        >
-          {ovr}
-        </p>
-        <p style={{ fontSize: "0.6rem", fontWeight: 700, letterSpacing: "0.15em", color: "rgba(255,255,255,0.4)", marginTop: "2px" }}>
-          O V R
-        </p>
-        {prevOvr !== undefined && ovr !== prevOvr && (
-          <p style={{ fontSize: "0.75rem", fontWeight: 700, color: ovr > prevOvr ? "#4ade80" : "#f87171", marginTop: "4px" }}>
-            {ovr > prevOvr ? "+" : ""}
-            {ovr - prevOvr} OVR
-          </p>
-        )}
-        <p style={{ fontSize: "0.65rem", color: tier.accentColor, fontWeight: 600, marginTop: "6px", letterSpacing: "0.05em" }}>
-          {tier.name}
-        </p>
-      </div>
-
       {isDashboard ? (
-        <div
-          style={{
-            position: "relative",
-            zIndex: 1,
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr 1fr",
-            gap: "8px 16px",
-            marginLeft: "auto",
-          }}
-        >
-          {attrs.map((attr) => (
-            <div key={attr.key} style={{ textAlign: "center" }}>
-              <p style={{ fontSize: "0.6rem", fontWeight: 700, letterSpacing: "0.1em", color: "rgba(255,255,255,0.45)" }}>{attr.key}</p>
-              <p style={{ fontSize: "1.1rem", fontWeight: 900, fontFamily: "monospace", color: attr.color, lineHeight: 1.2 }}>
-                {attr.val}
+        <>
+          <div style={{ position: "relative", zIndex: 1 }}>
+            <RunnerSilhouette color={tier.accentColor} size={80} />
+            <p style={{ fontWeight: 900, fontSize: "0.85rem", letterSpacing: "0.1em", color: "white", marginTop: "6px", textAlign: "center" }}>
+              {name}
+            </p>
+            <p style={{ fontSize: "0.6rem", letterSpacing: "0.15em", color: tier.accentColor, textAlign: "center", opacity: 0.8 }}>
+              RUNNING CARD
+            </p>
+          </div>
+
+          <div style={{ position: "relative", zIndex: 1 }}>
+            <p
+              style={{
+                fontSize: "3.5rem",
+                fontWeight: 900,
+                lineHeight: 1,
+                color: tier.ovrColor,
+                fontFamily: "monospace",
+                fontVariantNumeric: "tabular-nums",
+              }}
+            >
+              {ovr}
+            </p>
+            <p style={{ fontSize: "0.6rem", fontWeight: 700, letterSpacing: "0.15em", color: "rgba(255,255,255,0.4)", marginTop: "2px" }}>
+              O V R
+            </p>
+            {prevOvr !== undefined && ovr !== prevOvr && (
+              <p style={{ fontSize: "0.75rem", fontWeight: 700, color: ovr > prevOvr ? "#4ade80" : "#f87171", marginTop: "4px" }}>
+                {ovr > prevOvr ? "+" : ""}
+                {ovr - prevOvr} OVR
               </p>
-            </div>
-          ))}
-        </div>
+            )}
+            <p style={{ fontSize: "0.65rem", color: tier.accentColor, fontWeight: 600, marginTop: "6px", letterSpacing: "0.05em" }}>
+              {tier.name}
+            </p>
+          </div>
+
+          <div
+            style={{
+              position: "relative",
+              zIndex: 1,
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr 1fr",
+              gap: "8px 16px",
+              marginLeft: "auto",
+            }}
+          >
+            {attrs.map((attr) => (
+              <div key={attr.key} style={{ textAlign: "center" }}>
+                <p style={{ fontSize: "0.6rem", fontWeight: 700, letterSpacing: "0.1em", color: "rgba(255,255,255,0.45)" }}>{attr.key}</p>
+                <p style={{ fontSize: "1.1rem", fontWeight: 900, fontFamily: "monospace", color: attr.color, lineHeight: 1.2 }}>
+                  {attr.val}
+                </p>
+              </div>
+            ))}
+          </div>
+        </>
       ) : (
         <div
           style={{
             position: "relative",
             zIndex: 1,
-            marginLeft: "auto",
-            minWidth: "280px",
+            display: "flex",
+            gap: "24px",
+            alignItems: "center",
+          }}
+        >
+          <div>
+            <RunnerSilhouette color={tier.accentColor} size={120} />
+            <p style={{ fontWeight: 900, fontSize: "0.95rem", letterSpacing: "0.1em", color: "white", marginTop: "8px", textAlign: "center" }}>
+              {name}
+            </p>
+            <p style={{ fontSize: "0.65rem", letterSpacing: "0.15em", color: tier.accentColor, textAlign: "center", opacity: 0.8 }}>
+              RUNNING CARD
+            </p>
+          </div>
+          <div>
+            <p
+              className="text-7xl"
+              style={{
+                fontWeight: 900,
+                lineHeight: 1,
+                color: tier.ovrColor,
+                fontFamily: "monospace",
+                fontVariantNumeric: "tabular-nums",
+              }}
+            >
+              {ovr}
+            </p>
+            <p style={{ fontSize: "0.7rem", fontWeight: 700, letterSpacing: "0.15em", color: "rgba(255,255,255,0.4)", marginTop: "2px" }}>
+              O V R
+            </p>
+            {prevOvr !== undefined && ovr !== prevOvr && (
+              <p style={{ fontSize: "0.85rem", fontWeight: 700, color: ovr > prevOvr ? "#4ade80" : "#f87171", marginTop: "4px" }}>
+                {ovr > prevOvr ? "+" : ""}
+                {ovr - prevOvr} OVR
+              </p>
+            )}
+            <p style={{ fontSize: "0.9rem", color: tier.accentColor, fontWeight: 700, marginTop: "8px", letterSpacing: "0.04em" }}>
+              {tier.name}
+            </p>
+          </div>
+        </div>
+
+      )}
+
+      {!isDashboard && (
+        <div
+          style={{
+            position: "relative",
+            zIndex: 1,
             display: "grid",
-            gap: "8px",
+            gap: "10px",
+            marginTop: "8px",
+            paddingTop: "14px",
+            borderTop: "1px solid rgba(255,255,255,0.14)",
           }}
         >
           {attrs.map((attr) => {
             const width = Math.min(100, Math.max(0, (attr.val / 99) * 100));
             return (
-              <div key={attr.key} style={{ display: "grid", gridTemplateColumns: "40px 1fr 32px", gap: "10px", alignItems: "center" }}>
-                <p style={{ fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.1em", color: "rgba(255,255,255,0.5)" }}>{attr.key}</p>
-                <div style={{ height: "8px", borderRadius: "999px", background: tier.accentDim, overflow: "hidden" }}>
+              <div key={attr.key} style={{ display: "grid", gridTemplateColumns: "56px 1fr 38px 90px", gap: "10px", alignItems: "center" }}>
+                <p style={{ fontSize: "0.7rem", fontWeight: 700, letterSpacing: "0.1em", color: "rgba(255,255,255,0.55)" }}>{attr.key}</p>
+                <div style={{ height: "10px", borderRadius: "999px", background: "rgba(255,255,255,0.10)", overflow: "hidden" }}>
                   <div style={{ height: "100%", width: `${width}%`, background: attr.color, borderRadius: "999px" }} />
                 </div>
-                <p style={{ fontSize: "0.9rem", fontWeight: 800, fontFamily: "monospace", color: "white", textAlign: "right" }}>{attr.val}</p>
+                <p style={{ fontSize: "0.95rem", fontWeight: 800, fontFamily: "monospace", color: attr.color, textAlign: "right" }}>{attr.val}</p>
+                <p style={{ fontSize: "0.72rem", color: "rgba(255,255,255,0.55)", textAlign: "right" }}>{attr.fullName}</p>
               </div>
             );
           })}

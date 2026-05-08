@@ -7,8 +7,8 @@ import {
   ClipboardList,
   Calendar,
   Activity,
-  CircleHelp,
   Settings,
+  Trophy,
 } from "lucide-react";
 
 const items = [
@@ -16,8 +16,8 @@ const items = [
   { href: "/program", label: "Program", Icon: ClipboardList },
   { href: "/calendar", label: "Calendar", Icon: Calendar },
   { href: "/runs", label: "Runs", Icon: Activity },
-  { href: "/help", label: "Help", Icon: CircleHelp },
   { href: "/settings", label: "Settings", Icon: Settings },
+  { href: "/rating", label: "Rating", Icon: Trophy },
 ] as const;
 
 export default function MobileBottomNav() {
