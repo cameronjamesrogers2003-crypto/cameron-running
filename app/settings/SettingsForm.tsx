@@ -41,9 +41,9 @@ function SaveButton({ status, onClick }: { status: SaveStatus; onClick: () => vo
 function Panel({ number, title, children }: { number: string; title: string; children: React.ReactNode }) {
   return (
     <div
-      className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-6 mb-4 space-y-4"
+      className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-5 mb-3.5 space-y-3.5"
     >
-      <div className="flex items-center gap-3 mb-6">
+      <div className="flex items-center gap-3 mb-4.5">
         <span className="text-xs font-bold tracking-widest uppercase" style={{ color: "var(--accent)" }}>
           {number}
         </span>
@@ -57,9 +57,9 @@ function Panel({ number, title, children }: { number: string; title: string; chi
 
 function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
-    <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:gap-4">
+    <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:gap-3.5">
       <div className="w-full sm:w-48 shrink-0">
-        <p className="text-sm font-medium text-white mb-2">{label}</p>
+        <p className="text-sm font-medium text-white mb-1.5">{label}</p>
         {hint && <p className="text-xs mt-1.5" style={{ color: "var(--text-dim)" }}>{hint}</p>}
       </div>
       <div className="flex-1 w-full min-w-0">{children}</div>
@@ -391,7 +391,7 @@ export default function SettingsForm() {
   }
 
   return (
-    <div className="space-y-5 w-full max-w-2xl min-w-0">
+    <div className="space-y-4.5 w-full max-w-2xl min-w-0">
       <Panel number="0." title="YOUR PROFILE">
         <Field label="First name">
           <input
@@ -436,7 +436,7 @@ export default function SettingsForm() {
           </div>
         </Field>
 
-        <div className="space-y-4">
+        <div className="space-y-3.5">
           <div>
             <p className="text-sm font-medium text-white mb-2">Experience level</p>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
@@ -449,7 +449,7 @@ export default function SettingsForm() {
                   key={lvl}
                   type="button"
                   onClick={() => setExperienceLevel(lvl)}
-                  className="p-4 rounded-xl border cursor-pointer transition-all text-left hover:bg-white/[0.07]"
+                  className="p-3.5 rounded-xl border cursor-pointer transition-all text-left hover:bg-white/[0.07]"
                   style={{
                     background: experienceLevel === lvl ? "rgba(45,212,191,0.08)" : "rgba(255,255,255,0.04)",
                     border: experienceLevel === lvl ? "1px solid rgba(45,212,191,0.35)" : "1px solid rgba(255,255,255,0.08)",
@@ -468,7 +468,7 @@ export default function SettingsForm() {
               <button
                 type="button"
                 onClick={() => setGoalRace("HALF")}
-                className="p-4 rounded-xl border cursor-pointer transition-all text-left hover:bg-white/[0.07]"
+                className="p-3.5 rounded-xl border cursor-pointer transition-all text-left hover:bg-white/[0.07]"
                 style={{
                   background: goalRace === "HALF" ? "rgba(45,212,191,0.08)" : "rgba(255,255,255,0.04)",
                   border: goalRace === "HALF" ? "1px solid rgba(45,212,191,0.35)" : "1px solid rgba(255,255,255,0.08)",
@@ -480,7 +480,7 @@ export default function SettingsForm() {
               <button
                 type="button"
                 onClick={() => setGoalRace("FULL")}
-                className="p-4 rounded-xl border cursor-pointer transition-all text-left hover:bg-white/[0.07]"
+                className="p-3.5 rounded-xl border cursor-pointer transition-all text-left hover:bg-white/[0.07]"
                 style={{
                   background: goalRace === "FULL" ? "rgba(45,212,191,0.08)" : "rgba(255,255,255,0.04)",
                   border: goalRace === "FULL" ? "1px solid rgba(45,212,191,0.35)" : "1px solid rgba(255,255,255,0.08)",
@@ -500,7 +500,7 @@ export default function SettingsForm() {
                   key={weeks}
                   type="button"
                   onClick={() => setPlanLengthWeeks(weeks)}
-                  className="p-4 rounded-xl border cursor-pointer transition-all text-left hover:bg-white/[0.07]"
+                  className="p-3.5 rounded-xl border cursor-pointer transition-all text-left hover:bg-white/[0.07]"
                   style={{
                     background: planLengthWeeks === weeks ? "rgba(45,212,191,0.08)" : "rgba(255,255,255,0.04)",
                     border: planLengthWeeks === weeks ? "1px solid rgba(45,212,191,0.35)" : "1px solid rgba(255,255,255,0.08)",
