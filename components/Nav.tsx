@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Settings } from "lucide-react";
+import { CircleHelp, Settings } from "lucide-react";
 import Logo from "@/components/Logo";
 
 const mainLinks = [
@@ -69,6 +69,19 @@ export default function Nav() {
           >
             <Settings className="w-4 h-4 shrink-0" strokeWidth={2} aria-hidden />
             <span className="text-sm font-medium">Settings</span>
+          </Link>
+
+          <Link
+            href="/help"
+            className="min-h-11 min-w-11 px-2.5 rounded-md transition-colors inline-flex items-center justify-center gap-1.5"
+            style={{
+              color: pathname === "/help" ? "#5eead4" : "var(--text-muted)",
+              background: pathname === "/help" ? "rgba(20,184,166,0.12)" : "transparent",
+            }}
+            title="Help"
+          >
+            <CircleHelp className="w-4 h-4 shrink-0" strokeWidth={2} aria-hidden />
+            <span className="text-sm font-medium">Help</span>
           </Link>
         </nav>
       </div>
