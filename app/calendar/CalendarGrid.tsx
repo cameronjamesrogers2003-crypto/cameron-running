@@ -6,6 +6,7 @@ import { formatDuration, formatPace } from "@/lib/settings";
 import type { CalendarRun, CalendarData, PlannedDayMeta } from "./types";
 import { formatAEST } from "@/lib/dateUtils";
 import { RunTypePill } from "@/components/RunTypePill";
+import { useTheme } from "@/context/ThemeContext";
 
 interface Props {
   year: number;
@@ -93,11 +94,18 @@ function breakdownRows(json: string | null | undefined): Array<{ label: string; 
 
 export default function CalendarGrid({ year, todayKey, calendarData, plannedDayMeta }: Props) {
   const router = useRouter();
+  const { theme } = useTheme();
   const [viewMonth, setViewMonth] = useState(Number(todayKey.split("-")[1]));
   const [modalRun, setModalRun] = useState<CalendarRun | null>(null);
   const todayMonth = Number(todayKey.split("-")[1]);
   const todayYear = Number(todayKey.split("-")[0]);
   const isCurrentYear = year === todayYear;
+  const isLight = theme === "light";
+  const ctrlBg = isLight ? "rgba(15,23,42,0.06)" : "rgba(255,255,255,0.06)";
+  const ctrlBorder = isLight ? "rgba(15,23,42,0.12)" : "rgba(255,255,255,0.08)";
+  const cellBase = isLight ? "rgba(255,255,255,0.92)" : "rgba(255,255,255,0.02)";
+  const modalBg = isLight ? "#f8fafc" : "#111214";
+  const modalBorder = isLight ? "1px solid rgba(15,23,42,0.12)" : "1px solid rgba(255,255,255,0.10)";
 
   const firstOfMonth = new Date(Date.UTC(year, viewMonth - 1, 1) - 10 * 60 * 60 * 1000);
   const firstDow = (new Date(firstOfMonth.getTime() + 10 * 60 * 60 * 1000).getUTCDay() + 6) % 7;
@@ -129,7 +137,8 @@ export default function CalendarGrid({ year, todayKey, calendarData, plannedDayM
         <div className="flex items-center gap-2">
           <button
             type="button"
-            className="w-6 h-6 rounded-lg bg-white/[0.06] hover:bg-white/[0.10] transition-colors"
+            className="w-6 h-6 rounded-lg transition-colors"
+            style={{ background: ctrlBg, border: `1px solid ${ctrlBorder}` }}
             onClick={() => router.push(`/calendar?year=${year - 1}`)}
           >
             ←
@@ -137,7 +146,8 @@ export default function CalendarGrid({ year, todayKey, calendarData, plannedDayM
           <p className="text-sm font-semibold text-white">{year}</p>
           <button
             type="button"
-            className="w-6 h-6 rounded-lg bg-white/[0.06] hover:bg-white/[0.10] transition-colors"
+            className="w-6 h-6 rounded-lg transition-colors"
+            style={{ background: ctrlBg, border: `1px solid ${ctrlBorder}` }}
             onClick={() => router.push(`/calendar?year=${year + 1}`)}
           >
             →
@@ -172,7 +182,7 @@ export default function CalendarGrid({ year, todayKey, calendarData, plannedDayM
                   ? { background: "rgba(45,212,191,0.15)", border: "1px solid rgba(45,212,191,0.30)", color: "var(--accent)" }
                   : isTodayMonth
                     ? { background: "rgba(255,255,255,0.08)", color: "white" }
-                    : { background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.40)" }
+                    : { background: isLight ? "rgba(15,23,42,0.06)" : "rgba(255,255,255,0.04)", color: isLight ? "rgba(15,23,42,0.56)" : "rgba(255,255,255,0.40)" }
               }
             >
               {label}
@@ -185,6 +195,7 @@ export default function CalendarGrid({ year, todayKey, calendarData, plannedDayM
         <button
           type="button"
           className="flex items-center justify-center w-9 h-9 rounded-xl transition-colors bg-white/[0.06] border border-white/[0.08] hover:bg-white/[0.10] cursor-pointer"
+          style={{ background: ctrlBg, border: `1px solid ${ctrlBorder}` }}
           onClick={() => setViewMonth((m) => (m === 1 ? 12 : m - 1))}
         >
           ‹
@@ -193,6 +204,7 @@ export default function CalendarGrid({ year, todayKey, calendarData, plannedDayM
         <button
           type="button"
           className="flex items-center justify-center w-9 h-9 rounded-xl transition-colors bg-white/[0.06] border border-white/[0.08] hover:bg-white/[0.10] cursor-pointer"
+          style={{ background: ctrlBg, border: `1px solid ${ctrlBorder}` }}
           onClick={() => setViewMonth((m) => (m === 12 ? 1 : m + 1))}
         >
           ›
@@ -221,7 +233,11 @@ export default function CalendarGrid({ year, todayKey, calendarData, plannedDayM
               key={cell.key}
               className={`relative rounded-xl p-2.5 flex flex-col transition-all ${canOpen ? "cursor-pointer hover:brightness-125" : "cursor-default"}`}
               style={{
-                background: bestRating != null ? ratingCellTint(bestRating) : planMeta?.kind === "missed" ? "rgba(245,180,84,0.03)" : "rgba(255,255,255,0.02)",
+                background: bestRating != null
+                  ? ratingCellTint(bestRating)
+                  : planMeta?.kind === "missed"
+                    ? (isLight ? "rgba(245,180,84,0.10)" : "rgba(245,180,84,0.03)")
+                    : cellBase,
                 border: isToday
                   ? "1px solid rgba(45,212,191,0.25)"
                   : planMeta?.kind === "planned"
@@ -286,12 +302,12 @@ export default function CalendarGrid({ year, todayKey, calendarData, plannedDayM
       {modalRun && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ background: "rgba(0,0,0,0.75)", backdropFilter: "blur(8px)" }}
+          style={{ background: isLight ? "rgba(15,23,42,0.28)" : "rgba(0,0,0,0.75)", backdropFilter: "blur(8px)" }}
           onClick={() => setModalRun(null)}
         >
           <div
             className="relative w-full max-w-sm rounded-2xl p-5 shadow-2xl"
-            style={{ background: "#111214", border: "1px solid rgba(255,255,255,0.10)" }}
+            style={{ background: modalBg, border: modalBorder }}
             onClick={(e) => e.stopPropagation()}
           >
             <button
