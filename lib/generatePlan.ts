@@ -552,6 +552,10 @@ function buildLongRuns(config: PlanConfig, weeklyKm: number[], isCutback: boolea
 }
 
 export function generatePlan(config: PlanConfig): TrainingWeek[] {
+  if (!Number.isFinite(config.vdot) || config.vdot <= 0) {
+    config.vdot = 33;
+  }
+
   const days = uniqDays(config.days);
   if (days.length < 2) {
     throw new Error("PlanConfig.days must include at least 2 training days");
@@ -637,11 +641,14 @@ export function generatePlan(config: PlanConfig): TrainingWeek[] {
           ? wkLongKm
           : round1(clamp(eachOther, 3, Math.max(3, nonLongCap)));
 
-      const pace =
+      let pace =
         type === "long" ? longRunPace :
         type === "easy" ? easyPace :
         type === "tempo" ? tempoPace :
         intervalPace;
+      if (!Number.isFinite(pace) || pace <= 0) {
+        pace = 6.0;
+      }
 
       return {
         day,
