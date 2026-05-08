@@ -44,12 +44,12 @@ export default function WeeklyKmChart({ data }: { data: WeeklyKmData[] }) {
         />
         <XAxis
           dataKey="week"
-          tick={{ fill: "#9ca3af", fontSize: tickSize }}
+          tick={{ fill: "rgba(255,255,255,0.50)", fontSize: tickSize }}
           axisLine={false}
           tickLine={false}
         />
         <YAxis
-          tick={{ fill: "#9ca3af", fontSize: tickSize }}
+          tick={{ fill: "rgba(255,255,255,0.28)", fontSize: tickSize, fontFamily: "var(--font-mono, monospace)" }}
           axisLine={false}
           tickLine={false}
           width={compact ? 36 : 44}
@@ -63,10 +63,25 @@ export default function WeeklyKmChart({ data }: { data: WeeklyKmData[] }) {
         />
         <Bar
           dataKey="actual"
-          fill="#f97316"
+          fill="var(--accent)"
           radius={[4, 4, 0, 0]}
           name="Actual km"
           maxBarSize={40}
+          fillOpacity={1}
+          shape={(props: { x?: number; y?: number; width?: number; height?: number; index?: number; payload?: WeeklyKmData }) => {
+            const { x = 0, y = 0, width = 0, height = 0, index = 0, payload } = props;
+            const isCurrent = index === data.length - 1;
+            const isFuture = (payload?.actual ?? 0) <= 0 && (payload?.target ?? 0) > 0;
+            const fill = isFuture ? "rgba(45,212,191,0.3)" : isCurrent ? "#5eead4" : "var(--accent)";
+            return (
+              <g>
+                {isCurrent && (
+                  <rect x={x - 1} y={y - 1} width={width + 2} height={height + 2} fill="rgba(45,212,191,0.16)" rx={4} />
+                )}
+                <rect x={x} y={y} width={width} height={height} fill={fill} rx={4} />
+              </g>
+            );
+          }}
         />
         <Line
           dataKey="target"
