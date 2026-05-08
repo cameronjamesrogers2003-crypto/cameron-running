@@ -26,6 +26,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { Calendar } from "lucide-react";
 
 export const dynamic = "force-dynamic";
+export const metadata = { title: "Runshift — Program" };
 
 // ── Static lookup tables ──────────────────────────────────────────────────────
 

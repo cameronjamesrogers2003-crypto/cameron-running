@@ -1,5 +1,7 @@
 import Logo from "@/components/Logo";
 
+export const metadata = { title: "Runshift — Help" };
+
 function SectionCard({
   title,
   icon,

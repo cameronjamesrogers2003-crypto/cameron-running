@@ -126,6 +126,8 @@ export default function SettingsForm() {
   const [showTooManyDaysWarning, setShowTooManyDaysWarning] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
+  const [firstName, setFirstName] = useState(settings.firstName ?? "");
+  const [nickname, setNickname] = useState(settings.nickname ?? "");
 
   const [maxHR, setMaxHR] = useState(settings.maxHR);
   const [vdot, setVdot] = useState(settings.currentVdot);
@@ -191,6 +193,8 @@ export default function SettingsForm() {
     setTempoOff(settings.tempoPaceOffsetSec);
     setIntervalOff(settings.intervalPaceOffsetSec);
     setLongOff(settings.longPaceOffsetSec);
+    setFirstName(settings.firstName ?? "");
+    setNickname(settings.nickname ?? "");
   }, [loading, settings]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
@@ -309,6 +313,8 @@ export default function SettingsForm() {
         gender: vdotPersonal.gender || null,
         weightKg,
         runningExperience: vdotPersonal.runningExperience || null,
+        firstName: firstName.trim() || null,
+        nickname: nickname.trim() || null,
         easyPaceOffsetSec: easyOff,
         tempoPaceOffsetSec: tempoOff,
         intervalPaceOffsetSec: intervalOff,
@@ -332,6 +338,8 @@ export default function SettingsForm() {
         gender: vdotPersonal.gender || null,
         weightKg,
         runningExperience: vdotPersonal.runningExperience || null,
+        firstName: firstName.trim() || null,
+        nickname: nickname.trim() || null,
         easyPaceOffsetSec: easyOff,
         tempoPaceOffsetSec: tempoOff,
         intervalPaceOffsetSec: intervalOff,
@@ -384,6 +392,32 @@ export default function SettingsForm() {
 
   return (
     <div className="space-y-5 w-full max-w-2xl min-w-0">
+      <Panel number="0." title="YOUR PROFILE">
+        <Field label="First name">
+          <input
+            type="text"
+            value={firstName}
+            onChange={(e) => setFirstName(e.target.value)}
+            className={`w-full px-4 py-2.5 rounded-xl text-sm outline-none transition-colors ${FORM_CONTROL_TW}`}
+            placeholder="First name"
+          />
+        </Field>
+        <Field label="Nickname" hint="If set, we'll use this instead of your first name throughout the app.">
+          <input
+            type="text"
+            value={nickname}
+            onChange={(e) => setNickname(e.target.value)}
+            className={`w-full px-4 py-2.5 rounded-xl text-sm outline-none transition-colors ${FORM_CONTROL_TW}`}
+            placeholder="Nickname (optional)"
+          />
+        </Field>
+        <p className="text-xs mt-3" style={{ color: "var(--text-dim)" }}>
+          The app will address you as{" "}
+          <span style={{ color: "var(--accent)" }} className="font-semibold">
+            {nickname || firstName || "Runner"}
+          </span>
+        </p>
+      </Panel>
       <Panel number="1." title="Training plan configuration">
         <Field label="Plan start date" hint="First day your program counts (Brisbane calendar)">
           <div className="flex flex-col gap-2">

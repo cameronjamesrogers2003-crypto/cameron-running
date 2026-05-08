@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { Activity, Calendar, CircleHelp, ClipboardList, LayoutDashboard, RefreshCw, Settings, Trophy } from "lucide-react";
 import Logo from "@/components/Logo";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { SidebarSubtitle } from "@/components/SidebarSubtitle";
 
 const mainLinks = [
   { href: "/", label: "Dashboard", Icon: LayoutDashboard },
@@ -16,7 +17,7 @@ const mainLinks = [
   { href: "/help", label: "Help", Icon: CircleHelp },
 ] as const;
 
-export default function Nav({ trainingLabel = "No active plan" }: { trainingLabel?: string }) {
+export default function Nav() {
   const pathname = usePathname();
 
   return (
@@ -28,7 +29,7 @@ export default function Nav({ trainingLabel = "No active plan" }: { trainingLabe
       >
         <Link href="/" className="inline-flex items-center gap-2 transition-opacity hover:opacity-80" aria-label="Home">
           <Logo size="sm" showWordmark={false} />
-          <span className="font-semibold text-sm" style={{ color: "var(--text-primary)" }}>Cameron Running</span>
+          <span className="font-semibold text-sm" style={{ color: "var(--text-primary)" }}>Runshift</span>
         </Link>
         <div className="flex items-center gap-2">
           <ThemeToggle />
@@ -51,11 +52,11 @@ export default function Nav({ trainingLabel = "No active plan" }: { trainingLabe
         <div className="px-4 pt-4 pb-3 border-b" style={{ borderColor: "var(--border-subtle)" }}>
           <Link href="/" className="inline-flex items-center gap-2 transition-opacity hover:opacity-80">
             <Logo size="sm" showWordmark={false} />
-            <span className="font-bold text-base" style={{ color: "var(--text-primary)" }}>Cameron Running</span>
+            <span className="text-base font-black tracking-tight text-white">Runshift</span>
           </Link>
-          <p className="text-xs mt-2" style={{ color: "var(--text-muted)" }}>
-            {trainingLabel}
-          </p>
+          <div className="mt-2">
+            <SidebarSubtitle />
+          </div>
         </div>
 
         <nav className="flex-1 pt-2" aria-label="Sidebar">

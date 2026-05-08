@@ -10,7 +10,7 @@ import {
 } from "@/lib/planUtils";
 import { formatAEST, formatDistanceToNowAEST, sameDayAEST, startOfDayAEST, toBrisbaneYmd } from "@/lib/dateUtils";
 import { inferRunType } from "@/lib/rating";
-import { dbSettingsToUserSettings, DEFAULT_SETTINGS } from "@/lib/settings";
+import { dbSettingsToUserSettings, DEFAULT_SETTINGS, getDisplayName } from "@/lib/settings";
 import { parseInterruptionType, reconfigurePlan, type PlanInterruption } from "@/lib/interruptions";
 import { loadGeneratedPlan, saveGeneratedPlan } from "@/lib/planStorage";
 import { finalizePlanDisplayCopy, generatePlan } from "@/lib/generatePlan";
@@ -30,6 +30,7 @@ import { runTypeColor } from "@/lib/runTypeStyles";
 import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
+export const metadata = { title: "Runshift — Dashboard" };
 
 function parseSettingsDays(trainingDaysJson: string | null): Day[] {
   if (!trainingDaysJson) return [];
@@ -153,6 +154,9 @@ export default async function Dashboard({
   ]);
 
   const settings = userSettingsRow ? dbSettingsToUserSettings(userSettingsRow) : DEFAULT_SETTINGS;
+  const displayName = getDisplayName(settings);
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
   if ((settings.experienceLevel == null) && Boolean(profile?.stravaConnected)) {
     redirect("/onboarding");
   }
@@ -511,7 +515,7 @@ export default async function Dashboard({
         <div className="flex items-start justify-between mb-6 pt-2 gap-3">
           <div>
             <p className="text-sm font-medium mb-1" style={{ color: "var(--text-muted)" }}>
-              Hey, Cameron.
+              {greeting}, {displayName}.
             </p>
             <h1 className="text-2xl font-bold tracking-tight text-white">Dashboard</h1>
             <span
@@ -532,7 +536,7 @@ export default async function Dashboard({
 
         <PlayerCard
           ovr={playerRating?.overall ?? 1}
-          name={profile?.name ?? "RUNNER"}
+          name={getDisplayName(settings).toUpperCase()}
           spd={playerRating?.speed ?? 1}
           end={playerRating?.endurance ?? 1}
           con={playerRating?.consistency ?? 1}

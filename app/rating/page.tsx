@@ -5,7 +5,7 @@ import { RunTypePill } from "@/components/RunTypePill";
 import { EmptyState } from "@/components/EmptyState";
 import { buildTrainingPlan, type TrainingWeek } from "@/data/trainingPlan";
 import { inferRunType, type StatActivity } from "@/lib/rating";
-import { dbSettingsToUserSettings, DEFAULT_SETTINGS, formatPace, type UserSettings } from "@/lib/settings";
+import { dbSettingsToUserSettings, DEFAULT_SETTINGS, formatPace, getDisplayName, type UserSettings } from "@/lib/settings";
 import {
   type PlayerRatingAttribute,
   ratingConditionsScore,
@@ -15,6 +15,7 @@ import { getEffectivePlanStart, getPlanWeekForDate, getSessionDate, isActivityOn
 import { Star } from "lucide-react";
 
 export const dynamic = "force-dynamic";
+export const metadata = { title: "Runshift — Rating" };
 
 type AttributeExplanationKey = Exclude<PlayerRatingAttribute, "overall">;
 
@@ -218,7 +219,7 @@ export default async function RatingPage() {
       <div style={{ width: "100%", maxWidth: "600px", margin: "0 auto 32px" }}>
         <PlayerCard
           ovr={ovr}
-          name="RUNNER"
+          name={getDisplayName(settings).toUpperCase()}
           spd={Math.round(playerRating?.speed ?? 1)}
           end={Math.round(playerRating?.endurance ?? 1)}
           con={Math.round(playerRating?.consistency ?? 1)}
