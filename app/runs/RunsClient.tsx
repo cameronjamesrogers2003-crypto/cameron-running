@@ -256,9 +256,9 @@ export default function RunsClient({
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3.5">
       {/* ── Filter panel ───────────────────────────────────────────────── */}
-      <div className="rounded-2xl border bg-white/[0.04] border-white/[0.08] backdrop-blur-sm p-4 space-y-3">
+      <div className="rounded-2xl border bg-white/[0.04] border-white/[0.08] backdrop-blur-sm p-3.5 space-y-2.5">
         {/* Search */}
         <input
           type="text"
@@ -268,7 +268,7 @@ export default function RunsClient({
           className={`w-full px-4 py-2.5 rounded-xl text-sm bg-white/[0.06] border border-white/[0.10] text-white placeholder-white/30 outline-none focus:border-teal-500/50 focus:bg-white/[0.08] transition-colors ${FORM_CONTROL_TW}`}
         />
 
-        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+        <div className="flex flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-center">
           {/* Type pills */}
           <div className="flex flex-wrap gap-1.5">
             {RUN_TYPES.map(t => (
@@ -276,7 +276,7 @@ export default function RunsClient({
                 key={t}
                 type="button"
                 onClick={() => toggleType(t)}
-                className="px-4 py-1.5 rounded-full text-xs font-semibold cursor-pointer transition-all capitalize"
+                className="px-3.5 py-1.5 rounded-full text-xs font-semibold cursor-pointer transition-all capitalize"
                 style={chipStyle(t)}
               >
                 {t}
@@ -422,7 +422,7 @@ export default function RunsClient({
               <div
                 role="button"
                 tabIndex={0}
-                className="flex items-center gap-2 px-4 py-3 border-b border-white/[0.06] hover:bg-white/[0.03] transition-all duration-150 hover:brightness-105 active:scale-[0.998] cursor-pointer w-full outline-none focus-visible:ring-1 focus-visible:ring-white/20"
+                className="flex items-center gap-2 px-4 py-2.5 border-b border-white/[0.06] hover:bg-white/[0.03] transition-all duration-150 hover:brightness-105 active:scale-[0.998] cursor-pointer w-full outline-none focus-visible:ring-1 focus-visible:ring-white/20"
                 onClick={() => toggleExpand(run.id)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" || e.key === " ") {
@@ -467,7 +467,7 @@ export default function RunsClient({
 
               {ratingOpen && run.rating != null && (
                 <div
-                  className="px-4 pt-2 pb-4 border-b border-white/[0.06] bg-white/[0.02]"
+                  className="px-4 pt-2 pb-3.5 border-b border-white/[0.06] bg-white/[0.02]"
                   style={{
                     borderTop: "1px solid rgba(255,255,255,0.04)",
                   }}
@@ -479,7 +479,7 @@ export default function RunsClient({
               {/* Expanded detail */}
               {isOpen && (
                 <div
-                  className="px-4 pb-4 pt-1 grid grid-cols-2 gap-x-8 gap-y-2 text-xs"
+                  className="px-4 pb-3.5 pt-1 grid grid-cols-2 gap-x-8 gap-y-2 text-xs"
                   style={{
                     borderTop: "1px solid rgba(255,255,255,0.04)",
                     background: "rgba(255,255,255,0.02)",
@@ -527,7 +527,7 @@ export default function RunsClient({
       </div>
 
       {/* ── Mobile cards ─────────────────────────────────────────────── */}
-      <div className="md:hidden space-y-3">
+      <div className="md:hidden space-y-2.5">
         {!loading && runs.length === 0 && (
           <div className="rounded-2xl border bg-white/[0.04] border-white/[0.08] backdrop-blur-sm">
             <EmptyState
@@ -546,7 +546,7 @@ export default function RunsClient({
               key={run.id}
               className="rounded-2xl border bg-white/[0.04] border-white/[0.08] backdrop-blur-sm overflow-hidden transition-all duration-150 hover:brightness-105 hover:scale-[1.005] active:scale-[0.998]"
             >
-              <div className="p-4">
+              <div className="p-3.5">
                 <div className="flex items-start justify-between gap-2">
                   <button
                     type="button"
@@ -577,7 +577,7 @@ export default function RunsClient({
                 </div>
                 <button
                   type="button"
-                  className="w-full text-left grid grid-cols-3 gap-2 mt-3 text-xs min-h-11"
+                  className="w-full text-left grid grid-cols-3 gap-2 mt-2.5 text-xs min-h-11"
                   onClick={() => toggleExpand(run.id)}
                 >
                   <div>

@@ -273,14 +273,14 @@ export default async function ProgramPage({
     <div className="program-shell flex flex-col lg:flex-row items-start gap-0 w-full min-w-0">
 
       {/* ── Main content ─────────────────────────────────────────────── */}
-      <div className="flex-1 min-w-0 w-full space-y-6 sm:space-y-8 lg:pr-6">
+      <div className="flex-1 min-w-0 w-full space-y-5 sm:space-y-6 lg:pr-6">
 
         {/* Page header */}
-        <div className="flex items-start justify-between mb-6 pt-2 gap-3">
+        <div className="flex items-start justify-between mb-5 pt-1.5 gap-3">
           <Logo size="sm" showWordmark={false} />
           <div className="flex-1 min-w-0">
             <h1 className="text-2xl font-bold tracking-tight text-white">Training Program</h1>
-            <div className="flex items-center gap-2 mt-2 flex-wrap">
+            <div className="flex items-center gap-2 mt-1.5 flex-wrap">
               <span
                 className="text-xs font-semibold px-2.5 py-1 rounded-full"
                 style={phaseChipStyle(currentPlanEntry?.phase ?? "Base")}
@@ -336,7 +336,7 @@ export default async function ProgramPage({
               {/* Phase header */}
               {section.isRecovery ? (
                 // Simplified recovery header
-                <div className="rounded-2xl border bg-white/[0.04] border-white/[0.08] backdrop-blur-sm px-3 py-3 sm:px-4">
+                <div className="rounded-2xl border bg-white/[0.04] border-white/[0.08] backdrop-blur-sm px-3 py-2.5 sm:px-4">
                   <div className="flex items-center gap-2 sm:gap-3 flex-wrap text-xs sm:text-sm">
                     <span className="text-xs font-semibold px-2.5 py-1 rounded-full" style={chip}>
                       Return to Training
@@ -351,8 +351,8 @@ export default async function ProgramPage({
                 </div>
               ) : (
                 // Full phase header
-                <div className="rounded-2xl border bg-white/[0.04] border-white/[0.08] backdrop-blur-sm px-3 py-3 sm:px-4">
-                  <div className="flex items-center justify-between gap-3 sm:gap-4 mb-2 flex-wrap">
+                <div className="rounded-2xl border bg-white/[0.04] border-white/[0.08] backdrop-blur-sm px-3 py-2.5 sm:px-4">
+                  <div className="flex items-center justify-between gap-3 sm:gap-4 mb-1.5 flex-wrap">
                     <div className="flex items-center gap-2 sm:gap-3 flex-wrap min-w-0">
                       <span className="text-xs font-semibold px-2.5 py-1 rounded-full" style={chip}>
                         {section.phase}
@@ -404,7 +404,7 @@ export default async function ProgramPage({
                 return (
                   <div
                     key={planWeek.week}
-                    className="rounded-xl px-3 py-2.5 mb-6"
+                    className="rounded-xl px-3 py-2.5 mb-4.5"
                     style={{
                       background: isCurrentWeek
                         ? "rgba(20,184,166,0.03)"
@@ -435,7 +435,7 @@ export default async function ProgramPage({
                       </p>
                     )}
 
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:gap-3">
+                    <div className="flex flex-col gap-2.5 sm:flex-row sm:items-start sm:gap-3">
                       {/* Week label */}
                       <div className="w-full sm:w-[84px] shrink-0 pt-0 sm:pt-1 flex sm:block items-center justify-between sm:justify-start gap-2">
                         <p className="text-xs font-bold text-white leading-tight">
@@ -506,9 +506,9 @@ export default async function ProgramPage({
                       </div>
 
                       {/* Session cards + extra runs */}
-                      <div className="flex-1 min-w-0 w-full space-y-2">
+                      <div className="flex-1 min-w-0 w-full space-y-1.5">
                         <div
-                          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 overflow-x-auto min-w-0 w-full"
+                          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 overflow-x-auto min-w-0 w-full"
                           style={{ gridTemplateColumns: `repeat(${planWeek.sessions.length}, minmax(160px, 1fr))` }}
                         >
                         {planWeek.sessions.map((session) => {
@@ -573,9 +573,9 @@ export default async function ProgramPage({
                                   flexShrink: 0,
                                 }}
                               />
-                              <div className="p-4">
+                              <div className="p-3.5">
                               {/* Day + rating + zone badges */}
-                              <div className="flex items-start justify-between gap-1 mb-2">
+                              <div className="flex items-start justify-between gap-1 mb-1.5">
                                 <span
                                   className="text-[10px] font-semibold uppercase tracking-wider"
                                   style={{ color: "var(--text-muted)" }}
@@ -623,20 +623,20 @@ export default async function ProgramPage({
 
                               {/* Effort label */}
                               <p
-                                className="text-[11px] mt-0.5 mb-2"
+                                className="text-[11px] mt-0.5 mb-1.5"
                                 style={{ color: "rgba(232,230,224,0.35)" }}
                               >
                                 {EFFORT_LABEL[session.type]}
                               </p>
 
                               {/* Description */}
-                              <p className="text-xs font-medium text-white mb-1 leading-snug">
+                              <p className="text-xs font-medium text-white mb-0.5 leading-snug">
                                 {session.description}
                               </p>
 
                               {/* Warm-up / cool-down */}
                               <p
-                                className="hidden sm:block text-[11px] mb-1.5 leading-snug"
+                                className="hidden sm:block text-[11px] mb-1 leading-snug"
                                 style={{ color: "rgba(232,230,224,0.25)" }}
                               >
                                 {WARMUP_COOLDOWN[session.type]}
@@ -685,7 +685,7 @@ export default async function ProgramPage({
                       </div>
 
                       {/* Total km + volume change */}
-                      <div className="w-full sm:w-16 shrink-0 text-right ml-4 pt-0 sm:pt-1 flex sm:block items-center justify-between sm:justify-end gap-2">
+                      <div className="w-full sm:w-16 shrink-0 text-right ml-3 pt-0 sm:pt-1 flex sm:block items-center justify-between sm:justify-end gap-2">
                         <p className="text-sm font-bold text-white font-mono">{weekTotalKm.toFixed(1)}</p>
                         <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>km</p>
                         {volumeChange !== null && (
@@ -705,7 +705,7 @@ export default async function ProgramPage({
                     </div>
                     {planWeek.adaptationNote && (
                       <div
-                        className="flex items-start gap-2 mt-3 px-3 py-2 rounded-lg text-xs"
+                        className="flex items-start gap-2 mt-2.5 px-3 py-1.5 rounded-lg text-xs"
                         style={{
                           background: "rgba(245,180,84,0.08)",
                           border: "1px solid rgba(245,180,84,0.20)",
@@ -722,13 +722,13 @@ export default async function ProgramPage({
             </section>
           );
         })}
-        <details className="rounded-2xl border bg-white/[0.04] border-white/[0.08] backdrop-blur-sm px-4 py-3">
+        <details className="rounded-2xl border bg-white/[0.04] border-white/[0.08] backdrop-blur-sm px-4 py-2.5">
           <summary className="text-xs font-semibold tracking-widest uppercase mb-3 cursor-pointer" style={{ color: "var(--text-label)" }}>
             Plan History
           </summary>
-          <div className="mt-3 space-y-2">
+          <div className="mt-2.5 space-y-1.5">
             {adaptationHistory.map((item) => (
-              <div key={item.id} className="flex items-start gap-3 py-3 border-b border-white/[0.06] last:border-0">
+              <div key={item.id} className="flex items-start gap-3 py-2.5 border-b border-white/[0.06] last:border-0">
                 <p className="text-xs font-mono shrink-0 w-20" style={{ color: "var(--text-dim)" }}>
                   {new Date(item.createdAt).toLocaleDateString("en-AU")}
                 </p>

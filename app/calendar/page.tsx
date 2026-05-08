@@ -177,7 +177,7 @@ export default async function CalendarPage({
 
   return (
     <div className="calendar-shell max-w-[1100px] mx-auto w-full">
-      <div className="flex items-start justify-between mb-6 pt-2">
+      <div className="flex items-start justify-between mb-5 pt-1.5">
         <div>
           <p className="text-sm font-medium mb-1" style={{ color: "var(--text-muted)" }}>
             Your training history
@@ -186,7 +186,7 @@ export default async function CalendarPage({
         </div>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 mb-5">
         {[
           { label: "STREAK", value: `${injuryFreeWeeks} wks` },
           { label: "SESSIONS", value: `${sessDone}/${sessPlanned}` },
@@ -194,7 +194,7 @@ export default async function CalendarPage({
           { label: "EXTRAS", value: String(extraRunsThisMonth) },
           { label: "AVG RATING", value: avgRating28 != null ? `${avgRating28}/10` : "—", isRating: true },
         ].map((item) => (
-          <div key={item.label} className="rounded-xl border border-white/[0.08] bg-white/[0.04] px-4 py-3 flex flex-col gap-0.5">
+          <div key={item.label} className="rounded-xl border border-white/[0.08] bg-white/[0.04] px-3.5 py-2.5 flex flex-col gap-0.5">
             <p className="text-xs font-semibold tracking-widest uppercase" style={{ color: "var(--text-label)" }}>
               {item.label}
             </p>

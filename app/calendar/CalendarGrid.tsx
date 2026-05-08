@@ -131,7 +131,7 @@ export default function CalendarGrid({ year, todayKey, calendarData, plannedDayM
 
   return (
     <div className="w-full">
-      <div className="flex items-center justify-between mb-2">
+      <div className="flex items-center justify-between mb-1.5">
         <div className="flex items-center gap-2">
           <button
             type="button"
@@ -164,7 +164,7 @@ export default function CalendarGrid({ year, todayKey, calendarData, plannedDayM
         </button>
       </div>
 
-      <div className="flex gap-1 mb-4 overflow-x-auto pb-1">
+      <div className="flex gap-1 mb-3 overflow-x-auto pb-1">
         {["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"].map((label, i) => {
           const monthNum = i + 1;
           const active = monthNum === viewMonth;
@@ -189,7 +189,7 @@ export default function CalendarGrid({ year, todayKey, calendarData, plannedDayM
         })}
       </div>
 
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-3">
         <button
           type="button"
           className="flex items-center justify-center w-9 h-9 rounded-xl transition-colors bg-white/[0.06] border border-white/[0.08] hover:bg-white/[0.10] cursor-pointer"
@@ -209,7 +209,7 @@ export default function CalendarGrid({ year, todayKey, calendarData, plannedDayM
         </button>
       </div>
 
-      <div className="grid grid-cols-7 mb-2">
+      <div className="grid grid-cols-7 mb-1.5">
         {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
           <div key={d} className="text-xs font-semibold text-center uppercase tracking-widest py-2" style={{ color: "var(--text-label)" }}>
             {d}
@@ -229,7 +229,7 @@ export default function CalendarGrid({ year, todayKey, calendarData, plannedDayM
           return (
             <div
               key={cell.key}
-              className={`relative rounded-xl p-2.5 flex flex-col transition-all duration-150 ${canOpen ? "cursor-pointer hover:brightness-105 hover:scale-[1.005] active:scale-[0.998]" : "cursor-default"}`}
+              className={`relative rounded-xl p-2 flex flex-col transition-all duration-150 ${canOpen ? "cursor-pointer hover:brightness-105 hover:scale-[1.005] active:scale-[0.998]" : "cursor-default"}`}
               style={{
                 background: bestRating != null
                   ? ratingCellTint(bestRating)
@@ -243,7 +243,7 @@ export default function CalendarGrid({ year, todayKey, calendarData, plannedDayM
                     : planMeta?.kind === "missed"
                       ? "1px solid rgba(245,180,84,0.12)"
                       : undefined,
-                minHeight: cell.inMonth ? 90 : 60,
+                minHeight: cell.inMonth ? 84 : 56,
                 opacity: cell.inMonth ? 1 : 0.2,
               }}
               onClick={() => {
@@ -284,7 +284,7 @@ export default function CalendarGrid({ year, todayKey, calendarData, plannedDayM
         </p>
       )}
 
-      <div className="flex items-center gap-4 mt-4 flex-wrap">
+      <div className="flex items-center gap-3 mt-3.5 flex-wrap">
         <div className="flex items-center gap-1.5 text-xs" style={{ color: "var(--text-muted)" }}><span className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--accent)" }} /> Planned</div>
         <div className="flex items-center gap-1.5 text-xs" style={{ color: "var(--text-muted)" }}><span className="w-1.5 h-1.5 rounded-full" style={{ background: "#f5b454" }} /> Missed</div>
         {[

@@ -204,7 +204,7 @@ export default async function RatingPage() {
 
   return (
     <div className="rating-shell w-full max-w-5xl">
-      <div className="flex items-start justify-between mb-6 pt-2">
+      <div className="flex items-start justify-between mb-5 pt-1.5">
         <div>
           <p className="text-sm font-medium mb-1" style={{ color: "var(--text-muted)" }}>
             Your athletic profile
@@ -216,7 +216,7 @@ export default async function RatingPage() {
         </p>
       </div>
 
-      <div style={{ width: "100%", maxWidth: "600px", margin: "0 auto 32px" }}>
+      <div style={{ width: "100%", maxWidth: "600px", margin: "0 auto 24px" }}>
         <PlayerCard
           ovr={ovr}
           name={getDisplayName(settings).toUpperCase()}
@@ -230,7 +230,7 @@ export default async function RatingPage() {
         />
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mt-5">
         {ATTRIBUTE_META.map((attr, idx) => {
           const score = Math.round(playerRating?.[attr.key] ?? 1);
           const explanation = playerAttributeExplanation(
@@ -244,7 +244,7 @@ export default async function RatingPage() {
           return (
             <div
               key={attr.key}
-              className={`rounded-2xl border bg-white/[0.04] border-white/[0.08] p-5 ${idx === 4 ? "md:col-span-2 lg:col-span-1 lg:col-start-2" : ""}`}
+              className={`rounded-2xl border bg-white/[0.04] border-white/[0.08] p-4 ${idx === 4 ? "md:col-span-2 lg:col-span-1 lg:col-start-2" : ""}`}
             >
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
@@ -271,10 +271,10 @@ export default async function RatingPage() {
         })}
       </div>
 
-      <p className="text-xs font-semibold tracking-widest uppercase mt-8 mb-4" style={{ color: "var(--text-label)" }}>
+      <p className="text-xs font-semibold tracking-widest uppercase mt-6 mb-3" style={{ color: "var(--text-label)" }}>
         Tier Progression
       </p>
-      <div className="flex rounded-xl overflow-hidden h-3 mb-4">
+      <div className="flex rounded-xl overflow-hidden h-3 mb-3">
         {TIERS.map((t, idx) => {
           const reached = idx <= currentTierIndex;
           return (
@@ -298,7 +298,7 @@ export default async function RatingPage() {
         <span>World Class</span>
       </div>
 
-      <div className="rounded-2xl p-4 mt-4" style={{ background: tier.accentDim, border: `1px solid ${tier.borderColor}` }}>
+      <div className="rounded-2xl p-3.5 mt-3.5" style={{ background: tier.accentDim, border: `1px solid ${tier.borderColor}` }}>
         <p className="text-sm font-semibold" style={{ color: tier.accentColor }}>
           {tier.name}
         </p>
@@ -313,10 +313,10 @@ export default async function RatingPage() {
         </p>
       </div>
 
-      <p className="text-xs font-semibold tracking-widest uppercase mt-8 mb-2" style={{ color: "var(--text-label)" }}>
+      <p className="text-xs font-semibold tracking-widest uppercase mt-6 mb-2" style={{ color: "var(--text-label)" }}>
         Recent Runs
       </p>
-      <div className="rounded-2xl border bg-white/[0.04] border-white/[0.08] p-4">
+      <div className="rounded-2xl border bg-white/[0.04] border-white/[0.08] p-3.5">
         {recentRuns.length === 0 && (
           <p className="text-sm text-center py-3" style={{ color: "var(--text-muted)" }}>
             No rated runs yet.
@@ -327,7 +327,7 @@ export default async function RatingPage() {
           const score = run.rating ?? 0;
           const ratingColor = score >= 7 ? "#4ade80" : score >= 5.5 ? "var(--accent)" : score >= 4 ? "#f5b454" : "#f87171";
           return (
-            <div key={run.id} className="flex items-center gap-3 py-3 border-b border-white/[0.06] last:border-0">
+            <div key={run.id} className="flex items-center gap-3 py-2.5 border-b border-white/[0.06] last:border-0">
               <RunTypePill type={runType} size="sm" />
               <div className="min-w-0 flex-1">
                 <p className="text-sm text-white truncate">{run.name ?? "Run"}</p>
