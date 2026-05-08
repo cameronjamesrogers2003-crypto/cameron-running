@@ -10,6 +10,7 @@ import type { Day } from "@/data/trainingPlan";
 import { getDefaultLongRunDay, getScheduleWarnings } from "@/lib/generatePlan";
 import VdotCalculator, { type VdotPersonalFields } from "@/components/VdotCalculator";
 import PaceZoneOffsetSlider from "@/components/PaceZoneOffsetSlider";
+import { FORM_CONTROL_TW } from "@/lib/formControlClasses";
 
 type SaveStatus = "idle" | "saving" | "saved" | "error";
 
@@ -379,7 +380,7 @@ export default function SettingsForm() {
               value={planStartDateIsoYmd}
               min={minPlanStartIsoYmd}
               onChange={(e) => setPlanStartDateIsoYmd(e.target.value)}
-              className="w-full rounded-md px-3 py-2 min-h-11 text-sm text-gray-900 dark:text-white bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 outline-none focus:ring-1 focus:ring-teal-400/40"
+              className={`w-full rounded-md px-3 py-2 min-h-11 text-sm outline-none ${FORM_CONTROL_TW}`}
             />
             {planStartDateIsoYmd ? (
               <p className="text-xs" style={{ color: "var(--text-muted)" }}>

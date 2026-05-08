@@ -2,6 +2,7 @@
 
 import { formatPace } from "@/lib/settings";
 import { getSliderBaseSecKm } from "@/lib/planPaces";
+import { FORM_CONTROL_TW } from "@/lib/formControlClasses";
 
 export type PaceZoneKey = "easy" | "tempo" | "interval" | "long";
 
@@ -76,7 +77,7 @@ export default function PaceZoneOffsetSlider({
           step={1}
           value={offsetSec}
           onChange={(e) => onOffsetChange(Number(e.target.value))}
-          className="absolute inset-x-0 top-2 w-full h-3 opacity-0 cursor-pointer z-20"
+          className={`absolute inset-x-0 top-2 w-full h-3 opacity-0 cursor-pointer z-20 rounded-md ${FORM_CONTROL_TW}`}
           aria-label={`${label} pace offset`}
         />
         <div

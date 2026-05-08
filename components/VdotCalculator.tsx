@@ -15,6 +15,7 @@ import {
   RUNNING_EXPERIENCE_5PLUS,
   RUNNING_EXPERIENCE_LT1,
 } from "@/lib/planPaces";
+import { FORM_CONTROL_TW } from "@/lib/formControlClasses";
 
 export type VdotLevel = "BEGINNER" | "INTERMEDIATE" | "ADVANCED";
 
@@ -143,10 +144,7 @@ export default function VdotCalculator({
       : null;
   const level = adjustedVdot != null ? suggestedLevelFromVdot(adjustedVdot) : null;
 
-  const fieldCls =
-    "w-full min-h-11 rounded-md px-3 py-2 bg-black/20 border border-white/10 text-white";
-  const selectCls =
-    "w-full min-h-11 rounded-md px-3 py-2 text-gray-900 dark:text-white bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 outline-none focus:ring-1 focus:ring-teal-400/40";
+  const controlCls = `w-full min-h-11 rounded-md px-3 py-2 outline-none ${FORM_CONTROL_TW}`;
 
   return (
     <div
@@ -166,7 +164,7 @@ export default function VdotCalculator({
               max={120}
               value={personal.ageInput}
               onChange={(e) => setPersonal({ ...personal, ageInput: e.target.value })}
-              className={fieldCls}
+              className={controlCls}
               placeholder="—"
             />
           </label>
@@ -175,7 +173,7 @@ export default function VdotCalculator({
             <select
               value={personal.gender}
               onChange={(e) => setPersonal({ ...personal, gender: e.target.value })}
-              className={selectCls}
+              className={controlCls}
             >
               <option value="" className="text-gray-900 dark:text-white">
                 —
@@ -199,7 +197,7 @@ export default function VdotCalculator({
               step="0.1"
               value={personal.weightInput}
               onChange={(e) => setPersonal({ ...personal, weightInput: e.target.value })}
-              className={fieldCls}
+              className={controlCls}
               placeholder="—"
             />
           </label>
@@ -208,7 +206,7 @@ export default function VdotCalculator({
             <select
               value={personal.runningExperience}
               onChange={(e) => setPersonal({ ...personal, runningExperience: e.target.value })}
-              className={selectCls}
+              className={controlCls}
             >
               <option value="" className="text-gray-900 dark:text-white">
                 —
@@ -235,7 +233,7 @@ export default function VdotCalculator({
               max={240}
               value={maxHR}
               onChange={(e) => setMaxHR(Number(e.target.value))}
-              className={fieldCls}
+              className={controlCls}
             />
           </label>
         </div>
@@ -272,7 +270,7 @@ export default function VdotCalculator({
               min={0}
               value={state.minutes}
               onChange={(e) => set({ ...state, minutes: Math.max(0, Number(e.target.value)) })}
-              className={`${fieldCls} w-20 text-center`}
+              className={`${controlCls} w-20 text-center`}
             />
             <span className="text-xs" style={{ color: "var(--text-muted)" }}>
               min
@@ -285,7 +283,7 @@ export default function VdotCalculator({
               onChange={(e) =>
                 set({ ...state, seconds: Math.min(59, Math.max(0, Number(e.target.value))) })
               }
-              className={`${fieldCls} w-16 text-center`}
+              className={`${controlCls} w-16 text-center`}
             />
             <span className="text-xs" style={{ color: "var(--text-muted)" }}>
               sec

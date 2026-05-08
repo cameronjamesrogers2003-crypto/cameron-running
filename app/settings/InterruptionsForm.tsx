@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { INTERRUPTION_TYPE_LABEL, parseInterruptionType, type InterruptionType } from "@/lib/interruptions";
+import { FORM_CONTROL_TW } from "@/lib/formControlClasses";
 
 interface InterruptionRow {
   id: string;
@@ -115,15 +116,7 @@ export default function InterruptionsForm() {
     }
   }
 
-  const inputStyle = {
-    background: "rgba(255,255,255,0.06)",
-    border: "1px solid rgba(255,255,255,0.1)",
-    borderRadius: "6px",
-    color: "#fff",
-    padding: "6px 10px",
-    fontSize: "13px",
-    outline: "none",
-  };
+  const fieldClass = `w-full min-h-10 rounded-md px-2.5 py-1.5 text-[13px] outline-none ${FORM_CONTROL_TW}`;
 
   return (
     <div
@@ -146,7 +139,7 @@ export default function InterruptionsForm() {
               placeholder="e.g. Knee tendinopathy"
               value={form.reason}
               onChange={e => setField("reason", e.target.value)}
-              style={{ ...inputStyle, width: "100%" }}
+              className={fieldClass}
             />
           </div>
           <div className="flex flex-col gap-1">
@@ -154,10 +147,12 @@ export default function InterruptionsForm() {
             <select
               value={form.type}
               onChange={e => setField("type", e.target.value)}
-              style={{ ...inputStyle, width: "100%" }}
+              className={fieldClass}
             >
               {TYPE_OPTIONS.map(o => (
-                <option key={o.value} value={o.value}>{o.label}</option>
+                <option key={o.value} value={o.value} className="text-gray-900 dark:text-white bg-white dark:bg-gray-800">
+                  {o.label}
+                </option>
               ))}
             </select>
           </div>
@@ -167,7 +162,7 @@ export default function InterruptionsForm() {
               type="date"
               value={form.startDate}
               onChange={e => setField("startDate", e.target.value)}
-              style={{ ...inputStyle, width: "100%" }}
+              className={fieldClass}
             />
           </div>
           <div className="flex flex-col gap-1">
@@ -176,7 +171,7 @@ export default function InterruptionsForm() {
               type="date"
               value={form.endDate}
               onChange={e => setField("endDate", e.target.value)}
-              style={{ ...inputStyle, width: "100%" }}
+              className={fieldClass}
             />
           </div>
           <div className="flex flex-col gap-1">
@@ -191,7 +186,7 @@ export default function InterruptionsForm() {
               placeholder="Auto"
               value={form.weeksAffected}
               onChange={e => setField("weeksAffected", e.target.value)}
-              style={{ ...inputStyle, width: "100%" }}
+              className={fieldClass}
             />
           </div>
           {form.type === "reduced_load" && (
@@ -205,7 +200,7 @@ export default function InterruptionsForm() {
                 placeholder="e.g. 15"
                 value={form.weeklyKmEstimate}
                 onChange={e => setField("weeklyKmEstimate", e.target.value)}
-                style={{ ...inputStyle, width: "100%" }}
+                className={fieldClass}
               />
             </div>
           )}
@@ -218,7 +213,7 @@ export default function InterruptionsForm() {
             value={form.notes}
             onChange={e => setField("notes", e.target.value)}
             rows={2}
-            style={{ ...inputStyle, width: "100%", resize: "vertical" }}
+            className={`${fieldClass} resize-y`}
           />
         </div>
 
