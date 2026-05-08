@@ -27,11 +27,9 @@ export default function MobileBottomNav() {
 
   return (
     <nav
-      className="bottomnav lg:hidden fixed bottom-0 left-0 right-0 border-t z-50"
+      className="bottomnav lg:hidden fixed bottom-0 left-0 right-0 bg-black/90 backdrop-blur-xl border-t border-white/[0.08] z-50"
       style={{
         paddingBottom: "max(env(safe-area-inset-bottom), 0.25rem)",
-        background: "var(--surface-overlay)",
-        borderColor: "var(--border-subtle)",
       }}
       aria-label="Main navigation"
     >
@@ -47,9 +45,7 @@ export default function MobileBottomNav() {
               href={href}
               className="flex min-h-[56px] min-w-0 flex-1 flex-col items-center justify-center gap-0.5 py-[8px] px-0 transition-colors duration-150"
               style={{
-                color: active ? "#0b8079" : "#475569",
-                background: active ? "var(--bg-sidebar-active)" : "transparent",
-                borderRadius: "0.75rem",
+                color: active ? "var(--accent)" : "rgba(255,255,255,0.45)",
               }}
             >
               <span
@@ -58,7 +54,7 @@ export default function MobileBottomNav() {
                   width: 3,
                   height: 3,
                   borderRadius: "50%",
-                  background: active ? "#0b8079" : "transparent",
+                  background: active ? "var(--accent)" : "transparent",
                 }}
                 aria-hidden
               />

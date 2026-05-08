@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { Card } from "@/components/ui/Card";
 
 interface Props {
   maxHR: number;
@@ -102,7 +101,7 @@ function Section({
         className="w-full min-h-11 flex items-center justify-between py-2.5 text-left"
         onClick={() => setOpen(o => !o)}
       >
-        <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-primary)" }}>
+        <span className="text-xs font-semibold uppercase tracking-wider text-white">
           {title}
         </span>
         <svg
@@ -138,11 +137,11 @@ export default function ProgramSidePanel({ maxHR }: Props) {
       style={{
         top: 70,
         maxHeight: "calc(100vh - 70px)",
-        borderLeft: "1px solid var(--border-subtle)",
+        borderLeft: "0.5px solid rgba(255,255,255,0.08)",
         padding: "16px",
       }}
     >
-      <div className="space-y-1 divide-y" style={{ borderColor: "var(--border-subtle)" }}>
+      <div className="space-y-1 divide-y" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
 
         {/* ── Section 1: HR Zones ──────────────────────────────────────── */}
         <Section title="Heart Rate Zones">
@@ -153,24 +152,24 @@ export default function ProgramSidePanel({ maxHR }: Props) {
               const bpmRange = loBpm == null ? `< ${hiBpm} bpm` : `${loBpm}–${hiBpm} bpm`;
 
               return (
-                <Card
+                <div
                   key={row.zone}
                   className="rounded px-2 py-1.5"
-                  variant="subtle"
                   style={{
+                    background: row.highlighted ? "rgba(255,255,255,0.05)" : "#141414",
                     opacity: row.highlighted ? 1 : 0.55,
                   }}
                 >
                   <div className="flex items-center justify-between gap-1 mb-0.5">
-                    <span className="text-[11px] font-bold" style={{ color: "var(--text-primary)" }}>{row.zone} {row.name}</span>
+                    <span className="text-[11px] font-bold text-white">{row.zone} {row.name}</span>
                     <span className="text-[10px] font-mono" style={{ color: "var(--text-muted)" }}>
                       {bpmRange}
                     </span>
                   </div>
-                  <p className="text-[11px] leading-tight" style={{ color: "var(--text-secondary)" }}>
+                  <p className="text-[11px] leading-tight" style={{ color: "rgba(232,230,224,0.5)" }}>
                     {row.feel}
                   </p>
-                </Card>
+                </div>
               );
             })}
 
@@ -187,12 +186,13 @@ export default function ProgramSidePanel({ maxHR }: Props) {
         <Section title="How to Structure Each Run">
           <div className="pb-3 space-y-2 pt-1">
             {RUN_STRUCTURE.map((rs) => (
-              <Card
+              <div
                 key={rs.type}
-                className="rounded-md p-[10px_12px]"
-                variant="subtle"
+                className="rounded-md"
                 style={{
-                  boxShadow: "none",
+                  background: "#141414",
+                  border: "1px solid rgba(255,255,255,0.05)",
+                  padding: "10px 12px",
                 }}
               >
                 <p className="text-[11px] font-semibold mb-1.5" style={{ color: rs.color }}>
@@ -201,8 +201,8 @@ export default function ProgramSidePanel({ maxHR }: Props) {
                 <ul className="space-y-0.5">
                   {rs.items.map((item, i) => (
                     <li key={i} className="text-[11px] leading-snug flex gap-1.5">
-                      <span style={{ color: "var(--text-label)" }}>·</span>
-                      <span style={{ color: "var(--text-secondary)" }}>{item}</span>
+                      <span style={{ color: "rgba(232,230,224,0.25)" }}>·</span>
+                      <span style={{ color: "rgba(232,230,224,0.55)" }}>{item}</span>
                     </li>
                   ))}
                 </ul>
@@ -210,14 +210,14 @@ export default function ProgramSidePanel({ maxHR }: Props) {
                   <p
                     className="text-[11px] leading-snug mt-2 pt-2 italic"
                     style={{
-                      color: "var(--text-muted)",
-                      borderTop: "1px solid var(--border-subtle)",
+                      color: "rgba(232,230,224,0.4)",
+                      borderTop: "1px solid rgba(255,255,255,0.05)",
                     }}
                   >
                     {rs.note}
                   </p>
                 )}
-              </Card>
+              </div>
             ))}
           </div>
         </Section>
@@ -226,7 +226,7 @@ export default function ProgramSidePanel({ maxHR }: Props) {
         <Section title="What Is a Cutback Week?">
           <p
             className="text-[12px] leading-relaxed pb-3 pt-1"
-            style={{ color: "var(--text-secondary)" }}
+            style={{ color: "rgba(232,230,224,0.55)" }}
           >
             Every 3–4 weeks the plan drops volume by ~30%. This is not optional recovery — it&apos;s when
             your body absorbs the training load and gets stronger. Skipping cutback weeks is the most

@@ -65,11 +65,11 @@ export default function PlanAdaptationCards({ initialItems }: { initialItems: Ad
         <div
           key={item.id}
           className={`rounded-lg p-4 ${borderClassFor(item)}`}
-          style={{ background: "var(--surface-base)", borderTop: "1px solid var(--border-subtle)", borderRight: "1px solid var(--border-subtle)", borderBottom: "1px solid var(--border-subtle)", boxShadow: "var(--shadow-card)" }}
+          style={{ background: "#121a19", borderTop: "1px solid rgba(255,255,255,0.08)", borderRight: "1px solid rgba(255,255,255,0.08)", borderBottom: "1px solid rgba(255,255,255,0.08)" }}
         >
           <div className="flex items-start justify-between gap-3">
             <div className="space-y-1">
-              <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+              <p className="text-sm font-semibold text-white">
                 <span style={{ color: iconColorFor(item) }}>{iconFor(item)}</span> {messageFor(item)}
               </p>
               <p className="text-xs" style={{ color: "var(--text-muted)" }}>
