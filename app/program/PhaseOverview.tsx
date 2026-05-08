@@ -1,22 +1,21 @@
 "use client";
 
 import { useState } from "react";
+import { Card } from "@/components/ui/Card";
 
 export default function PhaseOverview({ description }: { description: string }) {
   const [open, setOpen] = useState(true);
 
   return (
-    <div
-      className="rounded-lg mb-2"
-      style={{ background: "#141414", border: "1px solid rgba(255,255,255,0.06)" }}
-    >
+    <Card className="rounded-lg mb-2" variant="subtle">
       <button
         type="button"
-        className="flex items-center justify-between px-4 py-3 rounded-xl cursor-pointer bg-white/[0.04] border border-white/[0.08] hover:bg-white/[0.06] transition-colors w-full min-h-11 text-left"
+        className="flex items-center justify-between px-4 py-3 rounded-xl cursor-pointer transition-colors w-full min-h-11 text-left"
+        style={{ background: "var(--surface-muted)", border: "1px solid var(--border-subtle)" }}
         onClick={() => setOpen(o => !o)}
       >
         <div className="flex items-center gap-2">
-          <span className="text-sm font-semibold text-white">Phase Overview</span>
+          <span className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>Phase Overview</span>
           <span className="text-xs font-mono" style={{ color: "var(--text-muted)" }}>Details</span>
         </div>
         <svg
@@ -44,6 +43,6 @@ export default function PhaseOverview({ description }: { description: string }) 
           {description}
         </p>
       </div>
-    </div>
+    </Card>
   );
 }

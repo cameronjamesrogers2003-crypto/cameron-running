@@ -23,14 +23,13 @@ function secKmToLabel(sec: number): string {
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
-const TOOLTIP_STYLE = {
-  background: "#181818",
-  border: "1px solid rgba(255,255,255,0.08)",
-  borderRadius: 8,
-  fontSize: 12,
-};
-
 export default function AvgPaceTrendChart({ data }: { data: PaceData[] }) {
+  const tooltipStyle = {
+    background: "var(--surface-overlay)",
+    border: "1px solid var(--border-subtle)",
+    borderRadius: 8,
+    fontSize: 12,
+  };
   const { theme } = useTheme();
   const compact = useMediaQuery("(max-width: 767px)");
   const tickSize = compact ? 9 : 11;
@@ -67,8 +66,8 @@ export default function AvgPaceTrendChart({ data }: { data: PaceData[] }) {
           domain={["dataMin - 20", "dataMax + 20"]}
         />
         <Tooltip
-          contentStyle={{ ...TOOLTIP_STYLE, fontSize: tipSize }}
-          labelStyle={{ color: "#fff", marginBottom: 4, fontSize: tipSize }}
+          contentStyle={{ ...tooltipStyle, fontSize: tipSize }}
+          labelStyle={{ color: "var(--text-primary)", marginBottom: 4, fontSize: tipSize }}
           itemStyle={{ color: textColor, fontSize: tipSize }}
           formatter={(value) => [`${secKmToLabel(value as number)} /km`, "Avg Pace"]}
           cursor={{ stroke: "rgba(255,255,255,0.1)" }}

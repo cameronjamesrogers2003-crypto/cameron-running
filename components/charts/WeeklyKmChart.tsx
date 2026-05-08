@@ -19,14 +19,13 @@ interface WeeklyKmData {
   target: number;
 }
 
-const TOOLTIP_STYLE = {
-  background: "#181818",
-  border: "1px solid rgba(255,255,255,0.08)",
-  borderRadius: 8,
-  fontSize: 12,
-};
-
 export default function WeeklyKmChart({ data }: { data: WeeklyKmData[] }) {
+  const tooltipStyle = {
+    background: "var(--surface-overlay)",
+    border: "1px solid var(--border-subtle)",
+    borderRadius: 8,
+    fontSize: 12,
+  };
   const { theme } = useTheme();
   const compact = useMediaQuery("(max-width: 767px)");
   const tickSize = compact ? 9 : 11;
@@ -61,8 +60,8 @@ export default function WeeklyKmChart({ data }: { data: WeeklyKmData[] }) {
           unit=" km"
         />
         <Tooltip
-          contentStyle={{ ...TOOLTIP_STYLE, fontSize: tipSize }}
-          labelStyle={{ color: "#fff", marginBottom: 4, fontSize: tipSize }}
+          contentStyle={{ ...tooltipStyle, fontSize: tipSize }}
+          labelStyle={{ color: "var(--text-primary)", marginBottom: 4, fontSize: tipSize }}
           itemStyle={{ color: textColor, fontSize: tipSize }}
           cursor={{ fill: "rgba(255,255,255,0.04)" }}
         />
