@@ -5,8 +5,9 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   ClipboardList,
-  Calendar,
   Activity,
+  Calendar,
+  CircleHelp,
   Settings,
   Trophy,
 } from "lucide-react";
@@ -14,10 +15,11 @@ import {
 const items = [
   { href: "/", label: "Dashboard", Icon: LayoutDashboard },
   { href: "/program", label: "Program", Icon: ClipboardList },
-  { href: "/calendar", label: "Calendar", Icon: Calendar },
   { href: "/runs", label: "Runs", Icon: Activity },
-  { href: "/settings", label: "Settings", Icon: Settings },
+  { href: "/calendar", label: "Calendar", Icon: Calendar },
   { href: "/rating", label: "Rating", Icon: Trophy },
+  { href: "/settings", label: "Settings", Icon: Settings },
+  { href: "/help", label: "Help", Icon: CircleHelp },
 ] as const;
 
 export default function MobileBottomNav() {

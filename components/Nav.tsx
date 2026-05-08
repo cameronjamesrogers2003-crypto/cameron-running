@@ -9,10 +9,10 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 const mainLinks = [
   { href: "/", label: "Dashboard", Icon: LayoutDashboard },
   { href: "/program", label: "Program", Icon: ClipboardList },
-  { href: "/calendar", label: "Calendar", Icon: Calendar },
   { href: "/runs", label: "Runs", Icon: Activity },
-  { href: "/settings", label: "Settings", Icon: Settings },
+  { href: "/calendar", label: "Calendar", Icon: Calendar },
   { href: "/rating", label: "Rating", Icon: Trophy },
+  { href: "/settings", label: "Settings", Icon: Settings },
   { href: "/help", label: "Help", Icon: CircleHelp },
 ] as const;
 
