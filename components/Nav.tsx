@@ -41,7 +41,7 @@ export default function Nav() {
 
       {/* Desktop sidebar */}
       <aside className="rs-sidebar hidden lg:flex flex-col fixed left-0 top-0 bottom-0 w-56 bg-black/60 backdrop-blur-xl border-r border-white/[0.08] z-40">
-        <div className="px-4 pt-4 pb-3.5 border-b border-white/[0.08]">
+        <div className="px-4 pt-4.5 pb-3.5 border-b border-white/[0.08]">
           <Link href="/" className="inline-flex items-center gap-2.5 transition-opacity hover:opacity-80">
             <Logo size="md" showWordmark={false} className="scale-[0.72] origin-left" />
             <span className="text-[1.35rem] leading-none font-extrabold tracking-tight text-white">Runshift</span>
@@ -51,7 +51,7 @@ export default function Nav() {
           </div>
         </div>
 
-        <nav className="flex-1 pt-2.5" aria-label="Sidebar">
+        <nav className="flex-1 pt-3" aria-label="Sidebar">
           {mainLinks.map((link) => {
             const active = pathname === link.href || (link.href !== "/" && pathname.startsWith(`${link.href}/`));
             const Icon = link.Icon;
@@ -59,7 +59,7 @@ export default function Nav() {
               <Link
                 key={link.href}
                 href={link.href}
-                className={`flex items-center gap-2.5 px-3 py-2 rounded-xl mx-2 text-sm font-medium transition-colors duration-150 cursor-pointer ${
+                className={`flex items-center gap-2.5 px-3 py-2 rounded-xl mx-2 mb-0.5 text-sm font-medium transition-colors duration-150 cursor-pointer ${
                   active ? "bg-teal-500/10 text-teal-400" : "text-white/45 hover:text-white/75 hover:bg-white/[0.04]"
                 }`}
                 style={active ? { borderLeft: "2px solid var(--accent)" } : undefined}

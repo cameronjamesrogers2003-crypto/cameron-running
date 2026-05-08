@@ -270,13 +270,13 @@ export default async function ProgramPage({
     : 0;
 
   return (
-    <div className="program-shell flex flex-col lg:flex-row items-start gap-0 w-full min-w-0">
+    <div className="program-shell flex flex-col lg:flex-row items-start gap-0 lg:gap-3 w-full min-w-0">
 
       {/* ── Main content ─────────────────────────────────────────────── */}
-      <div className="flex-1 min-w-0 w-full space-y-5 sm:space-y-6 lg:pr-6">
+      <div className="flex-1 min-w-0 w-full space-y-5 sm:space-y-6 lg:pr-4">
 
         {/* Page header */}
-        <div className="flex items-start justify-between mb-5 pt-1.5 gap-3">
+        <div className="flex items-start justify-between mb-5 pt-1.5 gap-3.5">
           <Logo size="sm" showWordmark={false} />
           <div className="flex-1 min-w-0">
             <h1 className="text-2xl font-bold tracking-tight text-white">Training Program</h1>

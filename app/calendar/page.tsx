@@ -177,7 +177,7 @@ export default async function CalendarPage({
 
   return (
     <div className="calendar-shell max-w-[1100px] mx-auto w-full">
-      <div className="flex items-start justify-between mb-5 pt-1.5">
+      <div className="flex items-start justify-between mb-5 pt-1.5 gap-3">
         <div>
           <p className="text-sm font-medium mb-1" style={{ color: "var(--text-muted)" }}>
             Your training history
