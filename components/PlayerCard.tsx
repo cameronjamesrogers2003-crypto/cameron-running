@@ -1,5 +1,3 @@
-"use client";
-
 interface PlayerCardProps {
   ovr: number;
   name: string;

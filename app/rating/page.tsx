@@ -5,12 +5,10 @@ import { buildTrainingPlan, type TrainingWeek } from "@/data/trainingPlan";
 import { inferRunType, type StatActivity } from "@/lib/rating";
 import { dbSettingsToUserSettings, DEFAULT_SETTINGS, formatPace, type UserSettings } from "@/lib/settings";
 import {
-  PLAYER_RATING_ATTRIBUTES,
   type PlayerRatingAttribute,
-  type PlayerRatingLike,
   ratingConditionsScore,
 } from "@/lib/playerRating";
-import { formatAEST, startOfDayAEST, startOfNextDayAEST, toBrisbaneYmd } from "@/lib/dateUtils";
+import { formatAEST, startOfNextDayAEST, toBrisbaneYmd } from "@/lib/dateUtils";
 import { getEffectivePlanStart, getPlanWeekForDate, getSessionDate, isActivityOnOrAfterPlanStart } from "@/lib/planUtils";
 
 export const dynamic = "force-dynamic";
@@ -174,7 +172,7 @@ export default async function RatingPage() {
 
   const ovr = Math.round(playerRating?.overall ?? 1);
   const tier = getTier(ovr);
-  const currentTierIndex = TIERS.findIndex((t) => t.name === tier.name);
+  const currentTierIndex = Math.max(0, TIERS.findIndex((t) => t.name === tier.name));
   const nextTier = TIERS[currentTierIndex + 1] ?? null;
   const pointsToNext = nextTier ? Math.max(0, nextTier.min - ovr) : 0;
 
@@ -188,7 +186,7 @@ export default async function RatingPage() {
           <h1 className="text-2xl font-bold tracking-tight text-white">Player Rating</h1>
         </div>
         <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-          Last updated: {playerRating ? formatAEST(playerRating.updatedAt, "d MMM yyyy, h:mm a") : "—"}
+          Last updated: {playerRating?.updatedAt ? formatAEST(playerRating.updatedAt, "d MMM yyyy, h:mm a") : "—"}
         </p>
       </div>
 
@@ -293,6 +291,11 @@ export default async function RatingPage() {
         Recent Runs
       </p>
       <div className="rounded-2xl border bg-white/[0.04] border-white/[0.08] p-4">
+        {recentRuns.length === 0 && (
+          <p className="text-sm text-center py-3" style={{ color: "var(--text-muted)" }}>
+            No rated runs yet.
+          </p>
+        )}
         {recentRuns.map((run) => {
           const runType = inferRunType(run as StatActivity, settings);
           const score = run.rating ?? 0;
