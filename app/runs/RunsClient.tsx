@@ -8,6 +8,8 @@ import { formatPace, formatDuration } from "@/lib/settings";
 import { FORM_CONTROL_TW } from "@/lib/formControlClasses";
 import { RunTypePill } from "@/components/RunTypePill";
 import { runTypeColor } from "@/lib/runTypeStyles";
+import { EmptyState } from "@/components/EmptyState";
+import { Activity } from "lucide-react";
 
 interface Run {
   id: string;
@@ -217,6 +219,10 @@ export default function RunsClient({
     });
   }
 
+  const handleSync = useCallback(() => {
+    window.location.href = "/api/strava/sync";
+  }, []);
+
   function formatDateAest(iso: string): string {
     const d = new Date(iso);
     return d.toLocaleDateString("en-AU", {
@@ -389,9 +395,12 @@ export default function RunsClient({
 
         {/* Rows */}
         {!loading && runs.length === 0 && (
-          <div className="px-4 py-8 text-center text-sm" style={{ color: "var(--text-muted)" }}>
-            No runs match the current filters.
-          </div>
+          <EmptyState
+            icon={<Activity className="w-7 h-7" style={{ color: "var(--accent)" }} />}
+            title="No runs yet"
+            body="Connect Strava and your runs will appear here automatically after each sync."
+            action={{ label: "Sync Strava", onClick: handleSync }}
+          />
         )}
 
         {runs.map((run, i) => {
@@ -400,15 +409,20 @@ export default function RunsClient({
           return (
             <div
               key={run.id}
+              className="group relative"
               style={{
                 borderTop: i > 0 ? "1px solid rgba(255,255,255,0.04)" : undefined,
                 borderLeft: isOpen ? `3px solid ${runTypeColor(run.runType)}` : undefined,
               }}
             >
               <div
+                className="absolute left-0 top-0 bottom-0 w-0.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                style={{ background: runTypeColor(run.runType) }}
+              />
+              <div
                 role="button"
                 tabIndex={0}
-                className="flex items-center gap-2 px-4 py-3 border-b border-white/[0.06] hover:bg-white/[0.03] transition-colors cursor-pointer w-full outline-none focus-visible:ring-1 focus-visible:ring-white/20"
+                className="flex items-center gap-2 px-4 py-3 border-b border-white/[0.06] hover:bg-white/[0.03] transition-all duration-150 hover:brightness-105 active:scale-[0.998] cursor-pointer w-full outline-none focus-visible:ring-1 focus-visible:ring-white/20"
                 onClick={() => toggleExpand(run.id)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" || e.key === " ") {
@@ -427,7 +441,7 @@ export default function RunsClient({
                 <span className="text-xs font-mono w-28 shrink-0 hidden md:block" style={{ color: "var(--text-muted)" }}>{formatDateAest(run.dateIso)}</span>
                 <button
                   type="button"
-                  className="text-base font-black font-mono tabular-nums w-16 shrink-0 min-w-[60px] text-right rounded px-0.5 -mx-0.5 hover:underline underline-offset-2 disabled:opacity-50 disabled:no-underline"
+                  className="text-base font-black font-mono tabular-nums w-16 shrink-0 min-w-[60px] text-right rounded px-0.5 -mx-0.5 hover:underline underline-offset-2 disabled:opacity-50 disabled:no-underline transition-colors duration-150"
                   style={{ color: run.rating != null ? ratingColor(run.rating) : "var(--text-muted)" }}
                   disabled={run.rating == null}
                   aria-expanded={ratingOpen}
@@ -437,7 +451,17 @@ export default function RunsClient({
                     if (run.rating != null) toggleRatingBreakdown(run.id);
                   }}
                 >
-                  {run.rating != null ? run.rating.toFixed(1) : "—"}
+                  {run.rating != null ? (
+                    <div className="relative group cursor-default inline-block">
+                      {run.rating.toFixed(1)}
+                      <div
+                        className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 rounded-lg text-xs font-semibold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10"
+                        style={{ background: "#1a1a1a", color: ratingColor(run.rating) }}
+                      >
+                        {ratingBand(run.rating)}
+                      </div>
+                    </div>
+                  ) : "—"}
                 </button>
               </div>
 
@@ -505,11 +529,13 @@ export default function RunsClient({
       {/* ── Mobile cards ─────────────────────────────────────────────── */}
       <div className="md:hidden space-y-3">
         {!loading && runs.length === 0 && (
-          <div
-            className="rounded-2xl border bg-white/[0.04] border-white/[0.08] backdrop-blur-sm px-4 py-8 text-center text-sm"
-            style={{ color: "var(--text-muted)" }}
-          >
-            No runs match the current filters.
+          <div className="rounded-2xl border bg-white/[0.04] border-white/[0.08] backdrop-blur-sm">
+            <EmptyState
+              icon={<Activity className="w-7 h-7" style={{ color: "var(--accent)" }} />}
+              title="No runs yet"
+              body="Connect Strava and your runs will appear here automatically after each sync."
+              action={{ label: "Sync Strava", onClick: handleSync }}
+            />
           </div>
         )}
         {runs.map((run) => {
@@ -518,7 +544,7 @@ export default function RunsClient({
           return (
             <div
               key={run.id}
-              className="rounded-2xl border bg-white/[0.04] border-white/[0.08] backdrop-blur-sm overflow-hidden"
+              className="rounded-2xl border bg-white/[0.04] border-white/[0.08] backdrop-blur-sm overflow-hidden transition-all duration-150 hover:brightness-105 hover:scale-[1.005] active:scale-[0.998]"
             >
               <div className="p-4">
                 <div className="flex items-start justify-between gap-2">

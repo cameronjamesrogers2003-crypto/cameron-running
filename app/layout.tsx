@@ -5,6 +5,7 @@ import Nav from "@/components/Nav";
 import MobileBottomNav from "@/components/MobileBottomNav";
 import { SettingsProvider } from "@/context/SettingsContext";
 import { ThemeProvider } from "@/context/ThemeContext";
+import { PageTransition } from "@/components/PageTransition";
 import prisma from "@/lib/db";
 import { dbSettingsToUserSettings, DEFAULT_SETTINGS } from "@/lib/settings";
 import { loadGeneratedPlan } from "@/lib/planStorage";
@@ -99,7 +100,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           <SettingsProvider>
             <Nav trainingLabel={sidebarTrainingLabel} />
             <main className="flex-1 w-full min-w-0 px-4 pb-24 pt-2 lg:px-6 lg:pb-8 lg:pt-4 lg:pl-64">
-              <div className="max-w-[1100px] mx-auto w-full">{children}</div>
+              <div className="max-w-[1100px] mx-auto w-full">
+                <PageTransition>{children}</PageTransition>
+              </div>
             </main>
             <MobileBottomNav />
           </SettingsProvider>

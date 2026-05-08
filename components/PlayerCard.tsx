@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useTheme } from "@/context/ThemeContext";
 import { getTier } from "@/lib/playerCardTiers";
 
@@ -60,6 +61,26 @@ export default function PlayerCard({
   ] as const;
 
   const isDashboard = mode === "dashboard";
+  const [displayOvr, setDisplayOvr] = useState(0);
+  const [barsReady, setBarsReady] = useState(false);
+
+  useEffect(() => {
+    const target = ovr;
+    const duration = 800;
+    const steps = 40;
+    let step = 0;
+    const interval = setInterval(() => {
+      step += 1;
+      setDisplayOvr(Math.round((step / steps) * target));
+      if (step >= steps) clearInterval(interval);
+    }, duration / steps);
+    return () => clearInterval(interval);
+  }, [ovr]);
+
+  useEffect(() => {
+    const t = setTimeout(() => setBarsReady(true), 40);
+    return () => clearTimeout(t);
+  }, []);
 
   const layoutStyle = isDashboard
     ? {
@@ -133,7 +154,7 @@ export default function PlayerCard({
                 fontVariantNumeric: "tabular-nums",
               }}
             >
-              {ovr}
+              {isDashboard ? ovr : displayOvr}
             </p>
             <p style={{ fontSize: "0.6rem", fontWeight: 700, letterSpacing: "0.15em", color: theme === "light" ? "rgba(0,0,0,0.4)" : "rgba(255,255,255,0.4)", marginTop: "2px" }}>
               O V R
@@ -199,7 +220,7 @@ export default function PlayerCard({
                 fontVariantNumeric: "tabular-nums",
               }}
             >
-              {ovr}
+              {displayOvr}
             </p>
             <p style={{ fontSize: "0.7rem", fontWeight: 700, letterSpacing: "0.15em", color: theme === "light" ? "rgba(0,0,0,0.4)" : "rgba(255,255,255,0.4)", marginTop: "2px" }}>
               O V R
@@ -230,13 +251,22 @@ export default function PlayerCard({
             borderTop: "1px solid rgba(255,255,255,0.14)",
           }}
         >
-          {attrs.map((attr) => {
+          {attrs.map((attr, index) => {
             const width = Math.min(100, Math.max(0, (attr.val / 99) * 100));
             return (
               <div key={attr.key} style={{ display: "grid", gridTemplateColumns: "56px 1fr 38px 90px", gap: "10px", alignItems: "center" }}>
                 <p style={{ fontSize: "0.7rem", fontWeight: 700, letterSpacing: "0.1em", color: "rgba(255,255,255,0.55)" }}>{attr.key}</p>
                 <div style={{ height: "10px", borderRadius: "999px", background: "rgba(255,255,255,0.10)", overflow: "hidden" }}>
-                  <div style={{ height: "100%", width: `${width}%`, background: attr.color, borderRadius: "999px" }} />
+                  <div
+                    style={{
+                      height: "100%",
+                      width: barsReady ? `${width}%` : "0%",
+                      background: attr.color,
+                      borderRadius: "999px",
+                      transition: "width 800ms cubic-bezier(0.4,0,0.2,1)",
+                      transitionDelay: `${index * 100}ms`,
+                    }}
+                  />
                 </div>
                 <p style={{ fontSize: "0.95rem", fontWeight: 800, fontFamily: "monospace", color: attr.color, textAlign: "right" }}>{attr.val}</p>
                 <p style={{ fontSize: "0.72rem", color: "rgba(255,255,255,0.55)", textAlign: "right" }}>{attr.fullName}</p>
