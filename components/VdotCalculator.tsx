@@ -164,7 +164,7 @@ export default function VdotCalculator({
       : null;
   const level = adjustedVdot != null ? suggestedLevelFromVdot(adjustedVdot) : null;
 
-  const controlCls = `w-full min-h-11 rounded-md px-3 py-2 outline-none ${FORM_CONTROL_TW}`;
+  const controlCls = `w-full px-4 py-2.5 rounded-xl text-sm bg-white/[0.06] border border-white/[0.10] text-white outline-none focus:border-teal-500/50 transition-colors ${FORM_CONTROL_TW}`;
 
   return (
     <div
@@ -175,7 +175,7 @@ export default function VdotCalculator({
         <p className="text-xs uppercase tracking-wider mb-2" style={{ color: "var(--text-muted)" }}>
           Personal details (optional)
         </p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-3 mb-3">
           <label className="text-xs block space-y-1">
             <span style={{ color: "var(--text-muted)" }}>Age (years)</span>
             <input
@@ -209,7 +209,8 @@ export default function VdotCalculator({
               </option>
             </select>
           </label>
-          <label className="text-xs block space-y-1">
+        </div>
+        <label className="text-xs block space-y-1 mb-3">
             <span style={{ color: "var(--text-muted)" }}>Weight (kg)</span>
             <input
               type="text"
@@ -219,8 +220,8 @@ export default function VdotCalculator({
               className={controlCls}
               placeholder="0"
             />
-          </label>
-          <label className="text-xs block space-y-1 sm:col-span-2">
+        </label>
+        <label className="text-xs block space-y-1 mb-3">
             <span style={{ color: "var(--text-muted)" }}>Years of running experience</span>
             <select
               value={personal.runningExperience}
@@ -243,8 +244,8 @@ export default function VdotCalculator({
                 5+ years
               </option>
             </select>
-          </label>
-          <label className="text-xs block space-y-1 sm:col-span-2">
+        </label>
+        <label className="text-xs block space-y-1 mb-4">
             <span style={{ color: "var(--text-muted)" }}>Max HR (bpm)</span>
             <input
               type="text"
@@ -265,8 +266,7 @@ export default function VdotCalculator({
               className={controlCls}
               placeholder="0"
             />
-          </label>
-        </div>
+        </label>
         {weightKg != null && (
           <p className="text-[11px] mt-2" style={{ color: "var(--text-muted)" }}>
             Weight is informational only — it does not change your VDOT.
@@ -293,68 +293,91 @@ export default function VdotCalculator({
             { label: "Half marathon", state: half, set: setHalf },
           ] as const
         ).map(({ label, state, set }) => (
-          <div key={label} className="flex flex-wrap items-center gap-2 mb-3">
-            <span className="text-sm text-white w-28 shrink-0">{label}</span>
-            <input
-              type="text"
-              inputMode="numeric"
-              pattern="[0-9]*"
-              value={state.minutes}
-              onChange={(e) => set({ ...state, minutes: e.target.value })}
-              className={`${controlCls} w-20 text-center`}
-              placeholder="0"
-            />
-            <span className="text-xs" style={{ color: "var(--text-muted)" }}>
-              min
-            </span>
-            <input
-              type="text"
-              inputMode="numeric"
-              pattern="[0-9]*"
-              value={state.seconds}
-              onChange={(e) => set({ ...state, seconds: e.target.value })}
-              className={`${controlCls} w-16 text-center`}
-              placeholder="00"
-            />
-            <span className="text-xs" style={{ color: "var(--text-muted)" }}>
-              sec
-            </span>
+          <div key={label}>
+            <p className="text-sm font-semibold text-white mb-2">{label}</p>
+            <div className="grid grid-cols-2 gap-2 mb-4">
+              <div>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  value={state.minutes}
+                  onChange={(e) => set({ ...state, minutes: e.target.value })}
+                  className={`px-3 py-2.5 rounded-xl text-sm text-center font-mono bg-white/[0.06] border border-white/[0.10] text-white focus:border-teal-500/50 outline-none transition-colors ${FORM_CONTROL_TW}`}
+                  placeholder="0"
+                />
+                <p className="text-xs text-center mt-1" style={{ color: "var(--text-dim)" }}>
+                  min
+                </p>
+              </div>
+              <div>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  value={state.seconds}
+                  onChange={(e) => set({ ...state, seconds: e.target.value })}
+                  className={`px-3 py-2.5 rounded-xl text-sm text-center font-mono bg-white/[0.06] border border-white/[0.10] text-white focus:border-teal-500/50 outline-none transition-colors ${FORM_CONTROL_TW}`}
+                  placeholder="00"
+                />
+                <p className="text-xs text-center mt-1" style={{ color: "var(--text-dim)" }}>
+                  sec
+                </p>
+              </div>
+            </div>
           </div>
         ))}
       </div>
 
       {result && adjustedVdot != null && previewPaces && longPreviewSec != null && level && (
         <div
-          className="rounded-md p-3 space-y-3"
-          style={{ background: "rgba(45,212,191,0.08)", border: "1px solid rgba(45,212,191,0.22)" }}
+          className="rounded-2xl p-4 mt-4"
+          style={{
+            background: "linear-gradient(135deg, rgba(45,212,191,0.10) 0%, rgba(45,212,191,0.04) 100%)",
+            border: "1px solid rgba(45,212,191,0.25)",
+          }}
         >
-          <p className="text-sm text-white font-semibold">VDOT: {adjustedVdot}</p>
-          <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+          <p className="text-3xl font-black font-mono tabular-nums" style={{ color: "var(--accent)" }}>
+            VDOT {adjustedVdot}
+          </p>
+          <p className="text-sm font-mono mt-1" style={{ color: "var(--text-muted)" }}>
             VO2max estimate: {result.displayVo2.toFixed(1)} ml/kg/min
           </p>
-          <p className="text-xs text-white/90">{fitnessIdentityLabel(adjustedVdot)}</p>
-          <p className="text-xs text-white">Suggested level: {levelDisplay(level)}</p>
-          <div className="text-xs space-y-1" style={{ color: "var(--text-muted)" }}>
-            <p>
-              Easy: {formatPace(previewPaces.easyMinSecKm)} – {formatPace(previewPaces.easyMaxSecKm)}{" "}
-              /km
-            </p>
-            <p>
-              Tempo: {formatPace(getSliderBaseSecKm("tempo", adjustedVdot, runningExperience))} /km
-            </p>
-            <p>
-              Interval: {formatPace(getSliderBaseSecKm("interval", adjustedVdot, runningExperience))}{" "}
-              /km
-            </p>
-            <p>Long run: {formatPace(longPreviewSec)} /km</p>
+          <p className="text-base font-bold text-white mt-2">{fitnessIdentityLabel(adjustedVdot)}</p>
+          <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
+            Suggested level: {levelDisplay(level)}
+          </p>
+          <div className="grid grid-cols-2 gap-2 mt-3">
+            <div>
+              <p className="text-xs" style={{ color: "var(--text-dim)" }}>Easy</p>
+              <p className="text-sm font-mono font-semibold text-white">
+                {formatPace(previewPaces.easyMinSecKm)} – {formatPace(previewPaces.easyMaxSecKm)} /km
+              </p>
+            </div>
+            <div>
+              <p className="text-xs" style={{ color: "var(--text-dim)" }}>Tempo</p>
+              <p className="text-sm font-mono font-semibold text-white">
+                {formatPace(getSliderBaseSecKm("tempo", adjustedVdot, runningExperience))} /km
+              </p>
+            </div>
+            <div>
+              <p className="text-xs" style={{ color: "var(--text-dim)" }}>Interval</p>
+              <p className="text-sm font-mono font-semibold text-white">
+                {formatPace(getSliderBaseSecKm("interval", adjustedVdot, runningExperience))} /km
+              </p>
+            </div>
+            <div>
+              <p className="text-xs" style={{ color: "var(--text-dim)" }}>Long run</p>
+              <p className="text-sm font-mono font-semibold text-white">{formatPace(longPreviewSec)} /km</p>
+            </div>
           </div>
           <button
             type="button"
-            className="min-h-11 mt-1 rounded-md px-3 py-2 text-xs font-medium w-full sm:w-auto"
+            className="w-full mt-4 py-2.5 rounded-xl text-sm font-semibold transition-all hover:bg-teal-400/20"
             style={{
-              background: "rgba(45,212,191,0.18)",
-              color: "#5eead4",
-              border: "1px solid rgba(45,212,191,0.32)",
+              background: "rgba(45,212,191,0.15)",
+              border: "1px solid rgba(45,212,191,0.35)",
+              color: "var(--accent)",
             }}
             onClick={async () => {
               const r = computeVdotFromRaceTimes(
