@@ -819,12 +819,12 @@ export default async function Dashboard({
         }))} />
 
         <div className="px-4 py-4">
-          <p className="text-xs text-zinc-400 mb-3">
+          <p className="text-xs text-zinc-400 mb-3 px-1">
             {formatAEST(today, "EEEE, d MMMM yyyy")}
           </p>
           <div className="flex flex-col gap-4">
             {/* This week panel */}
-            <Card className="p-3.5">
+            <Card className="px-4 py-3.5">
               <SectionLabel>This Week</SectionLabel>
               <p className="text-sm font-semibold text-white mt-1.5 mb-1">
                 Week {currentWeek} · {currentPhase}
@@ -908,10 +908,10 @@ export default async function Dashboard({
               </div>
             </Card>
 
-            <div className="border-t border-zinc-700/50" />
+            <div className="border-t border-zinc-700/50 my-1" />
 
             {/* Phase progress */}
-            <Card className="p-3.5">
+            <Card className="px-4 py-3.5">
               <SectionLabel>Phase Progress</SectionLabel>
               <p className="text-sm font-semibold text-white mt-2">{currentPhase}</p>
               <p className="text-xs mt-0.5 mb-2" style={{ color: "var(--text-muted)" }}>
