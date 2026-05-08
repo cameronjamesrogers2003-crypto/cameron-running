@@ -6,6 +6,7 @@ import type { RunType } from "@/data/trainingPlan";
 import { formatPace, formatDuration } from "@/lib/settings";
 import { FORM_CONTROL_TW } from "@/lib/formControlClasses";
 import { RunTypePill } from "@/components/RunTypePill";
+import { runTypeColor } from "@/lib/runTypeStyles";
 
 interface Run {
   id: string;
@@ -46,11 +47,19 @@ const TYPE_COLORS: Record<RunType, string> = {
 };
 
 function ratingColor(score: number): string {
-  if (score >= 8.5) return "#AFA9EC";
-  if (score >= 7)   return "#5DCAA5";
-  if (score >= 5.5) return "#85B7EB";
-  if (score >= 4)   return "#EF9F27";
-  return "#F09595";
+  if (score >= 9.0) return "#a78bfa";
+  if (score >= 7.0) return "#4ade80";
+  if (score >= 5.5) return "var(--accent)";
+  if (score >= 4.0) return "#f5b454";
+  return "#f87171";
+}
+
+function ratingBand(score: number): string {
+  if (score >= 9.0) return "Elite";
+  if (score >= 7.0) return "Strong";
+  if (score >= 5.5) return "Solid";
+  if (score >= 4.0) return "Rough";
+  return "Off Day";
 }
 
 function RatingBreakdownPanel({ json, rating }: { json: string | null; rating: number }) {
@@ -63,34 +72,58 @@ function RatingBreakdownPanel({ json, rating }: { json: string | null; rating: n
     );
   }
   const c = parsed.components;
-  const line = (label: string, score: number, max: number, reason: string) => (
-    <div key={label} className="space-y-0.5">
-      <div className="flex justify-between gap-4 text-xs tabular-nums">
-        <span className="font-medium text-white">{label}</span>
-        <span style={{ color: "var(--text-muted)" }}>
+  const line = (
+    label: string,
+    score: number,
+    max: number,
+    reason: string,
+    barColor: string,
+  ) => (
+    <div key={label}>
+      <div className="flex items-center gap-3 mb-2">
+        <span className="text-xs font-semibold w-24 shrink-0" style={{ color: "var(--text-muted)" }}>
+          {label}
+        </span>
+        <div className="flex-1 h-1.5 rounded-full bg-white/[0.08] overflow-hidden">
+          <div
+            className="h-full rounded-full transition-all"
+            style={{ width: `${Math.max(0, Math.min(100, (score / Math.max(0.01, max)) * 100))}%`, background: barColor }}
+          />
+        </div>
+        <span className="text-xs font-mono font-semibold w-16 text-right shrink-0" style={{ color: "var(--text-muted)" }}>
           {score.toFixed(1)} / {max.toFixed(1)}
         </span>
       </div>
-      <p className="text-[11px] leading-snug pl-0" style={{ color: "rgba(156,163,175,0.9)" }}>
+      <p className="text-xs ml-[108px] mb-2 leading-relaxed" style={{ color: "var(--text-dim)" }}>
         {reason}
       </p>
     </div>
   );
   return (
-    <div className="space-y-3 max-w-xl">
-      {line("Pace Quality", c.pace.score, c.pace.max, c.pace.reason)}
-      {line("Effort", c.effort.score, c.effort.max, c.effort.reason)}
-      {line("Distance", c.distance.score, c.distance.max, c.distance.reason)}
-      {line("Conditions", c.conditions.score, c.conditions.max, c.conditions.reason)}
+    <div className="max-w-xl">
+      <p className="text-xs font-semibold tracking-widest uppercase mb-3" style={{ color: "var(--text-label)" }}>
+        Run Score Breakdown
+      </p>
+      {line("Pace Quality", c.pace.score, c.pace.max, c.pace.reason, "var(--c-interval)")}
+      {line("Effort", c.effort.score, c.effort.max, c.effort.reason, "var(--c-easy)")}
+      {line("Distance", c.distance.score, c.distance.max, c.distance.reason, "var(--c-long)")}
+      {line("Conditions", c.conditions.score, c.conditions.max, c.conditions.reason, "#f5b454")}
       <div
-        className="border-t pt-2 mt-1 space-y-0.5"
+        className="border-t border-white/[0.08] pt-2 mt-1"
         style={{ borderColor: "rgba(255,255,255,0.08)" }}
       >
-        <div className="flex justify-between gap-4 text-xs font-semibold tabular-nums">
-          <span className="text-white">Total</span>
-          <span style={{ color: ratingColor(rating) }}>
-            {parsed.total.toFixed(1)} / 10.0
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-bold tracking-widest uppercase" style={{ color: "var(--text-muted)" }}>
+            Total
           </span>
+          <div className="flex items-center">
+            <span className="text-lg font-black font-mono tabular-nums" style={{ color: ratingColor(rating) }}>
+              {parsed.total.toFixed(1)}
+            </span>
+            <span className="text-xs font-semibold ml-2" style={{ color: ratingColor(rating) }}>
+              {ratingBand(rating)}
+            </span>
+          </div>
         </div>
       </div>
     </div>
@@ -191,7 +224,7 @@ export default function RunsClient({
     });
   }
 
-  const filterControlBase = `min-h-11 rounded-md outline-none ${FORM_CONTROL_TW}`;
+  const filterControlBase = `px-3 py-2 rounded-xl text-sm bg-white/[0.06] border border-white/[0.10] text-white outline-none focus:border-teal-500/50 transition-colors ${FORM_CONTROL_TW}`;
 
   return (
     <div className="space-y-4">
@@ -203,7 +236,7 @@ export default function RunsClient({
           placeholder="Search by name…"
           value={search}
           onChange={e => setSearch(e.target.value)}
-          className={`w-full px-3 py-2 text-sm ${filterControlBase}`}
+          className={`w-full px-4 py-2.5 rounded-xl text-sm bg-white/[0.06] border border-white/[0.10] text-white placeholder-white/30 outline-none focus:border-teal-500/50 focus:bg-white/[0.08] transition-colors ${FORM_CONTROL_TW}`}
         />
 
         <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
@@ -214,11 +247,35 @@ export default function RunsClient({
                 key={t}
                 type="button"
                 onClick={() => toggleType(t)}
-                className="min-h-11 px-3 py-2 rounded-full text-xs font-medium capitalize transition-all"
+                className="px-4 py-1.5 rounded-full text-xs font-semibold cursor-pointer transition-all capitalize"
                 style={{
-                  background: types.includes(t) ? `${TYPE_COLORS[t]}33` : "rgba(255,255,255,0.06)",
-                  color: types.includes(t) ? TYPE_COLORS[t] : "var(--text-muted)",
-                  border: `1px solid ${types.includes(t) ? TYPE_COLORS[t] + "66" : "rgba(255,255,255,0.1)"}`,
+                  background: types.includes(t)
+                    ? t === "easy"
+                      ? "rgba(125,211,252,0.12)"
+                      : t === "tempo"
+                        ? "rgba(45,212,191,0.12)"
+                        : t === "interval"
+                          ? "rgba(249,115,22,0.12)"
+                          : "rgba(167,139,250,0.12)"
+                    : "rgba(255,255,255,0.06)",
+                  color: types.includes(t)
+                    ? t === "easy"
+                      ? "var(--c-easy)"
+                      : t === "tempo"
+                        ? "var(--c-tempo)"
+                        : t === "interval"
+                          ? "var(--c-interval)"
+                          : "var(--c-long)"
+                    : "rgba(255,255,255,0.50)",
+                  border: types.includes(t)
+                    ? t === "easy"
+                      ? "1px solid rgba(125,211,252,0.30)"
+                      : t === "tempo"
+                        ? "1px solid rgba(45,212,191,0.30)"
+                        : t === "interval"
+                          ? "1px solid rgba(249,115,22,0.30)"
+                          : "1px solid rgba(167,139,250,0.30)"
+                    : "1px solid rgba(255,255,255,0.10)",
                 }}
               >
                 {t}
@@ -234,14 +291,16 @@ export default function RunsClient({
                 type="date"
                 value={dateFrom}
                 onChange={e => setDateFrom(e.target.value)}
-                className={`flex-1 min-w-0 px-2 py-2 text-xs ${filterControlBase}`}
+                className={`flex-1 min-w-0 ${filterControlBase}`}
+                style={{ colorScheme: "dark" }}
               />
               <span className="text-xs shrink-0" style={{ color: "var(--text-muted)" }}>to</span>
               <input
                 type="date"
                 value={dateTo}
                 onChange={e => setDateTo(e.target.value)}
-                className={`flex-1 min-w-0 px-2 py-2 text-xs ${filterControlBase}`}
+                className={`flex-1 min-w-0 ${filterControlBase}`}
+                style={{ colorScheme: "dark" }}
               />
             </div>
           </div>
@@ -255,14 +314,16 @@ export default function RunsClient({
                 placeholder="Dist ≥"
                 value={distMin}
                 onChange={e => setDistMin(e.target.value)}
-                className={`w-full sm:w-24 px-2 py-2 text-xs ${filterControlBase}`}
+                className={`w-full sm:w-24 ${filterControlBase}`}
+                style={{ colorScheme: "dark" }}
               />
               <input
                 type="number"
                 placeholder="≤ km"
                 value={distMax}
                 onChange={e => setDistMax(e.target.value)}
-                className={`w-full sm:w-24 px-2 py-2 text-xs ${filterControlBase}`}
+                className={`w-full sm:w-24 ${filterControlBase}`}
+                style={{ colorScheme: "dark" }}
               />
             </div>
           </div>
@@ -283,10 +344,10 @@ export default function RunsClient({
 
       {/* ── Results count ──────────────────────────────────────────────── */}
       <div className="flex items-center justify-between">
-        <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+        <p className="text-sm font-semibold text-white">
           {loading ? "Loading…" : `${total} run${total !== 1 ? "s" : ""}`}
         </p>
-        <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+        <p className="text-xs font-mono" style={{ color: "var(--text-muted)" }}>
           Page {page} of {totalPages}
         </p>
       </div>
@@ -294,15 +355,7 @@ export default function RunsClient({
       {/* ── Desktop table ─────────────────────────────────────────────── */}
       <div className="hidden md:block rounded-2xl border bg-white/[0.04] border-white/[0.08] backdrop-blur-sm overflow-x-auto">
         {/* Header */}
-        <div
-          className="grid text-xs font-medium px-4 py-2 min-w-[640px]"
-          style={{
-            gridTemplateColumns: "1fr 100px 80px 80px 70px 70px 60px",
-            background: "#111",
-            color: "var(--text-muted)",
-            borderBottom: "1px solid rgba(255,255,255,0.06)",
-          }}
-        >
+        <div className="flex items-center min-w-[640px] border-b border-white/[0.10]">
           {[
             { label: "Run",      field: "name"        },
             { label: "Type",     field: ""            },
@@ -316,8 +369,10 @@ export default function RunsClient({
               key={label}
               type="button"
               onClick={() => field && toggleSort(field)}
-              className="text-left"
-              style={{ cursor: field ? "pointer" : "default" }}
+              className={`text-xs font-semibold tracking-widest uppercase px-4 py-2 text-left ${
+                label === "Run" ? "flex-1 min-w-0" : label === "Type" ? "w-[100px]" : label === "Distance" || label === "Pace" ? "w-[90px]" : label === "Time" || label === "Date" ? "w-[85px]" : "w-10 text-right"
+              }`}
+              style={{ cursor: field ? "pointer" : "default", color: sortBy === field && field ? "var(--accent)" : "var(--text-label)" }}
             >
               {label}
               {field && <SortIcon active={sortBy === field} dir={order} />}
@@ -340,16 +395,13 @@ export default function RunsClient({
               key={run.id}
               style={{
                 borderTop: i > 0 ? "1px solid rgba(255,255,255,0.04)" : undefined,
+                borderLeft: isOpen ? `3px solid ${runTypeColor(run.runType)}` : undefined,
               }}
             >
               <div
                 role="button"
                 tabIndex={0}
-                className="w-full grid px-4 py-3 text-left transition-colors hover:bg-white/[0.03] min-w-[640px] cursor-pointer outline-none focus-visible:ring-1 focus-visible:ring-white/20"
-                style={{
-                  gridTemplateColumns: "1fr 100px 80px 80px 70px 70px 60px",
-                  alignItems: "center",
-                }}
+                className="flex items-center gap-4 px-4 py-3 border-b border-white/[0.06] last:border-0 hover:bg-white/[0.03] transition-colors cursor-pointer text-left min-w-[640px] outline-none focus-visible:ring-1 focus-visible:ring-white/20"
                 onClick={() => toggleExpand(run.id)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" || e.key === " ") {
@@ -358,17 +410,17 @@ export default function RunsClient({
                   }
                 }}
               >
-                <span className="text-sm text-white truncate pr-2">{run.name ?? "Run"}</span>
-                <span>
+                <span className="font-medium text-sm text-white flex-1 min-w-0 truncate">{run.name ?? "Run"}</span>
+                <span className="w-[100px]">
                   <RunTypePill type={run.runType} size="sm" />
                 </span>
-                <span className="text-sm text-white font-mono">{run.distanceKm.toFixed(2)} km</span>
-                <span className="text-sm text-white font-mono">{run.avgPaceSecKm > 0 ? formatPace(run.avgPaceSecKm) + "/km" : "—"}</span>
-                <span className="text-sm font-mono" style={{ color: "var(--text-muted)" }}>{formatDuration(run.durationSecs)}</span>
-                <span className="text-sm font-mono" style={{ color: "var(--text-muted)" }}>{formatDateAest(run.dateIso)}</span>
+                <span className="font-mono text-sm text-white w-[90px]">{run.distanceKm.toFixed(2)} km</span>
+                <span className="font-mono text-sm text-white w-[90px]">{run.avgPaceSecKm > 0 ? formatPace(run.avgPaceSecKm) + "/km" : "—"}</span>
+                <span className="font-mono text-sm text-white w-[85px]">{formatDuration(run.durationSecs)}</span>
+                <span className="text-xs font-mono w-[85px]" style={{ color: "var(--text-muted)" }}>{formatDateAest(run.dateIso)}</span>
                 <button
                   type="button"
-                  className="text-sm font-semibold text-left tabular-nums rounded px-0.5 -mx-0.5 hover:underline underline-offset-2 disabled:opacity-50 disabled:no-underline"
+                  className="text-base font-black font-mono tabular-nums w-10 text-right rounded px-0.5 -mx-0.5 hover:underline underline-offset-2 disabled:opacity-50 disabled:no-underline"
                   style={{ color: run.rating != null ? ratingColor(run.rating) : "var(--text-muted)" }}
                   disabled={run.rating == null}
                   aria-expanded={ratingOpen}
@@ -384,10 +436,9 @@ export default function RunsClient({
 
               {ratingOpen && run.rating != null && (
                 <div
-                  className="px-4 pb-3 pt-2"
+                  className="px-4 pt-2 pb-4 border-b border-white/[0.06] bg-white/[0.02]"
                   style={{
                     borderTop: "1px solid rgba(255,255,255,0.04)",
-                    background: "rgba(255,255,255,0.02)",
                   }}
                 >
                   <RatingBreakdownPanel json={run.ratingBreakdown} rating={run.rating} />
@@ -408,13 +459,18 @@ export default function RunsClient({
                       href={`https://www.strava.com/activities/${run.id}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-xs px-3 py-1 rounded-md"
-                      style={{ background: "#FC4C0233", color: "#FC4C02", border: "1px solid #FC4C0244" }}
+                      className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold mt-3 transition-colors"
+                      style={{
+                        background: "rgba(249,115,22,0.12)",
+                        border: "1px solid rgba(249,115,22,0.25)",
+                        color: "#f97316",
+                      }}
                     >
                       View on Strava
                     </a>
                   </div>
-                  {[
+                  <div className="col-span-2 grid grid-cols-3 gap-3 mt-3 pt-3 border-t border-white/[0.06]">
+                    {[
                     ["Avg HR",      run.avgHeartRate ? `${run.avgHeartRate} bpm` : "—"],
                     ["Max HR",      run.maxHeartRate ? `${run.maxHeartRate} bpm` : "—"],
                     ["Calories",    run.calories     ? `${run.calories} kcal`   : "—"],
@@ -422,24 +478,15 @@ export default function RunsClient({
                     ["Temp",        run.temperatureC != null ? `${run.temperatureC.toFixed(1)}°C`  : "—"],
                     ["Humidity",    run.humidityPct  != null ? `${run.humidityPct.toFixed(0)}%`    : "—"],
                   ].map(([label, value]) => (
-                    <div key={label} className="flex justify-between">
-                      <span style={{ color: "var(--text-muted)" }}>{label}</span>
-                      <span className="text-white">{value}</span>
+                    <div key={label}>
+                      <p className="text-xs" style={{ color: "var(--text-dim)" }}>{label}</p>
+                      <p className="text-sm font-mono font-semibold text-white">{value}</p>
                     </div>
                   ))}
-                  <div
-                    className="col-span-2 mt-2 rounded-md px-3 py-2.5 space-y-1"
-                    style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}
-                  >
-                    <p className="text-[10px] uppercase tracking-wider mb-1.5" style={{ color: "var(--text-muted)" }}>
-                      Type classification
-                    </p>
-                    <p className="text-xs text-white flex items-center gap-2">
-                      Classified as: <RunTypePill type={run.runType} size="sm" />
-                    </p>
-                    <p className="text-xs" style={{ color: "rgba(255,255,255,0.7)" }}>
-                      Classified by: {run.classificationMethod ?? "Average pace classification (legacy activity)"}
-                    </p>
+                  </div>
+                  <div className="col-span-2 mt-3 pt-3 border-t border-white/[0.06] flex items-center gap-2 text-xs" style={{ color: "var(--text-muted)" }}>
+                    <span>Classified by:</span>
+                    <span>{run.classificationMethod ?? "Average pace classification (legacy activity)"}</span>
                   </div>
                 </div>
               )}
