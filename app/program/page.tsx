@@ -532,32 +532,30 @@ export default async function ProgramPage({
                           }
 
                           const dayLabel = session.day.toUpperCase();
-                          const isLongSession = session.type === "long";
-                          const topBarHeight = isLongSession ? "4px" : "3px";
+                          const cardBg = session.type === "long"
+                            ? "rgba(167,139,250,0.06)"
+                            : session.type === "easy"
+                              ? "rgba(125,211,252,0.03)"
+                              : "rgba(255,255,255,0.04)";
 
                           return (
                             <div
                               key={session.day}
-                              className="rounded-2xl overflow-hidden p-3"
+                              className="rounded-2xl overflow-hidden border border-white/[0.08]"
                               style={{
-                                background: isLongSession ? "rgba(167,139,250,0.04)" : "#111111",
-                                borderTop:    "1px solid rgba(255,255,255,0.06)",
-                                borderRight:  "1px solid rgba(255,255,255,0.06)",
-                                borderBottom: "1px solid rgba(255,255,255,0.06)",
-                                borderLeft:   leftBorder,
-                                borderTopColor: runTypeColor(session.type),
-                                borderTopWidth: "3px",
-                                borderRadius: "0 0 14px 14px",
+                                background: cardBg,
+                                borderLeft: leftBorder,
                               }}
                             >
                               <div
                                 style={{
-                                  height: topBarHeight,
+                                  height: session.type === "long" ? "4px" : "3px",
                                   background: runTypeColor(session.type),
-                                  marginBottom: "12px",
-                                  borderRadius: "2px 2px 0 0",
+                                  width: "100%",
+                                  flexShrink: 0,
                                 }}
                               />
+                              <div className="p-4">
                               {/* Day + rating + zone badges */}
                               <div className="flex items-start justify-between gap-1 mb-2">
                                 <span
@@ -627,10 +625,7 @@ export default async function ProgramPage({
                               </p>
 
                               {/* Target */}
-                              <p
-                                className={isLongSession ? "text-lg font-black font-mono tabular-nums text-white" : "text-base font-semibold font-mono text-white"}
-                                style={{ color: isLongSession ? "white" : "white" }}
-                              >
+                              <p className="font-mono font-semibold text-sm whitespace-nowrap text-white">
                                 {session.targetDistanceKm.toFixed(1)} km · {fmtTargetPace(session.targetPaceMinPerKm)}
                               </p>
 
@@ -646,6 +641,7 @@ export default async function ProgramPage({
 
                               {/* Today label */}
                               <TodayLabel day={session.day} enabled={isCurrentWeek} />
+                              </div>
                             </div>
                           );
                         })}
