@@ -936,7 +936,7 @@ export default async function Dashboard({
                 <div
                   key={session.day}
                   className={`flex items-center gap-2.5 ${completed ? "opacity-100" : missed ? "opacity-60" : future ? "opacity-70" : ""}`}
-                  style={{ borderLeft: `3px solid ${leftBorderColor}`, paddingLeft: "10px", opacity: rowOpacity }}
+                  style={{ borderLeft: `3px solid ${leftBorderColor}`, paddingLeft: "12px", marginLeft: "4px", opacity: rowOpacity }}
                 >
                   <div
                     className="w-4 h-4 rounded-full mt-0.5 flex items-center justify-center text-xs flex-shrink-0"
@@ -956,7 +956,7 @@ export default async function Dashboard({
                   </div>
                   <div className="flex-1 min-w-0 flex items-center justify-between gap-2">
                     <p className="text-sm font-semibold text-white">{dayLabel}</p>
-                    <p className="text-sm font-mono text-white capitalize min-w-0 truncate">
+                    <p className="text-sm font-mono text-white capitalize">
                       {session.type} {session.targetDistanceKm} km
                     </p>
                     <p className="text-xs shrink-0" style={{ color: "var(--text-dim)" }}>

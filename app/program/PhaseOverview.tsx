@@ -12,12 +12,13 @@ export default function PhaseOverview({ description }: { description: string }) 
     >
       <button
         type="button"
-        className="w-full min-h-11 flex items-center justify-between px-4 py-2.5 text-left"
+        className="flex items-center justify-between px-4 py-3 rounded-xl cursor-pointer bg-white/[0.04] border border-white/[0.08] hover:bg-white/[0.06] transition-colors w-full min-h-11 text-left"
         onClick={() => setOpen(o => !o)}
       >
-        <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>
-          Phase Overview
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-semibold text-white">Phase Overview</span>
+          <span className="text-xs font-mono" style={{ color: "var(--text-muted)" }}>Details</span>
+        </div>
         <svg
           width="12" height="12" viewBox="0 0 12 12" fill="none"
           style={{
@@ -37,8 +38,8 @@ export default function PhaseOverview({ description }: { description: string }) 
         }}
       >
         <p
-          className="px-4 pb-3 text-[13px] leading-relaxed"
-          style={{ color: "rgba(232,230,224,0.55)" }}
+          className="text-sm leading-relaxed mt-3 px-1 pb-3"
+          style={{ color: "var(--text-muted)" }}
         >
           {description}
         </p>

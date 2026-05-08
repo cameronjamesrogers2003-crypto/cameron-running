@@ -21,6 +21,7 @@ import TodayLabel from "./TodayLabel";
 import PlanUpdatedBanner from "./PlanUpdatedBanner";
 import Logo from "@/components/Logo";
 import { RunTypePill } from "@/components/RunTypePill";
+import { runTypeColor } from "@/lib/runTypeStyles";
 
 export const dynamic = "force-dynamic";
 
@@ -119,6 +120,13 @@ function phaseChipStyle(phase: Phase): { background: string; color: string } {
     case "Recovery":
       return { background: "#1a1133", color: "#a78bfa" };
   }
+}
+
+function adaptationTypeDotColor(type: string): string {
+  if (type === "volume_increased" || type === "vdot_improved") return "var(--accent)";
+  if (type === "missed_sessions_warning" || type === "cutback_inserted") return "#f5b454";
+  if (type === "volume_reduced" || type === "extended_recovery") return "var(--c-easy)";
+  return "rgba(255,255,255,0.4)";
 }
 
 // ── Plan section grouping ─────────────────────────────────────────────────────
@@ -380,10 +388,22 @@ export default async function ProgramPage({
                     key={planWeek.week}
                     className="rounded-xl px-3 py-2.5"
                     style={{
-                      background:  isCurrentWeek ? "#1f1f1f" : "#181818",
-                      border:      "1px solid rgba(255,255,255,0.08)",
+                      background: isCurrentWeek
+                        ? "rgba(20,184,166,0.03)"
+                        : isLockedWeek
+                          ? "rgba(255,255,255,0.02)"
+                          : "rgba(255,255,255,0.02)",
+                      border: isCurrentWeek
+                        ? "1px solid rgba(45,212,191,0.30)"
+                        : isLockedWeek
+                          ? "1px solid rgba(255,255,255,0.05)"
+                          : "1px solid rgba(255,255,255,0.08)",
                       borderLeft:  planWeek.isRecovery
                         ? "2px solid rgba(167,139,250,0.4)"
+                        : undefined,
+                      opacity: isCurrentWeek ? 1 : isLockedWeek ? 0.55 : 0.85,
+                      boxShadow: isCurrentWeek
+                        ? "0 0 0 1px rgba(45,212,191,0.15), 0 4px 24px rgba(45,212,191,0.06)"
                         : undefined,
                     }}
                   >
@@ -406,40 +426,60 @@ export default async function ProgramPage({
                         <div className="flex flex-wrap gap-1 mt-1 sm:mt-1.5 justify-end sm:justify-start">
                           {planWeek.phase === "Taper" && (
                             <span
-                              className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
-                              style={{ background: "#581c87", color: "#e9d5ff" }}
+                              className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold"
+                              style={{
+                                background: "rgba(167,139,250,0.15)",
+                                color: "#a78bfa",
+                                border: "1px solid rgba(167,139,250,0.30)",
+                              }}
                             >
                               Taper
                             </span>
                           )}
                           {planWeek.isRecovery && (
                             <span
-                              className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
-                              style={{ background: "#1e3a8a", color: "#93c5fd" }}
+                              className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold"
+                              style={{
+                                background: "rgba(125,211,252,0.15)",
+                                color: "var(--c-easy)",
+                                border: "1px solid rgba(125,211,252,0.30)",
+                              }}
                             >
                               Recovery
                             </span>
                           )}
                           {planWeek.isCutback && (
                             <span
-                              className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
-                              style={{ background: "#78350f", color: "#fde68a" }}
+                              className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold"
+                              style={{
+                                background: "rgba(245,180,84,0.15)",
+                                color: "#f5b454",
+                                border: "1px solid rgba(245,180,84,0.30)",
+                              }}
                             >
                               Cutback
                             </span>
                           )}
                           {isCurrentWeek && (
                             <span
-                              className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
-                              style={{ background: "#134e4a", color: "#5eead4" }}
+                              className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold"
+                              style={{
+                                background: "rgba(45,212,191,0.15)",
+                                color: "var(--accent)",
+                                border: "1px solid rgba(45,212,191,0.30)",
+                              }}
                             >
                               Current
                             </span>
                           )}
                           {!isCurrentWeek && isLockedWeek && (
                             <span
-                              className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
-                              style={{ background: "#27272a", color: "#a1a1aa" }}
+                              className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold"
+                              style={{
+                                background: "rgba(255,255,255,0.08)",
+                                color: "rgba(255,255,255,0.40)",
+                                border: "1px solid rgba(255,255,255,0.12)",
+                              }}
                             >
                               Completed
                             </span>
@@ -492,19 +532,32 @@ export default async function ProgramPage({
                           }
 
                           const dayLabel = session.day.toUpperCase();
+                          const isLongSession = session.type === "long";
+                          const topBarHeight = isLongSession ? "4px" : "3px";
 
                           return (
                             <div
                               key={session.day}
-                              className="rounded-lg p-3"
+                              className="rounded-2xl overflow-hidden p-3"
                               style={{
-                                background:   "#111111",
+                                background: isLongSession ? "rgba(167,139,250,0.04)" : "#111111",
                                 borderTop:    "1px solid rgba(255,255,255,0.06)",
                                 borderRight:  "1px solid rgba(255,255,255,0.06)",
                                 borderBottom: "1px solid rgba(255,255,255,0.06)",
                                 borderLeft:   leftBorder,
+                                borderTopColor: runTypeColor(session.type),
+                                borderTopWidth: "3px",
+                                borderRadius: "0 0 14px 14px",
                               }}
                             >
+                              <div
+                                style={{
+                                  height: topBarHeight,
+                                  background: runTypeColor(session.type),
+                                  marginBottom: "12px",
+                                  borderRadius: "2px 2px 0 0",
+                                }}
+                              />
                               {/* Day + rating + zone badges */}
                               <div className="flex items-start justify-between gap-1 mb-2">
                                 <span
@@ -574,7 +627,10 @@ export default async function ProgramPage({
                               </p>
 
                               {/* Target */}
-                              <p className="text-xs font-mono" style={{ color: "var(--text-muted)" }}>
+                              <p
+                                className={isLongSession ? "text-lg font-black font-mono tabular-nums text-white" : "text-base font-semibold font-mono text-white"}
+                                style={{ color: isLongSession ? "white" : "white" }}
+                              >
                                 {session.targetDistanceKm.toFixed(1)} km · {fmtTargetPace(session.targetPaceMinPerKm)}
                               </p>
 
@@ -634,17 +690,17 @@ export default async function ProgramPage({
                       </div>
                     </div>
                     {planWeek.adaptationNote && (
-                      <p
-                        className="mt-2 text-xs italic"
+                      <div
+                        className="flex items-start gap-2 mt-3 px-3 py-2 rounded-lg text-xs"
                         style={{
-                          color:
-                            planWeek.adaptationNote.includes("Volume increased") || planWeek.adaptationNote.includes("improved")
-                              ? "#5eead4"
-                              : "#fbbf24",
+                          background: "rgba(245,180,84,0.08)",
+                          border: "1px solid rgba(245,180,84,0.20)",
+                          color: "#f5b454",
                         }}
                       >
-                        {planWeek.adaptationNote}
-                      </p>
+                        <span>⚡</span>
+                        <span>{planWeek.adaptationNote}</span>
+                      </div>
                     )}
                   </div>
                 );
@@ -653,14 +709,25 @@ export default async function ProgramPage({
           );
         })}
         <details className="rounded-2xl border bg-white/[0.04] border-white/[0.08] backdrop-blur-sm px-4 py-3">
-          <summary className="text-sm font-semibold text-white cursor-pointer">Plan History</summary>
+          <summary className="text-xs font-semibold tracking-widest uppercase mb-3 cursor-pointer" style={{ color: "var(--text-label)" }}>
+            Plan History
+          </summary>
           <div className="mt-3 space-y-2">
             {adaptationHistory.map((item) => (
-              <div key={item.id} className="rounded-lg p-2" style={{ background: "rgba(255,255,255,0.03)" }}>
-                <p className="text-xs text-white">
-                  {new Date(item.createdAt).toLocaleDateString("en-AU")} · {item.type} · Week {item.weekNumber}
+              <div key={item.id} className="flex items-start gap-3 py-3 border-b border-white/[0.06] last:border-0">
+                <p className="text-xs font-mono shrink-0 w-20" style={{ color: "var(--text-dim)" }}>
+                  {new Date(item.createdAt).toLocaleDateString("en-AU")}
                 </p>
-                <p className="text-xs" style={{ color: "var(--text-muted)" }}>{item.reason}</p>
+                <span
+                  className="w-2 h-2 rounded-full mt-1.5 shrink-0"
+                  style={{ background: adaptationTypeDotColor(item.type) }}
+                />
+                <div className="min-w-0">
+                  <p className="text-xs text-white">
+                    {item.type} · Week {item.weekNumber}
+                  </p>
+                  <p className="text-xs" style={{ color: "var(--text-muted)" }}>{item.reason}</p>
+                </div>
               </div>
             ))}
             {adaptationHistory.length === 0 && (
