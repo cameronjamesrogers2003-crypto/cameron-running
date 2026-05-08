@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Activity, Calendar, CircleHelp, ClipboardList, LayoutDashboard, RefreshCw, Settings, Trophy } from "lucide-react";
 import Logo from "@/components/Logo";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 const mainLinks = [
   { href: "/", label: "Dashboard", Icon: LayoutDashboard },
@@ -26,18 +27,21 @@ export default function Nav() {
           <Logo size="sm" showWordmark={false} />
           <span className="font-semibold text-sm text-white">Cameron Running</span>
         </Link>
-        <button
-          type="button"
-          className="flex items-center justify-center w-9 h-9 rounded-full bg-white/[0.08] border border-white/[0.10] transition-colors duration-150"
-          style={{ color: "var(--accent)" }}
-          aria-label="Sync"
-        >
-          <RefreshCw className="w-4 h-4" />
-        </button>
+        <div className="flex items-center gap-2">
+          <ThemeToggle />
+          <button
+            type="button"
+            className="flex items-center justify-center w-9 h-9 rounded-full bg-white/[0.08] border border-white/[0.10] transition-colors duration-150"
+            style={{ color: "var(--accent)" }}
+            aria-label="Sync"
+          >
+            <RefreshCw className="w-4 h-4" />
+          </button>
+        </div>
       </header>
 
       {/* Desktop sidebar */}
-      <aside className="hidden lg:flex flex-col fixed left-0 top-0 bottom-0 w-56 bg-black/60 backdrop-blur-xl border-r border-white/[0.08] z-40">
+      <aside className="rs-sidebar hidden lg:flex flex-col fixed left-0 top-0 bottom-0 w-56 bg-black/60 backdrop-blur-xl border-r border-white/[0.08] z-40">
         <div className="px-4 pt-5 pb-4 border-b border-white/[0.08]">
           <Link href="/" className="inline-flex items-center gap-2 transition-opacity hover:opacity-80">
             <Logo size="sm" showWordmark={false} />
@@ -69,13 +73,16 @@ export default function Nav() {
         </nav>
 
         <div className="mt-auto">
-          <button
-            type="button"
-            className="mx-4 mb-1 flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium bg-white/[0.05] border border-white/[0.08] hover:bg-white/[0.08] transition-colors duration-150 w-[calc(100%-2rem)]"
-          >
-            <RefreshCw className="w-4 h-4" style={{ color: "var(--accent)" }} />
-            <span className="text-white/80">Sync Strava</span>
-          </button>
+          <div className="flex items-center gap-2 px-4 pb-2">
+            <ThemeToggle />
+            <button
+              type="button"
+              className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-sm font-medium bg-white/[0.05] border border-white/[0.08] hover:bg-white/[0.08] transition-colors duration-150"
+            >
+              <RefreshCw className="w-4 h-4" style={{ color: "var(--accent)" }} />
+              <span className="text-white/80">Sync Strava</span>
+            </button>
+          </div>
           <p className="mx-4 mb-4 text-xs" style={{ color: "var(--text-dim)" }}>
             Last sync: —
           </p>
