@@ -19,7 +19,7 @@ import { FORM_CONTROL_TW } from "@/lib/formControlClasses";
 
 export type VdotLevel = "BEGINNER" | "INTERMEDIATE" | "ADVANCED";
 
-type RacePiece = { minutes: number; seconds: number };
+type RacePiece = { minutes: string; seconds: string };
 
 export type VdotPersonalFields = {
   ageInput: string;
@@ -29,11 +29,21 @@ export type VdotPersonalFields = {
 };
 
 function emptyRace(): RacePiece {
-  return { minutes: 0, seconds: 0 };
+  return { minutes: "", seconds: "" };
 }
 
 function raceTotalsSeconds(r: RacePiece): number {
-  return r.minutes * 60 + r.seconds;
+  const minutes = parseInt(r.minutes, 10) || 0;
+  const seconds = parseInt(r.seconds, 10) || 0;
+  if (minutes <= 0) return 0;
+  return minutes * 60 + Math.min(59, Math.max(0, seconds));
+}
+
+function raceForCompute(r: RacePiece): { minutes: number; seconds: number } | null {
+  const minutes = parseInt(r.minutes, 10) || 0;
+  if (minutes <= 0) return null;
+  const seconds = Math.min(59, Math.max(0, parseInt(r.seconds, 10) || 0));
+  return { minutes, seconds };
 }
 
 function levelDisplay(l: VdotLevel): string {
@@ -95,6 +105,7 @@ export default function VdotCalculator({
   const [internalMaxHR, setInternalMaxHR] = useState(initialMaxHr);
   const maxHR = maxHRControlled ?? internalMaxHR;
   const setMaxHR = onMaxHRChange ?? setInternalMaxHR;
+  const [maxHrInput, setMaxHrInput] = useState(String(maxHR));
 
   const [internalPersonal, setInternalPersonal] = useState<VdotPersonalFields>({
     ageInput: "",
@@ -113,6 +124,10 @@ export default function VdotCalculator({
   const [half, setHalf] = useState<RacePiece>(emptyRace);
 
   const { age, gender, weightKg, runningExperience } = parsePersonal(personal);
+  const parsedMaxHr = (() => {
+    const n = parseInt(maxHrInput, 10) || 0;
+    return n > 0 ? n : 0;
+  })();
 
   /* eslint-disable react-hooks/set-state-in-effect -- hydrate race inputs from stored vdot race */
   useEffect(() => {
@@ -120,18 +135,23 @@ export default function VdotCalculator({
     const m = seedRaceMinutes;
     const s = seedRaceSeconds ?? 0;
     if (d == null || m == null) return;
-    const piece: RacePiece = { minutes: m, seconds: s };
+    const piece: RacePiece = { minutes: String(m), seconds: String(s) };
     if (d === "5" || d === "5k" || d === "5K") setFiveKm(piece);
     else if (d === "10" || d === "10k" || d === "10K") setTenKm(piece);
     else if (d === "21.1" || d === "hm" || d === "HM") setHalf(piece);
   }, [seedRaceDistance, seedRaceMinutes, seedRaceSeconds]);
   /* eslint-enable react-hooks/set-state-in-effect */
+  /* eslint-disable react-hooks/set-state-in-effect -- keep input in sync with source maxHR */
+  useEffect(() => {
+    setMaxHrInput(String(maxHR));
+  }, [maxHR]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const result = useMemo(() => {
     const races = {
-      fiveKm: raceTotalsSeconds(fiveKm) > 0 ? fiveKm : null,
-      tenKm: raceTotalsSeconds(tenKm) > 0 ? tenKm : null,
-      half: raceTotalsSeconds(half) > 0 ? half : null,
+      fiveKm: raceForCompute(fiveKm),
+      tenKm: raceForCompute(tenKm),
+      half: raceForCompute(half),
     };
     return computeVdotFromRaceTimes(races, age, runningExperience);
   }, [fiveKm, tenKm, half, age, runningExperience]);
@@ -159,13 +179,13 @@ export default function VdotCalculator({
           <label className="text-xs block space-y-1">
             <span style={{ color: "var(--text-muted)" }}>Age (years)</span>
             <input
-              type="number"
-              min={0}
-              max={120}
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
               value={personal.ageInput}
               onChange={(e) => setPersonal({ ...personal, ageInput: e.target.value })}
               className={controlCls}
-              placeholder="—"
+              placeholder="0"
             />
           </label>
           <label className="text-xs block space-y-1">
@@ -192,13 +212,12 @@ export default function VdotCalculator({
           <label className="text-xs block space-y-1">
             <span style={{ color: "var(--text-muted)" }}>Weight (kg)</span>
             <input
-              type="number"
-              min={0}
-              step="0.1"
+              type="text"
+              inputMode="decimal"
               value={personal.weightInput}
               onChange={(e) => setPersonal({ ...personal, weightInput: e.target.value })}
               className={controlCls}
-              placeholder="—"
+              placeholder="0"
             />
           </label>
           <label className="text-xs block space-y-1 sm:col-span-2">
@@ -228,12 +247,23 @@ export default function VdotCalculator({
           <label className="text-xs block space-y-1 sm:col-span-2">
             <span style={{ color: "var(--text-muted)" }}>Max HR (bpm)</span>
             <input
-              type="number"
-              min={120}
-              max={240}
-              value={maxHR}
-              onChange={(e) => setMaxHR(Number(e.target.value))}
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              value={maxHrInput}
+              onChange={(e) => {
+                const next = e.target.value;
+                setMaxHrInput(next);
+                const n = parseInt(next, 10) || 0;
+                if (n > 0) setMaxHR(n);
+              }}
+              onBlur={() => {
+                if (maxHrInput.trim() === "") {
+                  setMaxHrInput(String(maxHR));
+                }
+              }}
               className={controlCls}
+              placeholder="0"
             />
           </label>
         </div>
@@ -266,24 +296,25 @@ export default function VdotCalculator({
           <div key={label} className="flex flex-wrap items-center gap-2 mb-3">
             <span className="text-sm text-white w-28 shrink-0">{label}</span>
             <input
-              type="number"
-              min={0}
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
               value={state.minutes}
-              onChange={(e) => set({ ...state, minutes: Math.max(0, Number(e.target.value)) })}
+              onChange={(e) => set({ ...state, minutes: e.target.value })}
               className={`${controlCls} w-20 text-center`}
+              placeholder="0"
             />
             <span className="text-xs" style={{ color: "var(--text-muted)" }}>
               min
             </span>
             <input
-              type="number"
-              min={0}
-              max={59}
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
               value={state.seconds}
-              onChange={(e) =>
-                set({ ...state, seconds: Math.min(59, Math.max(0, Number(e.target.value))) })
-              }
+              onChange={(e) => set({ ...state, seconds: e.target.value })}
               className={`${controlCls} w-16 text-center`}
+              placeholder="00"
             />
             <span className="text-xs" style={{ color: "var(--text-muted)" }}>
               sec
@@ -328,9 +359,9 @@ export default function VdotCalculator({
             onClick={async () => {
               const r = computeVdotFromRaceTimes(
                 {
-                  fiveKm: raceTotalsSeconds(fiveKm) > 0 ? fiveKm : null,
-                  tenKm: raceTotalsSeconds(tenKm) > 0 ? tenKm : null,
-                  half: raceTotalsSeconds(half) > 0 ? half : null,
+                  fiveKm: raceForCompute(fiveKm),
+                  tenKm: raceForCompute(tenKm),
+                  half: raceForCompute(half),
                 },
                 age,
                 runningExperience,
@@ -338,13 +369,15 @@ export default function VdotCalculator({
               if (!r) return;
               const win = r.winningDistanceKey;
               const winTimes = win === "5" ? fiveKm : win === "10" ? tenKm : half;
+              const winMinutes = parseInt(winTimes.minutes, 10) || 0;
+              const winSeconds = Math.min(59, Math.max(0, parseInt(winTimes.seconds, 10) || 0));
               const parsed = parsePersonal(personal);
               const payload = {
                 vdot: r.adjustedVdot,
-                maxHR,
+                maxHR: parsedMaxHr > 0 ? parsedMaxHr : initialMaxHr,
                 vdotRaceDistance: win,
-                vdotRaceMinutes: winTimes.minutes,
-                vdotRaceSeconds: winTimes.seconds,
+                vdotRaceMinutes: winMinutes,
+                vdotRaceSeconds: winSeconds,
                 age: parsed.age,
                 gender: parsed.gender,
                 weightKg: parsed.weightKg,
