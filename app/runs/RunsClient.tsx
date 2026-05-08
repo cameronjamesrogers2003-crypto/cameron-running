@@ -5,6 +5,7 @@ import { parseRatingBreakdown } from "@/lib/rating";
 import type { RunType } from "@/data/trainingPlan";
 import { formatPace, formatDuration } from "@/lib/settings";
 import { FORM_CONTROL_TW } from "@/lib/formControlClasses";
+import { RunTypePill } from "@/components/RunTypePill";
 
 interface Run {
   id: string;
@@ -93,21 +94,6 @@ function RatingBreakdownPanel({ json, rating }: { json: string | null; rating: n
         </div>
       </div>
     </div>
-  );
-}
-
-function Pill({ type }: { type: RunType }) {
-  return (
-    <span
-      className="px-2 py-0.5 rounded text-xs font-medium capitalize"
-      style={{
-        background: `${TYPE_COLORS[type]}22`,
-        color: TYPE_COLORS[type],
-        border: `1px solid ${TYPE_COLORS[type]}44`,
-      }}
-    >
-      {type}
-    </span>
   );
 }
 
@@ -210,10 +196,7 @@ export default function RunsClient({
   return (
     <div className="space-y-4">
       {/* ── Filter panel ───────────────────────────────────────────────── */}
-      <div
-        className="rounded-[10px] p-4 space-y-3"
-        style={{ background: "#181818", border: "1px solid rgba(255,255,255,0.08)" }}
-      >
+      <div className="rounded-2xl border bg-white/[0.04] border-white/[0.08] backdrop-blur-sm p-4 space-y-3">
         {/* Search */}
         <input
           type="text"
@@ -309,10 +292,7 @@ export default function RunsClient({
       </div>
 
       {/* ── Desktop table ─────────────────────────────────────────────── */}
-      <div
-        className="hidden md:block rounded-[10px] overflow-x-auto"
-        style={{ border: "1px solid rgba(255,255,255,0.08)" }}
-      >
+      <div className="hidden md:block rounded-2xl border bg-white/[0.04] border-white/[0.08] backdrop-blur-sm overflow-x-auto">
         {/* Header */}
         <div
           className="grid text-xs font-medium px-4 py-2 min-w-[640px]"
@@ -380,12 +360,12 @@ export default function RunsClient({
               >
                 <span className="text-sm text-white truncate pr-2">{run.name ?? "Run"}</span>
                 <span>
-                  <Pill type={run.runType} />
+                  <RunTypePill type={run.runType} size="sm" />
                 </span>
-                <span className="text-sm text-white">{run.distanceKm.toFixed(2)} km</span>
-                <span className="text-sm text-white">{run.avgPaceSecKm > 0 ? formatPace(run.avgPaceSecKm) + "/km" : "—"}</span>
-                <span className="text-sm" style={{ color: "var(--text-muted)" }}>{formatDuration(run.durationSecs)}</span>
-                <span className="text-sm" style={{ color: "var(--text-muted)" }}>{formatDateAest(run.dateIso)}</span>
+                <span className="text-sm text-white font-mono">{run.distanceKm.toFixed(2)} km</span>
+                <span className="text-sm text-white font-mono">{run.avgPaceSecKm > 0 ? formatPace(run.avgPaceSecKm) + "/km" : "—"}</span>
+                <span className="text-sm font-mono" style={{ color: "var(--text-muted)" }}>{formatDuration(run.durationSecs)}</span>
+                <span className="text-sm font-mono" style={{ color: "var(--text-muted)" }}>{formatDateAest(run.dateIso)}</span>
                 <button
                   type="button"
                   className="text-sm font-semibold text-left tabular-nums rounded px-0.5 -mx-0.5 hover:underline underline-offset-2 disabled:opacity-50 disabled:no-underline"
@@ -454,8 +434,8 @@ export default function RunsClient({
                     <p className="text-[10px] uppercase tracking-wider mb-1.5" style={{ color: "var(--text-muted)" }}>
                       Type classification
                     </p>
-                    <p className="text-xs text-white">
-                      Classified as: {run.runType.charAt(0).toUpperCase() + run.runType.slice(1)}
+                    <p className="text-xs text-white flex items-center gap-2">
+                      Classified as: <RunTypePill type={run.runType} size="sm" />
                     </p>
                     <p className="text-xs" style={{ color: "rgba(255,255,255,0.7)" }}>
                       Classified by: {run.classificationMethod ?? "Average pace classification (legacy activity)"}
@@ -472,8 +452,8 @@ export default function RunsClient({
       <div className="md:hidden space-y-3">
         {!loading && runs.length === 0 && (
           <div
-            className="rounded-[10px] px-4 py-8 text-center text-sm"
-            style={{ border: "1px solid rgba(255,255,255,0.08)", color: "var(--text-muted)" }}
+            className="rounded-2xl border bg-white/[0.04] border-white/[0.08] backdrop-blur-sm px-4 py-8 text-center text-sm"
+            style={{ color: "var(--text-muted)" }}
           >
             No runs match the current filters.
           </div>
@@ -484,8 +464,7 @@ export default function RunsClient({
           return (
             <div
               key={run.id}
-              className="rounded-[10px] overflow-hidden"
-              style={{ border: "1px solid rgba(255,255,255,0.08)", background: "#111" }}
+              className="rounded-2xl border bg-white/[0.04] border-white/[0.08] backdrop-blur-sm overflow-hidden"
             >
               <div className="p-4">
                 <div className="flex items-start justify-between gap-2">
@@ -499,7 +478,7 @@ export default function RunsClient({
                       {formatDateAest(run.dateIso)}
                     </p>
                     <div className="mt-2">
-                      <Pill type={run.runType} />
+                      <RunTypePill type={run.runType} size="sm" />
                     </div>
                   </button>
                   <button
@@ -590,8 +569,8 @@ export default function RunsClient({
                     <p className="text-[10px] uppercase tracking-wider mb-1.5" style={{ color: "var(--text-muted)" }}>
                       Type classification
                     </p>
-                    <p className="text-xs text-white">
-                      Classified as: {run.runType.charAt(0).toUpperCase() + run.runType.slice(1)}
+                    <p className="text-xs text-white flex items-center gap-2">
+                      Classified as: <RunTypePill type={run.runType} size="sm" />
                     </p>
                     <p className="text-xs" style={{ color: "rgba(255,255,255,0.7)" }}>
                       Classified by: {run.classificationMethod ?? "Average pace classification (legacy activity)"}

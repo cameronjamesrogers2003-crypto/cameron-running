@@ -6,6 +6,7 @@ import { formatDuration, formatPace } from "@/lib/settings";
 import type { CalendarRun, CalendarData } from "./types";
 import { useMediaQuery } from "@/lib/useMediaQuery";
 import { formatAEST } from "@/lib/dateUtils";
+import { RunTypePill } from "@/components/RunTypePill";
 
 interface Props {
   year: number;
@@ -21,16 +22,6 @@ function cellColors(rating: number): { bg: string; text: string } {
   if (rating >= 5.5) return { bg: "#0a0f1e", text: "#85B7EB" };
   if (rating >= 4.0) return { bg: "#2e1e0a", text: "#EF9F27" };
   return                   { bg: "#2e1010", text: "#F09595" };
-}
-
-function typePillStyle(type: string): { background: string; color: string } {
-  switch (type) {
-    case "easy":     return { background: "#1e1b4b", color: "#a5b4fc" };
-    case "tempo":    return { background: "#134e4a", color: "#5eead4" };
-    case "interval": return { background: "#431407", color: "#fb923c" };
-    case "long":     return { background: "#292524", color: "#d6d3d1" };
-    default:         return { background: "#1a1a1a", color: "#9ca3af" };
-  }
 }
 
 function fmtDate(isoStr: string): string {
@@ -244,12 +235,7 @@ function DetailPanel({
         <div className="space-y-3">
           {/* Run type pill */}
           <div className="flex items-center gap-2 flex-wrap">
-            <span
-              className="text-xs px-2 py-0.5 rounded-full font-medium"
-              style={typePillStyle(run.runType)}
-            >
-              {run.runType.charAt(0).toUpperCase() + run.runType.slice(1)}
-            </span>
+            <RunTypePill type={run.runType} size="sm" />
             {!run.isPlanned && (
               <span className="text-xs" style={{ color: "rgba(156,163,175,0.5)" }}>
                 (unplanned)
@@ -276,7 +262,7 @@ function DetailPanel({
             ].map(({ label, value }) => (
               <div key={label}>
                 <p className="text-[10px]" style={{ color: "var(--text-muted)" }}>{label}</p>
-                <p className="text-xs font-semibold text-white">{value}</p>
+                <p className="text-xs font-semibold text-white font-mono">{value}</p>
               </div>
             ))}
           </div>

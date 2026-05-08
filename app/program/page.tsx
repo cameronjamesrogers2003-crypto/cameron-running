@@ -20,6 +20,7 @@ import RaceFlagBanner from "./RaceFlagBanner";
 import TodayLabel from "./TodayLabel";
 import PlanUpdatedBanner from "./PlanUpdatedBanner";
 import Logo from "@/components/Logo";
+import { RunTypePill } from "@/components/RunTypePill";
 
 export const dynamic = "force-dynamic";
 
@@ -99,15 +100,6 @@ function ratingBadgeStyle(score: number): { background: string; color: string } 
   if (score >= 6)   return { background: "#0c1a2e", color: "#60a5fa" };
   if (score >= 4)   return { background: "#431407", color: "#fb923c" };
   return               { background: "#450a0a", color: "#f87171" };
-}
-
-function typePillStyle(type: RunType): { background: string; color: string } {
-  switch (type) {
-    case "easy":     return { background: "#1e1b4b", color: "#a5b4fc" };
-    case "tempo":    return { background: "#134e4a", color: "#5eead4" };
-    case "interval": return { background: "#431407", color: "#fb923c" };
-    case "long":     return { background: "#292524", color: "#d6d3d1" };
-  }
 }
 
 function phaseChipStyle(phase: Phase): { background: string; color: string } {
@@ -260,7 +252,7 @@ export default async function ProgramPage({
         {/* Page header */}
         <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           <Logo size="sm" showWordmark={false} />
-          <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-white">Training Program</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-white">Training Program</h1>
           <span
             className="text-xs font-semibold px-2.5 py-1 rounded-full"
             style={phaseChipStyle(currentPlanEntry?.phase ?? "Base")}
@@ -314,13 +306,7 @@ export default async function ProgramPage({
               {/* Phase header */}
               {section.isRecovery ? (
                 // Simplified recovery header
-                <div
-                  className="rounded-xl px-3 py-3 sm:px-4"
-                  style={{
-                    background: "#181818",
-                    border: "1px solid rgba(167,139,250,0.15)",
-                  }}
-                >
+                <div className="rounded-2xl border bg-white/[0.04] border-white/[0.08] backdrop-blur-sm px-3 py-3 sm:px-4">
                   <div className="flex items-center gap-2 sm:gap-3 flex-wrap text-xs sm:text-sm">
                     <span className="text-xs font-semibold px-2.5 py-1 rounded-full" style={chip}>
                       Return to Training
@@ -335,10 +321,7 @@ export default async function ProgramPage({
                 </div>
               ) : (
                 // Full phase header
-                <div
-                  className="rounded-xl px-3 py-3 sm:px-4"
-                  style={{ background: "#181818", border: "1px solid rgba(255,255,255,0.08)" }}
-                >
+                <div className="rounded-2xl border bg-white/[0.04] border-white/[0.08] backdrop-blur-sm px-3 py-3 sm:px-4">
                   <div className="flex items-center justify-between gap-3 sm:gap-4 mb-2 flex-wrap">
                     <div className="flex items-center gap-2 sm:gap-3 flex-wrap min-w-0">
                       <span className="text-xs font-semibold px-2.5 py-1 rounded-full" style={chip}>
@@ -504,7 +487,6 @@ export default async function ProgramPage({
                             leftBorder = "1px solid rgba(255,255,255,0.06)";
                           }
 
-                          const pill = typePillStyle(session.type);
                           const dayLabel = session.day.toUpperCase();
 
                           return (
@@ -551,12 +533,7 @@ export default async function ProgramPage({
                               </div>
 
                               {/* Run type pill */}
-                              <span
-                                className="inline-block text-[11px] px-2 py-0.5 rounded-full font-medium"
-                                style={pill}
-                              >
-                                {session.type.charAt(0).toUpperCase() + session.type.slice(1)}
-                              </span>
+                              <RunTypePill type={session.type} size="sm" />
 
                               {runTypeMismatch && (
                                 <p
@@ -593,14 +570,14 @@ export default async function ProgramPage({
                               </p>
 
                               {/* Target */}
-                              <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+                              <p className="text-xs font-mono" style={{ color: "var(--text-muted)" }}>
                                 {session.targetDistanceKm.toFixed(1)} km · {fmtTargetPace(session.targetPaceMinPerKm)}
                               </p>
 
                               {/* Actual (completed) */}
                               {showRating && matchedAct && (
                                 <p
-                                  className="text-xs mt-0.5"
+                                  className="text-xs mt-0.5 font-mono"
                                   style={{ color: "rgba(232,230,224,0.4)" }}
                                 >
                                   {matchedAct.distanceKm.toFixed(1)} km · {fmtPaceSec(matchedAct.avgPaceSecKm)}
@@ -635,7 +612,7 @@ export default async function ProgramPage({
 
                       {/* Total km + volume change */}
                       <div className="w-full sm:w-16 shrink-0 text-left sm:text-right pt-0 sm:pt-1 flex sm:block items-center justify-between sm:justify-end gap-2">
-                        <p className="text-sm font-bold text-white">{weekTotalKm.toFixed(1)}</p>
+                        <p className="text-sm font-bold text-white font-mono">{weekTotalKm.toFixed(1)}</p>
                         <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>km</p>
                         {volumeChange !== null && (
                           <span
@@ -671,10 +648,7 @@ export default async function ProgramPage({
             </section>
           );
         })}
-        <details
-          className="rounded-xl px-4 py-3"
-          style={{ background: "#181818", border: "1px solid rgba(255,255,255,0.08)" }}
-        >
+        <details className="rounded-2xl border bg-white/[0.04] border-white/[0.08] backdrop-blur-sm px-4 py-3">
           <summary className="text-sm font-semibold text-white cursor-pointer">Plan History</summary>
           <div className="mt-3 space-y-2">
             {adaptationHistory.map((item) => (

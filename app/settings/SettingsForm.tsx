@@ -41,10 +41,9 @@ function SaveButton({ status, onClick }: { status: SaveStatus; onClick: () => vo
 function Panel({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div
-      className="rounded-[10px] p-5 space-y-4"
-      style={{ background: "#181818", border: "1px solid rgba(255,255,255,0.08)" }}
+      className="rounded-2xl border bg-white/[0.04] border-white/[0.08] backdrop-blur-sm p-5 space-y-4"
     >
-      <p className="text-xs uppercase tracking-wider font-semibold" style={{ color: "var(--text-muted)" }}>
+      <p className="text-xs font-semibold tracking-widest uppercase" style={{ color: "var(--text-label)" }}>
         {title}
       </p>
       {children}
@@ -373,7 +372,7 @@ export default function SettingsForm() {
 
   if (loading) {
     return (
-      <div className="rounded-[10px] p-5 text-sm" style={{ background: "#181818", border: "1px solid rgba(255,255,255,0.08)" }}>
+      <div className="rounded-2xl border bg-white/[0.04] border-white/[0.08] backdrop-blur-sm p-5 text-sm">
         Loading settings…
       </div>
     );
