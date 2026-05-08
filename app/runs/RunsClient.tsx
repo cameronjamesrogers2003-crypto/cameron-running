@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import type { CSSProperties } from "react";
 import { parseRatingBreakdown } from "@/lib/rating";
 import type { RunType } from "@/data/trainingPlan";
 import { formatPace, formatDuration } from "@/lib/settings";
@@ -225,6 +226,28 @@ export default function RunsClient({
   }
 
   const filterControlBase = `px-3 py-2 rounded-xl text-sm bg-white/[0.06] border border-white/[0.10] text-white outline-none focus:border-teal-500/50 transition-colors ${FORM_CONTROL_TW}`;
+  const chipStyle = (type: RunType): CSSProperties => {
+    const isActive = types.includes(type);
+    if (!isActive) {
+      return {
+        background: "rgba(255,255,255,0.06)",
+        border: "1px solid rgba(255,255,255,0.10)",
+        color: "rgba(255,255,255,0.50)",
+      };
+    }
+    const colors: Record<RunType, { bg: string; border: string; text: string }> = {
+      easy: { bg: "rgba(125,211,252,0.15)", border: "rgba(125,211,252,0.35)", text: "#7dd3fc" },
+      tempo: { bg: "rgba(45,212,191,0.15)", border: "rgba(45,212,191,0.35)", text: "#2dd4bf" },
+      interval: { bg: "rgba(249,115,22,0.15)", border: "rgba(249,115,22,0.35)", text: "#f97316" },
+      long: { bg: "rgba(167,139,250,0.15)", border: "rgba(167,139,250,0.35)", text: "#a78bfa" },
+    };
+    const c = colors[type];
+    return {
+      background: c.bg,
+      border: `1px solid ${c.border}`,
+      color: c.text,
+    };
+  };
 
   return (
     <div className="space-y-4">
@@ -248,35 +271,7 @@ export default function RunsClient({
                 type="button"
                 onClick={() => toggleType(t)}
                 className="px-4 py-1.5 rounded-full text-xs font-semibold cursor-pointer transition-all capitalize"
-                style={{
-                  background: types.includes(t)
-                    ? t === "easy"
-                      ? "rgba(125,211,252,0.12)"
-                      : t === "tempo"
-                        ? "rgba(45,212,191,0.12)"
-                        : t === "interval"
-                          ? "rgba(249,115,22,0.12)"
-                          : "rgba(167,139,250,0.12)"
-                    : "rgba(255,255,255,0.06)",
-                  color: types.includes(t)
-                    ? t === "easy"
-                      ? "var(--c-easy)"
-                      : t === "tempo"
-                        ? "var(--c-tempo)"
-                        : t === "interval"
-                          ? "var(--c-interval)"
-                          : "var(--c-long)"
-                    : "rgba(255,255,255,0.50)",
-                  border: types.includes(t)
-                    ? t === "easy"
-                      ? "1px solid rgba(125,211,252,0.30)"
-                      : t === "tempo"
-                        ? "1px solid rgba(45,212,191,0.30)"
-                        : t === "interval"
-                          ? "1px solid rgba(249,115,22,0.30)"
-                          : "1px solid rgba(167,139,250,0.30)"
-                    : "1px solid rgba(255,255,255,0.10)",
-                }}
+                style={chipStyle(t)}
               >
                 {t}
               </button>
@@ -353,9 +348,9 @@ export default function RunsClient({
       </div>
 
       {/* ── Desktop table ─────────────────────────────────────────────── */}
-      <div className="hidden md:block rounded-2xl border bg-white/[0.04] border-white/[0.08] backdrop-blur-sm overflow-x-auto">
+      <div className="hidden md:block rounded-2xl border bg-white/[0.04] border-white/[0.08] backdrop-blur-sm w-full overflow-hidden">
         {/* Header */}
-        <div className="flex items-center min-w-[640px] border-b border-white/[0.10]">
+        <div className="flex items-center gap-2 px-4 py-2 border-b border-white/[0.10] w-full">
           {[
             { label: "Run",      field: "name"        },
             { label: "Type",     field: ""            },
@@ -369,8 +364,20 @@ export default function RunsClient({
               key={label}
               type="button"
               onClick={() => field && toggleSort(field)}
-              className={`text-xs font-semibold tracking-widest uppercase px-4 py-2 text-left ${
-                label === "Run" ? "flex-1 min-w-0" : label === "Type" ? "w-[100px]" : label === "Distance" || label === "Pace" ? "w-[90px]" : label === "Time" || label === "Date" ? "w-[85px]" : "w-10 text-right"
+              className={`text-xs font-semibold tracking-widest uppercase text-left ${
+                label === "Run"
+                  ? "flex-1 min-w-0"
+                  : label === "Type"
+                    ? "w-24 shrink-0"
+                    : label === "Distance"
+                      ? "w-24 shrink-0"
+                      : label === "Pace"
+                        ? "w-24 shrink-0"
+                        : label === "Time"
+                          ? "w-20 shrink-0 hidden md:block"
+                          : label === "Date"
+                            ? "w-28 shrink-0 hidden md:block"
+                            : "w-16 shrink-0 text-right min-w-[60px]"
               }`}
               style={{ cursor: field ? "pointer" : "default", color: sortBy === field && field ? "var(--accent)" : "var(--text-label)" }}
             >
@@ -401,7 +408,7 @@ export default function RunsClient({
               <div
                 role="button"
                 tabIndex={0}
-                className="flex items-center gap-4 px-4 py-3 border-b border-white/[0.06] last:border-0 hover:bg-white/[0.03] transition-colors cursor-pointer text-left min-w-[640px] outline-none focus-visible:ring-1 focus-visible:ring-white/20"
+                className="flex items-center gap-2 px-4 py-3 border-b border-white/[0.06] hover:bg-white/[0.03] transition-colors cursor-pointer w-full outline-none focus-visible:ring-1 focus-visible:ring-white/20"
                 onClick={() => toggleExpand(run.id)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" || e.key === " ") {
@@ -411,16 +418,16 @@ export default function RunsClient({
                 }}
               >
                 <span className="font-medium text-sm text-white flex-1 min-w-0 truncate">{run.name ?? "Run"}</span>
-                <span className="w-[100px]">
+                <span className="w-24 shrink-0">
                   <RunTypePill type={run.runType} size="sm" />
                 </span>
-                <span className="font-mono text-sm text-white w-[90px]">{run.distanceKm.toFixed(2)} km</span>
-                <span className="font-mono text-sm text-white w-[90px]">{run.avgPaceSecKm > 0 ? formatPace(run.avgPaceSecKm) + "/km" : "—"}</span>
-                <span className="font-mono text-sm text-white w-[85px]">{formatDuration(run.durationSecs)}</span>
-                <span className="text-xs font-mono w-[85px]" style={{ color: "var(--text-muted)" }}>{formatDateAest(run.dateIso)}</span>
+                <span className="font-mono text-sm text-white w-24 shrink-0">{run.distanceKm.toFixed(2)} km</span>
+                <span className="font-mono text-sm text-white w-24 shrink-0">{run.avgPaceSecKm > 0 ? formatPace(run.avgPaceSecKm) + "/km" : "—"}</span>
+                <span className="font-mono text-sm text-white w-20 shrink-0 hidden md:block">{formatDuration(run.durationSecs)}</span>
+                <span className="text-xs font-mono w-28 shrink-0 hidden md:block" style={{ color: "var(--text-muted)" }}>{formatDateAest(run.dateIso)}</span>
                 <button
                   type="button"
-                  className="text-base font-black font-mono tabular-nums w-10 text-right rounded px-0.5 -mx-0.5 hover:underline underline-offset-2 disabled:opacity-50 disabled:no-underline"
+                  className="text-base font-black font-mono tabular-nums w-16 shrink-0 min-w-[60px] text-right rounded px-0.5 -mx-0.5 hover:underline underline-offset-2 disabled:opacity-50 disabled:no-underline"
                   style={{ color: run.rating != null ? ratingColor(run.rating) : "var(--text-muted)" }}
                   disabled={run.rating == null}
                   aria-expanded={ratingOpen}
