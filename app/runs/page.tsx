@@ -13,16 +13,15 @@ export default async function RunsPage() {
   const tempoThresholdSec    = settings.tempoPaceMaxSec;
 
   return (
-    <div className="rs-page rs-page--runs">
-      <div className="rs-page__head">
-        <div>
-          <p className="rs-page__greeting">Runs</p>
-          <h1 className="rs-page__title">Your log</h1>
-          <p className="rs-page__date">All activity history with filters and ratings</p>
-        </div>
-        <div>
+    <div className="space-y-5">
+      <div>
+        <div className="flex items-center gap-3 mb-1">
           <Logo size="sm" showWordmark={false} />
+          <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-white">Runs</h1>
         </div>
+        <p className="text-sm mt-1" style={{ color: "var(--text-muted)" }}>
+          All activity history with filters and ratings
+        </p>
       </div>
       <RunsClient
         intervalThresholdSec={intervalThresholdSec}
