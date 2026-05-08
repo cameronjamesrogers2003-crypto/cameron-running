@@ -108,7 +108,7 @@ export default function SettingsForm() {
   if (token) authJsonHeaders.Authorization = `Bearer ${token}`;
 
   const [planStartDateIsoYmd, setPlanStartDateIsoYmd] = useState(() =>
-    settings.planStartDate ? settings.planStartDate.slice(0, 10) : ""
+    settings.planStartDate ? toBrisbaneYmd(new Date(settings.planStartDate)) : ""
   );
   const [experienceLevel, setExperienceLevel] = useState<"BEGINNER" | "INTERMEDIATE" | "ADVANCED">(
     settings.experienceLevel ?? "BEGINNER",
@@ -167,7 +167,7 @@ export default function SettingsForm() {
   useEffect(() => {
     if (loading) return;
 
-    setPlanStartDateIsoYmd(settings.planStartDate ? settings.planStartDate.slice(0, 10) : "");
+    setPlanStartDateIsoYmd(settings.planStartDate ? toBrisbaneYmd(new Date(settings.planStartDate)) : "");
     setExperienceLevel(settings.experienceLevel ?? "BEGINNER");
     setGoalRace(settings.goalRace ?? "HALF");
     setPlanLengthWeeks((settings.planLengthWeeks ?? 16) as 12 | 16 | 20);
