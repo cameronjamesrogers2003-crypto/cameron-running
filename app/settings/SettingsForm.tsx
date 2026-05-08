@@ -126,6 +126,9 @@ export default function SettingsForm() {
 
   const [maxHR, setMaxHR] = useState(settings.maxHR);
   const [vdot, setVdot] = useState(settings.currentVdot);
+  const [vdotRaceDistance, setVdotRaceDistance] = useState<string | null>(settings.vdotRaceDistance ?? null);
+  const [vdotRaceMinutes, setVdotRaceMinutes] = useState<number | null>(settings.vdotRaceMinutes ?? null);
+  const [vdotRaceSeconds, setVdotRaceSeconds] = useState<number | null>(settings.vdotRaceSeconds ?? null);
 
   const [vdotPersonal, setVdotPersonal] = useState<VdotPersonalFields>({
     ageInput: "",
@@ -172,6 +175,9 @@ export default function SettingsForm() {
     setSelectedLongRunDay(parseLongRunDayValue(settings.longRunDay));
     setMaxHR(settings.maxHR);
     setVdot(settings.currentVdot);
+    setVdotRaceDistance(settings.vdotRaceDistance ?? null);
+    setVdotRaceMinutes(settings.vdotRaceMinutes ?? null);
+    setVdotRaceSeconds(settings.vdotRaceSeconds ?? null);
     setVdotPersonal({
       ageInput: settings.age != null ? String(settings.age) : "",
       gender: settings.gender ?? "",
@@ -248,6 +254,9 @@ export default function SettingsForm() {
       });
       setVdot(payload.vdot);
       setMaxHR(payload.maxHR);
+      setVdotRaceDistance(payload.vdotRaceDistance);
+      setVdotRaceMinutes(payload.vdotRaceMinutes);
+      setVdotRaceSeconds(payload.vdotRaceSeconds);
       setEasyOff(0);
       setTempoOff(0);
       setIntervalOff(0);
@@ -313,9 +322,9 @@ export default function SettingsForm() {
         longRunDay: effectiveLongRunDay,
         maxHR,
         currentVdot: vdot,
-        vdotRaceDistance: settings.vdotRaceDistance,
-        vdotRaceMinutes: settings.vdotRaceMinutes,
-        vdotRaceSeconds: settings.vdotRaceSeconds,
+        vdotRaceDistance,
+        vdotRaceMinutes,
+        vdotRaceSeconds,
         age,
         gender: vdotPersonal.gender || null,
         weightKg,
@@ -550,9 +559,9 @@ export default function SettingsForm() {
           onMaxHRChange={setMaxHR}
           personal={vdotPersonal}
           onPersonalChange={setVdotPersonal}
-          seedRaceDistance={settings.vdotRaceDistance}
-          seedRaceMinutes={settings.vdotRaceMinutes}
-          seedRaceSeconds={settings.vdotRaceSeconds ?? 0}
+          seedRaceDistance={vdotRaceDistance}
+          seedRaceMinutes={vdotRaceMinutes}
+          seedRaceSeconds={vdotRaceSeconds ?? 0}
           onApply={(nextVdot) => {
             setVdot(nextVdot);
             setVdotUpdatedMsg(`VDOT updated to ${nextVdot}`);

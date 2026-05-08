@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import type { Day, PlanConfig } from "@/data/trainingPlan";
 import { useSettings } from "@/context/SettingsContext";
 import { getDefaultLongRunDay, getScheduleWarnings } from "@/lib/generatePlan";
-import VdotCalculator from "@/components/VdotCalculator";
+import VdotCalculator, { type VdotPersonalFields } from "@/components/VdotCalculator";
 import { FORM_CONTROL_TW } from "@/lib/formControlClasses";
 
 type Level = "BEGINNER" | "INTERMEDIATE" | "ADVANCED";
@@ -91,10 +91,28 @@ export default function OnboardingPage() {
   const [level, setLevel] = useState<Level | null>((settings.experienceLevel as Level | null) ?? null);
   const [planLengthWeeks, setPlanLengthWeeks] = useState<12 | 16 | 20>((settings.planLengthWeeks as 12 | 16 | 20 | null) ?? 16);
   const [calculatedVdot, setCalculatedVdot] = useState<number | null>(null);
+  const [maxHR, setMaxHR] = useState<number>(settings.maxHR);
+  const [vdotPersonal, setVdotPersonal] = useState<VdotPersonalFields>({
+    ageInput: settings.age != null ? String(settings.age) : "",
+    gender: settings.gender ?? "",
+    weightInput: settings.weightKg != null && Number.isFinite(settings.weightKg) ? String(settings.weightKg) : "",
+    runningExperience: settings.runningExperience ?? "",
+  });
+  const [fitnessPayload, setFitnessPayload] = useState<{
+    vdot: number;
+    maxHR: number;
+    vdotRaceDistance: string;
+    vdotRaceMinutes: number;
+    vdotRaceSeconds: number;
+    age: number | null;
+    gender: string | null;
+    weightKg: number | null;
+    runningExperience: string | null;
+  } | null>(null);
   const [suggestedLevel, setSuggestedLevel] = useState<Level | null>(null);
   const [skipFitnessStep, setSkipFitnessStep] = useState(false);
-  const [targetHours, setTargetHours] = useState<number>(1);
-  const [targetMinutes, setTargetMinutes] = useState<number>(55);
+  const [targetHoursInput, setTargetHoursInput] = useState<string>("1");
+  const [targetMinutesInput, setTargetMinutesInput] = useState<string>("55");
   const [skipFinishTime, setSkipFinishTime] = useState(false);
   const [trainingDays, setTrainingDays] = useState<Day[]>(() => {
     try {
@@ -137,7 +155,12 @@ export default function OnboardingPage() {
     if (step === 2) return level != null;
     if (step === 3) return [12, 16, 20].includes(planLengthWeeks);
     if (step === 4) return skipFitnessStep || calculatedVdot != null;
-    if (step === 5) return skipFinishTime || (targetHours >= 0 && targetMinutes >= 0 && targetMinutes < 60);
+    if (step === 5) {
+      if (skipFinishTime) return true;
+      const h = parseInt(targetHoursInput, 10);
+      const m = parseInt(targetMinutesInput, 10);
+      return Number.isFinite(h) && h >= 0 && Number.isFinite(m) && m >= 0 && m < 60;
+    }
     if (step === 6) return trainingDays.length >= 2 && trainingDays.length <= 6;
     if (step === 7) return sortedTrainingDays.length >= 2 && effectiveLongRunDay != null;
     return true;
@@ -153,15 +176,32 @@ export default function OnboardingPage() {
 
   async function complete() {
     if (!level || !goalRace || trainingDays.length < 2) return;
+    const parsedTargetHours = parseInt(targetHoursInput, 10) || 0;
+    const parsedTargetMinutes = parseInt(targetMinutesInput, 10) || 0;
+    const parsedAgeRaw = vdotPersonal.ageInput.trim() === "" ? null : Number(vdotPersonal.ageInput);
+    const parsedAge = parsedAgeRaw != null && Number.isFinite(parsedAgeRaw) ? Math.round(parsedAgeRaw) : null;
+    const parsedWeightRaw = vdotPersonal.weightInput.trim() === "" ? null : Number(vdotPersonal.weightInput);
+    const parsedWeight = parsedWeightRaw != null && Number.isFinite(parsedWeightRaw) ? parsedWeightRaw : null;
     setSaving(true);
-    const finishMins = skipFinishTime ? null : (targetHours * 60 + targetMinutes);
+    const finishMins = skipFinishTime ? null : (parsedTargetHours * 60 + parsedTargetMinutes);
+    const effectiveFitness = fitnessPayload ?? {
+      vdot: calculatedVdot ?? settings.currentVdot,
+      maxHR,
+      vdotRaceDistance: settings.vdotRaceDistance ?? "5",
+      vdotRaceMinutes: settings.vdotRaceMinutes ?? 0,
+      vdotRaceSeconds: settings.vdotRaceSeconds ?? 0,
+      age: parsedAge,
+      gender: vdotPersonal.gender || null,
+      weightKg: parsedWeight,
+      runningExperience: vdotPersonal.runningExperience || null,
+    };
     const planConfig: PlanConfig = {
       level,
       goal: goalRace === "FULL" ? "full" : "hm",
       weeks: planLengthWeeks,
       days: sortedTrainingDays,
       longRunDay: effectiveLongRunDay ?? undefined,
-      vdot: calculatedVdot ?? settings.currentVdot,
+      vdot: effectiveFitness.vdot,
     };
     try {
       await updateSettings({
@@ -171,6 +211,15 @@ export default function OnboardingPage() {
         trainingDays: JSON.stringify(sortedTrainingDays),
         longRunDay: effectiveLongRunDay,
         targetFinishTime: finishMins,
+        currentVdot: effectiveFitness.vdot,
+        maxHR: effectiveFitness.maxHR,
+        vdotRaceDistance: effectiveFitness.vdotRaceDistance,
+        vdotRaceMinutes: effectiveFitness.vdotRaceMinutes,
+        vdotRaceSeconds: effectiveFitness.vdotRaceSeconds,
+        age: effectiveFitness.age,
+        gender: effectiveFitness.gender,
+        weightKg: effectiveFitness.weightKg,
+        runningExperience: effectiveFitness.runningExperience,
       });
 
       const token = process.env.NEXT_PUBLIC_PLANS_API_TOKEN;
@@ -249,11 +298,29 @@ export default function OnboardingPage() {
             Enter a recent race time or timed 5K to calculate your VDOT score.
           </p>
           <VdotCalculator
+            maxHR={maxHR}
+            onMaxHRChange={setMaxHR}
+            personal={vdotPersonal}
+            onPersonalChange={setVdotPersonal}
+            seedRaceDistance={settings.vdotRaceDistance}
+            seedRaceMinutes={settings.vdotRaceMinutes}
+            seedRaceSeconds={settings.vdotRaceSeconds ?? 0}
             onApply={(nextVdot) => {
               setCalculatedVdot(nextVdot);
             }}
             onLevelSuggested={(nextLevel) => {
               setSuggestedLevel(nextLevel);
+            }}
+            onFitnessSave={(payload) => {
+              setFitnessPayload(payload);
+              setCalculatedVdot(payload.vdot);
+              setMaxHR(payload.maxHR);
+              setVdotPersonal({
+                ageInput: payload.age != null ? String(payload.age) : "",
+                gender: payload.gender ?? "",
+                weightInput: payload.weightKg != null ? String(payload.weightKg) : "",
+                runningExperience: payload.runningExperience ?? "",
+              });
             }}
           />
           {suggestedLevel && (
@@ -283,19 +350,22 @@ export default function OnboardingPage() {
           </p>
           <div className="flex items-center gap-2">
             <input
-              type="number"
-              min={0}
-              value={targetHours}
-              onChange={(e) => setTargetHours(Number(e.target.value))}
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              value={targetHoursInput}
+              onChange={(e) => setTargetHoursInput(e.target.value)}
+              placeholder="0"
               className={`min-h-11 w-24 rounded-md px-3 py-2 text-sm outline-none ${FORM_CONTROL_TW}`}
             />
             <span>hours</span>
             <input
-              type="number"
-              min={0}
-              max={59}
-              value={targetMinutes}
-              onChange={(e) => setTargetMinutes(Number(e.target.value))}
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              value={targetMinutesInput}
+              onChange={(e) => setTargetMinutesInput(e.target.value)}
+              placeholder="00"
               className={`min-h-11 w-24 rounded-md px-3 py-2 text-sm outline-none ${FORM_CONTROL_TW}`}
             />
             <span>minutes</span>
