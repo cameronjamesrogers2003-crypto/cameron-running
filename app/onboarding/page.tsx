@@ -6,6 +6,7 @@ import type { Day, PlanConfig } from "@/data/trainingPlan";
 import { useSettings } from "@/context/SettingsContext";
 import { getDefaultLongRunDay, getScheduleWarnings } from "@/lib/generatePlan";
 import VdotCalculator from "@/components/VdotCalculator";
+import { FORM_CONTROL_TW } from "@/lib/formControlClasses";
 
 type Level = "BEGINNER" | "INTERMEDIATE" | "ADVANCED";
 type GoalRace = "HALF" | "FULL";
@@ -281,9 +282,22 @@ export default function OnboardingPage() {
             Don&apos;t worry if you&apos;re unsure — you can update this later in Settings.
           </p>
           <div className="flex items-center gap-2">
-            <input type="number" min={0} value={targetHours} onChange={(e) => setTargetHours(Number(e.target.value))} className="w-24 rounded px-3 py-2 bg-black/20 border border-white/10 text-white" />
+            <input
+              type="number"
+              min={0}
+              value={targetHours}
+              onChange={(e) => setTargetHours(Number(e.target.value))}
+              className={`min-h-11 w-24 rounded-md px-3 py-2 text-sm outline-none ${FORM_CONTROL_TW}`}
+            />
             <span>hours</span>
-            <input type="number" min={0} max={59} value={targetMinutes} onChange={(e) => setTargetMinutes(Number(e.target.value))} className="w-24 rounded px-3 py-2 bg-black/20 border border-white/10 text-white" />
+            <input
+              type="number"
+              min={0}
+              max={59}
+              value={targetMinutes}
+              onChange={(e) => setTargetMinutes(Number(e.target.value))}
+              className={`min-h-11 w-24 rounded-md px-3 py-2 text-sm outline-none ${FORM_CONTROL_TW}`}
+            />
             <span>minutes</span>
           </div>
           <button className="text-sm underline" onClick={() => setSkipFinishTime(true)} type="button">Skip for now</button>

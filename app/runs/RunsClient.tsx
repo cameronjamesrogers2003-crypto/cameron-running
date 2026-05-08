@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { classifyRunByPaceZones, parseRatingBreakdown } from "@/lib/rating";
 import type { RunType } from "@/data/trainingPlan";
 import { formatPace, formatDuration } from "@/lib/settings";
+import { FORM_CONTROL_TW } from "@/lib/formControlClasses";
 
 interface Run {
   id: string;
@@ -258,6 +259,8 @@ export default function RunsClient({
     });
   }
 
+  const filterControlBase = `min-h-11 rounded-md outline-none ${FORM_CONTROL_TW}`;
+
   return (
     <div className="space-y-4">
       {/* ── Filter panel ───────────────────────────────────────────────── */}
@@ -271,8 +274,7 @@ export default function RunsClient({
           placeholder="Search by name…"
           value={search}
           onChange={e => setSearch(e.target.value)}
-          className="w-full min-h-11 rounded-md px-3 py-2 text-sm text-white outline-none"
-          style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}
+          className={`w-full px-3 py-2 text-sm ${filterControlBase}`}
         />
 
         <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
@@ -303,16 +305,14 @@ export default function RunsClient({
                 type="date"
                 value={dateFrom}
                 onChange={e => setDateFrom(e.target.value)}
-                className="min-h-11 flex-1 min-w-0 rounded-md px-2 py-2 text-xs text-white outline-none"
-                style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}
+                className={`flex-1 min-w-0 px-2 py-2 text-xs ${filterControlBase}`}
               />
               <span className="text-xs shrink-0" style={{ color: "var(--text-muted)" }}>to</span>
               <input
                 type="date"
                 value={dateTo}
                 onChange={e => setDateTo(e.target.value)}
-                className="min-h-11 flex-1 min-w-0 rounded-md px-2 py-2 text-xs text-white outline-none"
-                style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}
+                className={`flex-1 min-w-0 px-2 py-2 text-xs ${filterControlBase}`}
               />
             </div>
           </div>
@@ -326,16 +326,14 @@ export default function RunsClient({
                 placeholder="Dist ≥"
                 value={distMin}
                 onChange={e => setDistMin(e.target.value)}
-                className="min-h-11 w-full sm:w-24 rounded-md px-2 py-2 text-xs text-white outline-none"
-                style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}
+                className={`w-full sm:w-24 px-2 py-2 text-xs ${filterControlBase}`}
               />
               <input
                 type="number"
                 placeholder="≤ km"
                 value={distMax}
                 onChange={e => setDistMax(e.target.value)}
-                className="min-h-11 w-full sm:w-24 rounded-md px-2 py-2 text-xs text-white outline-none"
-                style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}
+                className={`w-full sm:w-24 px-2 py-2 text-xs ${filterControlBase}`}
               />
             </div>
           </div>
