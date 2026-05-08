@@ -6,10 +6,9 @@ import {
   getPlanWeekForDate,
   getSessionDate,
   getWeeklyTargetKm,
-  getNextPhaseInfo,
   isActivityOnOrAfterPlanStart,
 } from "@/lib/planUtils";
-import { formatAEST, formatDistanceToNowAEST, sameDayAEST, startOfDayAEST } from "@/lib/dateUtils";
+import { formatAEST, formatDistanceToNowAEST, sameDayAEST, startOfDayAEST, toBrisbaneYmd } from "@/lib/dateUtils";
 import { inferRunType } from "@/lib/rating";
 import { dbSettingsToUserSettings, DEFAULT_SETTINGS } from "@/lib/settings";
 import { parseInterruptionType, reconfigurePlan, type PlanInterruption } from "@/lib/interruptions";
@@ -505,8 +504,9 @@ export default async function Dashboard({
         return sameDayAEST(d, date) && isActivityOnOrAfterPlanStart(d, planStart);
       });
       const future = date >= todayAESTMidnight;
-      const missed = !completed && !future;
-      return { session, date, completed, future, missed, dayLabel: DAY_LABEL[session.day] };
+      const active = isActivityOnOrAfterPlanStart(date, planStart);
+      const missed = !completed && !future && active;
+      return { session, date, completed, future, missed, active, dayLabel: DAY_LABEL[session.day] };
     });
 
   const lastWeekPlan = planToRender.find((week) => week.week === currentWeek - 1);
@@ -530,7 +530,12 @@ export default async function Dashboard({
       ((currentWeek - phaseStart) / Math.max(1, phaseEnd - phaseStart + 1)) * 100
     )
   );
-  const nextPhase = getNextPhaseInfo(currentPhase);
+  const totalWeeks = planToRender.length;
+  const raceSpecificWeek =
+    planToRender.find((w) => {
+      const phase = w.phase.toLowerCase();
+      return phase.includes("build") || phase.includes("race specific");
+    })?.week ?? null;
 
   // ── Sync timestamps (Strava) ──────────────────────────────────────────────
   const lastSyncedAt = lastSyncRow?.syncedAt?.toISOString() ?? null;
@@ -924,7 +929,7 @@ export default async function Dashboard({
                 You missed {lastWeekMisses} session{lastWeekMisses === 1 ? "" : "s"} last week
               </p>
             )}
-            {sessionChecklist.map(({ session, date, completed, future, missed, dayLabel }) => (
+            {sessionChecklist.map(({ session, date, completed, future, missed, active, dayLabel }) => (
               <div key={session.day} className="flex items-start gap-2.5">
                 <div
                   className="w-4 h-4 rounded mt-0.5 flex items-center justify-center text-xs flex-shrink-0"
@@ -942,7 +947,7 @@ export default async function Dashboard({
                 <div className="flex-1 min-w-0">
                   <p
                     className="text-xs font-medium leading-tight capitalize"
-                    style={{ color: completed ? "var(--text-muted)" : "white" }}
+                    style={{ color: !active || completed ? "var(--text-muted)" : "white" }}
                   >
                     {dayLabel} · {session.type}{" "}
                     {session.targetDistanceKm} km @ {formatTargetPace(session.targetPaceMinPerKm)}
@@ -971,7 +976,7 @@ export default async function Dashboard({
           <SectionLabel>Phase Progress</SectionLabel>
           <p className="text-sm font-semibold text-white mt-2">{currentPhase}</p>
           <p className="text-xs mt-0.5 mb-2" style={{ color: "var(--text-muted)" }}>
-            Week {currentWeek - phaseStart + 1} of {phaseEnd - phaseStart + 1}
+            Week {currentWeek} of {totalWeeks}
           </p>
           <div
             className="h-1.5 rounded-full overflow-hidden mb-3"
@@ -985,9 +990,9 @@ export default async function Dashboard({
               }}
             />
           </div>
-          {nextPhase ? (
+          {raceSpecificWeek != null ? (
             <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-              {nextPhase.label} starts Week {nextPhase.week}
+              Race Specific starts Week {raceSpecificWeek}
             </p>
           ) : (
             <p className="text-xs" style={{ color: "var(--text-muted)" }}>
@@ -998,7 +1003,7 @@ export default async function Dashboard({
 
         {/* Plan start reference */}
         <p className="text-xs px-1" style={{ color: "rgba(156,163,175,0.4)" }}>
-          Plan starts {formatAEST(planStart, "d MMM yyyy")}
+          Plan starts {formatAEST(toBrisbaneYmd(planStart), "d MMM yyyy")}
         </p>
 
       </aside>
