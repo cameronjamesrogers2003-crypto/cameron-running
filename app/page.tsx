@@ -528,7 +528,7 @@ export default async function Dashboard({
 
         <PlayerCard
           ovr={playerRating?.overall ?? 1}
-          name={settings.name ?? "RUNNER"}
+          name={profile?.name ?? "RUNNER"}
           spd={playerRating?.speed ?? 1}
           end={playerRating?.endurance ?? 1}
           con={playerRating?.consistency ?? 1}
