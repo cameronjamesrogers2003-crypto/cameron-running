@@ -1,6 +1,8 @@
 @import "tailwindcss";
 
 :root {
+  --bg: #0f0f0f;
+  --bg-2: #181818;
   --background: #0f0f0f;
   --surface: #181818;
   --surface-2: #222222;
@@ -31,6 +33,31 @@
   --text-label: rgba(255, 255, 255, 0.38);
 }
 
+.light {
+  --bg: #f0f2f5;
+  --bg-2: #ffffff;
+  --background: #f0f2f5;
+  --surface: #ffffff;
+  --surface-2: #ffffff;
+
+  --text: #111827;
+  --text-muted: rgba(17,24,39,0.55);
+  --text-dim: rgba(17,24,39,0.35);
+  --text-label: rgba(17,24,39,0.40);
+
+  --card-bg: rgba(255,255,255,0.90);
+  --card-border: rgba(0,0,0,0.08);
+
+  --accent: #0d9488;
+  --accent-dim: rgba(13,148,136,0.12);
+  --accent-border: rgba(13,148,136,0.25);
+
+  --c-easy: #0284c7;
+  --c-tempo: #0d9488;
+  --c-interval: #ea580c;
+  --c-long: #7c3aed;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-surface: var(--surface);
@@ -53,6 +80,112 @@ body {
   color: var(--text);
   min-height: 100vh;
   overflow-x: hidden;
+}
+
+.light body {
+  background: var(--bg);
+  color: var(--text);
+}
+
+.light .dark\:bg-white\/\[0\.04\] {
+  background: rgba(255,255,255,0.90) !important;
+}
+
+.light .dark\:border-white\/\[0\.08\] {
+  border-color: rgba(0,0,0,0.08) !important;
+}
+
+.light .dark\:text-white {
+  color: #111827 !important;
+}
+
+.light .rounded-2xl {
+  background: white !important;
+  border-color: rgba(0,0,0,0.06) !important;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08),
+              0 1px 2px rgba(0,0,0,0.06) !important;
+}
+
+.light .bg-white\/\[0\.04\] {
+  background: white !important;
+}
+
+.light .bg-white\/\[0\.06\] {
+  background: rgba(0,0,0,0.04) !important;
+}
+
+.light .bg-white\/\[0\.08\] {
+  background: rgba(0,0,0,0.06) !important;
+}
+
+.light .border-white\/\[0\.08\] {
+  border-color: rgba(0,0,0,0.08) !important;
+}
+
+.light .border-white\/\[0\.06\] {
+  border-color: rgba(0,0,0,0.06) !important;
+}
+
+.light .border-white\/\[0\.10\] {
+  border-color: rgba(0,0,0,0.10) !important;
+}
+
+.light .text-white {
+  color: #111827 !important;
+}
+
+.light .text-white\/\[0\.50\] {
+  color: rgba(17,24,39,0.55) !important;
+}
+
+.light .text-white\/\[0\.40\] {
+  color: rgba(17,24,39,0.45) !important;
+}
+
+.light .text-white\/30 {
+  color: rgba(17,24,39,0.30) !important;
+}
+
+.light [style*="var(--accent)"] {
+  color: #0d9488;
+}
+
+.light [style*="var(--c-easy)"] {
+  color: #0284c7;
+}
+
+.light [style*="var(--c-tempo)"] {
+  color: #0d9488;
+}
+
+.light [style*="var(--c-interval)"] {
+  color: #ea580c;
+}
+
+.light [style*="var(--c-long)"] {
+  color: #7c3aed;
+}
+
+.light .rs-sidebar,
+.light nav[class*="sidebar"] {
+  background: rgba(255,255,255,0.92) !important;
+  border-color: rgba(0,0,0,0.08) !important;
+}
+
+.light nav[class*="bottomnav"],
+.light .fixed.bottom-0 {
+  background: rgba(255,255,255,0.95) !important;
+  border-color: rgba(0,0,0,0.08) !important;
+}
+
+.light header,
+.light .sticky.top-0 {
+  background: rgba(255,255,255,0.92) !important;
+  border-color: rgba(0,0,0,0.06) !important;
+}
+
+.light nav .text-white\/50 {
+  color: rgba(0,0,0,0.45) !important;
 }
 
 * {

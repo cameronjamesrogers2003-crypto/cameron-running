@@ -1,5 +1,6 @@
 import prisma from "@/lib/db";
-import PlayerCard, { TIERS, getTier } from "@/components/PlayerCard";
+import PlayerCard from "@/components/PlayerCard";
+import { TIERS, getTier } from "@/lib/playerCardTiers";
 import { RunTypePill } from "@/components/RunTypePill";
 import { buildTrainingPlan, type TrainingWeek } from "@/data/trainingPlan";
 import { inferRunType, type StatActivity } from "@/lib/rating";

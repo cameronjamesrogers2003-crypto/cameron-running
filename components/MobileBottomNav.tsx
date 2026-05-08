@@ -25,7 +25,7 @@ export default function MobileBottomNav() {
 
   return (
     <nav
-      className="lg:hidden fixed bottom-0 left-0 right-0 bg-black/90 backdrop-blur-xl border-t border-white/[0.08] z-50"
+      className="bottomnav lg:hidden fixed bottom-0 left-0 right-0 bg-black/90 backdrop-blur-xl border-t border-white/[0.08] z-50"
       style={{
         paddingBottom: "max(env(safe-area-inset-bottom), 0.25rem)",
       }}

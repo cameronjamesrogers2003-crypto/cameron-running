@@ -10,6 +10,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { useMediaQuery } from "@/lib/useMediaQuery";
+import { useTheme } from "@/context/ThemeContext";
 
 interface PaceData {
   week: string;
@@ -30,9 +31,13 @@ const TOOLTIP_STYLE = {
 };
 
 export default function AvgPaceTrendChart({ data }: { data: PaceData[] }) {
+  const { theme } = useTheme();
   const compact = useMediaQuery("(max-width: 767px)");
   const tickSize = compact ? 9 : 11;
   const tipSize = compact ? 11 : 12;
+  const gridColor = theme === "light" ? "rgba(0,0,0,0.08)" : "rgba(255,255,255,0.06)";
+  const textColor = theme === "light" ? "rgba(0,0,0,0.45)" : "rgba(255,255,255,0.40)";
+  const barColor = theme === "light" ? "#0d9488" : "var(--accent)";
 
   return (
     <div className="w-full min-w-0 -mx-1 sm:mx-0">
@@ -43,18 +48,18 @@ export default function AvgPaceTrendChart({ data }: { data: PaceData[] }) {
         >
         <CartesianGrid
           strokeDasharray="3 3"
-          stroke="rgba(255,255,255,0.06)"
+          stroke={gridColor}
           vertical={false}
         />
         <XAxis
           dataKey="week"
-          tick={{ fill: "#9ca3af", fontSize: tickSize }}
+          tick={{ fill: textColor, fontSize: tickSize }}
           axisLine={false}
           tickLine={false}
         />
         <YAxis
           tickFormatter={secKmToLabel}
-          tick={{ fill: "#9ca3af", fontSize: tickSize }}
+          tick={{ fill: textColor, fontSize: tickSize }}
           axisLine={false}
           tickLine={false}
           width={compact ? 40 : 52}
@@ -64,15 +69,15 @@ export default function AvgPaceTrendChart({ data }: { data: PaceData[] }) {
         <Tooltip
           contentStyle={{ ...TOOLTIP_STYLE, fontSize: tipSize }}
           labelStyle={{ color: "#fff", marginBottom: 4, fontSize: tipSize }}
-          itemStyle={{ color: "#9ca3af", fontSize: tipSize }}
+          itemStyle={{ color: textColor, fontSize: tipSize }}
           formatter={(value) => [`${secKmToLabel(value as number)} /km`, "Avg Pace"]}
           cursor={{ stroke: "rgba(255,255,255,0.1)" }}
         />
         <Line
           dataKey="paceSecKm"
-          stroke="#60a5fa"
+          stroke={barColor}
           strokeWidth={2}
-          dot={{ fill: "#60a5fa", r: 3, strokeWidth: 0 }}
+          dot={{ fill: barColor, r: 3, strokeWidth: 0 }}
           activeDot={{ r: 4 }}
           connectNulls={false}
           name="Avg Pace"
