@@ -434,9 +434,11 @@ export default async function CalendarPage({
   return (
     <div className="space-y-5">
       {/* ── Page header ──────────────────────────────────────────────────── */}
-      <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-        <Logo size="sm" showWordmark={false} />
-        <h1 className="text-2xl font-bold tracking-tight text-white">Calendar</h1>
+      <div className="flex items-start justify-between mb-6 pt-2">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+          <Logo size="sm" showWordmark={false} />
+          <h1 className="text-2xl font-bold tracking-tight text-white">Calendar</h1>
+        </div>
       </div>
 
       {/* ── Top strip ───────────────────────────────────────────────────── */}
