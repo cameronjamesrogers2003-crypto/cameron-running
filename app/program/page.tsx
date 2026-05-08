@@ -386,7 +386,7 @@ export default async function ProgramPage({
                 return (
                   <div
                     key={planWeek.week}
-                    className="rounded-xl px-3 py-2.5"
+                    className="rounded-xl px-3 py-2.5 mb-6"
                     style={{
                       background: isCurrentWeek
                         ? "rgba(20,184,166,0.03)"
@@ -490,8 +490,8 @@ export default async function ProgramPage({
                       {/* Session cards + extra runs */}
                       <div className="flex-1 min-w-0 w-full space-y-2">
                         <div
-                          className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-2 min-w-0 w-full"
-                          style={{ gridTemplateColumns: `repeat(${Math.min(planWeek.sessions.length, 6)}, 1fr)` }}
+                          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 overflow-x-auto min-w-0 w-full"
+                          style={{ gridTemplateColumns: `repeat(${planWeek.sessions.length}, minmax(160px, 1fr))` }}
                         >
                         {planWeek.sessions.map((session) => {
                           const sessionDate = getSessionDate(planWeek.week, session.day, planStart);
@@ -541,7 +541,7 @@ export default async function ProgramPage({
                           return (
                             <div
                               key={session.day}
-                              className="rounded-2xl overflow-hidden border border-white/[0.08]"
+                              className="rounded-2xl overflow-hidden border border-white/[0.08] min-w-[160px]"
                               style={{
                                 background: cardBg,
                                 borderLeft: leftBorder,
@@ -618,7 +618,7 @@ export default async function ProgramPage({
 
                               {/* Warm-up / cool-down */}
                               <p
-                                className="text-[11px] mb-1.5 leading-snug"
+                                className="hidden sm:block text-[11px] mb-1.5 leading-snug"
                                 style={{ color: "rgba(232,230,224,0.25)" }}
                               >
                                 {WARMUP_COOLDOWN[session.type]}
@@ -667,7 +667,7 @@ export default async function ProgramPage({
                       </div>
 
                       {/* Total km + volume change */}
-                      <div className="w-full sm:w-16 shrink-0 text-left sm:text-right pt-0 sm:pt-1 flex sm:block items-center justify-between sm:justify-end gap-2">
+                      <div className="w-full sm:w-16 shrink-0 text-right ml-4 pt-0 sm:pt-1 flex sm:block items-center justify-between sm:justify-end gap-2">
                         <p className="text-sm font-bold text-white font-mono">{weekTotalKm.toFixed(1)}</p>
                         <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>km</p>
                         {volumeChange !== null && (

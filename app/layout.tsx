@@ -29,7 +29,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <SettingsProvider>
           <Nav />
           <main className="flex-1 w-full min-w-0 px-4 pb-24 pt-2 lg:px-6 lg:pb-8 lg:pt-4 lg:pl-64">
-            <div className="max-w-[900px] mx-auto w-full">{children}</div>
+            <div className="max-w-[1100px] mx-auto w-full">{children}</div>
           </main>
           <MobileBottomNav />
         </SettingsProvider>

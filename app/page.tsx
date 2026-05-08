@@ -880,7 +880,7 @@ export default async function Dashboard({
       </div>
 
       {/* ── Sidebar ──────────────────────────────────────────────────────── */}
-      <aside className="w-[220px] shrink-0 space-y-3 hidden lg:block">
+      <aside className="w-[220px] min-w-[220px] shrink-0 space-y-3 hidden lg:block">
         <PlanAdaptationCards initialItems={planAdaptations.map((item) => ({
           id: item.id,
           weekNumber: item.weekNumber,
@@ -935,7 +935,7 @@ export default async function Dashboard({
               return (
                 <div
                   key={session.day}
-                  className={`flex items-center gap-2.5 ${completed ? "opacity-100" : missed ? "opacity-60" : future ? "opacity-70" : ""}`}
+                  className={`flex items-center gap-2 flex-nowrap overflow-hidden ${completed ? "opacity-100" : missed ? "opacity-60" : future ? "opacity-70" : ""}`}
                   style={{ borderLeft: `3px solid ${leftBorderColor}`, paddingLeft: "12px", marginLeft: "4px", opacity: rowOpacity }}
                 >
                   <div
@@ -954,12 +954,12 @@ export default async function Dashboard({
                   >
                     {completed ? "✓" : missed ? "×" : prePlan ? "—" : ""}
                   </div>
-                  <div className="flex-1 min-w-0 flex items-center justify-between gap-2">
+                  <div className="flex-1 min-w-0 flex items-center gap-2 flex-nowrap overflow-hidden">
                     <p className="text-sm font-semibold text-white">{dayLabel}</p>
-                    <p className="text-sm font-mono text-white capitalize">
+                    <p className="text-sm truncate flex-1 min-w-0 font-mono text-white capitalize">
                       {session.type} {session.targetDistanceKm} km
                     </p>
-                    <p className="text-xs shrink-0" style={{ color: "var(--text-dim)" }}>
+                    <p className="text-xs shrink-0 ml-auto" style={{ color: "var(--text-dim)" }}>
                       {formatAEST(date, "d MMM")}
                     </p>
                   </div>
