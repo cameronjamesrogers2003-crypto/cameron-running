@@ -41,12 +41,12 @@ export default function Nav() {
 
       {/* Desktop sidebar */}
       <aside className="rs-sidebar hidden lg:flex flex-col fixed left-0 top-0 bottom-0 w-56 bg-black/60 backdrop-blur-xl border-r border-white/[0.08] z-40">
-        <div className="px-4 pt-4 pb-3 border-b border-white/[0.08]">
-          <Link href="/" className="inline-flex items-center gap-2 transition-opacity hover:opacity-80">
-            <Logo size="sm" showWordmark={false} />
-            <span className="text-base font-black tracking-tight text-white">Runshift</span>
+        <div className="px-4 pt-4 pb-3.5 border-b border-white/[0.08]">
+          <Link href="/" className="inline-flex items-center gap-2.5 transition-opacity hover:opacity-80">
+            <Logo size="md" showWordmark={false} className="scale-[0.72] origin-left" />
+            <span className="text-[1.35rem] leading-none font-extrabold tracking-tight text-white">Runshift</span>
           </Link>
-          <div className="mt-2">
+          <div className="mt-2.5">
             <SidebarSubtitle />
           </div>
         </div>
