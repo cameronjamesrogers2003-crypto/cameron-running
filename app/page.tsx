@@ -98,14 +98,14 @@ function formatTargetPace(minPerKm: number): string {
 function PlayerCard({ rating }: { rating: PlayerRatingLike | null }) {
   if (!rating) {
     return (
-      <Card className="rs-card rs-player-card">
+      <Card className="p-5">
         <SectionLabel>Player Card</SectionLabel>
-        <div className="rs-player-card__empty" style={{ background: "#0b1020" }}>
-          <p className="rs-player-card__ovr rs-mono">--</p>
-          <p className="rs-player-card__ovr-label" style={{ color: "var(--text-muted)" }}>
+        <div className="mt-4 rounded-2xl p-5 text-center" style={{ background: "#0b1020" }}>
+          <p className="text-5xl font-black text-white tabular-nums">--</p>
+          <p className="text-xs uppercase tracking-[0.3em] font-bold" style={{ color: "var(--text-muted)" }}>
             OVR
           </p>
-          <p className="rs-player-card__hint" style={{ color: "var(--text-muted)" }}>
+          <p className="text-sm mt-4" style={{ color: "var(--text-muted)" }}>
             Visit /api/player-rating/initialize after deployment to seed your first rating.
           </p>
         </div>
@@ -117,9 +117,9 @@ function PlayerCard({ rating }: { rating: PlayerRatingLike | null }) {
   const accent = playerRatingAccent(overall);
 
   return (
-    <Card className="rs-card rs-player-card">
+    <Card className="p-4 sm:p-5 overflow-hidden">
       <div
-        className="rs-player-card__shell"
+        className="relative rounded-3xl p-5 sm:p-6"
         style={{
           background:
             "radial-gradient(circle at 22% 0%, rgba(250,204,21,0.25), transparent 32%), linear-gradient(145deg, #101827 0%, #0b1020 48%, #050816 100%)",
@@ -128,48 +128,48 @@ function PlayerCard({ rating }: { rating: PlayerRatingLike | null }) {
         }}
       >
         <div
-          className="rs-player-card__shine"
+          className="absolute inset-x-7 top-0 h-px"
           style={{ background: "linear-gradient(90deg, transparent, rgba(250,204,21,0.8), transparent)" }}
         />
-        <div className="rs-player-card__content">
-          <div className="rs-player-card__identity">
+        <div className="relative flex flex-col gap-5 md:flex-row md:items-center">
+          <div className="flex items-center gap-4 md:w-48 md:flex-col md:items-start">
             <div>
-              <p className="rs-player-card__ovr rs-mono" style={{ color: accent }}>
+              <p className="text-6xl sm:text-7xl font-black leading-none tabular-nums" style={{ color: accent }}>
                 {overall}
               </p>
-              <p className="rs-player-card__ovr-label">OVR</p>
+              <p className="text-xs uppercase tracking-[0.35em] font-extrabold text-white">OVR</p>
             </div>
-            <div className="rs-player-card__name-wrap">
-              <p className="rs-player-card__name">Cameron</p>
-              <p className="rs-player-card__sub" style={{ color: "rgba(255,255,255,0.55)" }}>
+            <div className="min-w-0">
+              <p className="text-lg font-black uppercase tracking-wide text-white">Cameron</p>
+              <p className="text-xs uppercase tracking-[0.2em]" style={{ color: "rgba(255,255,255,0.55)" }}>
                 Running Card
               </p>
             </div>
           </div>
 
-          <div className="rs-player-card__stats">
+          <div className="grid flex-1 gap-3">
             {PLAYER_RATING_ATTRIBUTES.map((attr) => {
               const value = Math.round(rating[attr.key]);
               const width = Math.min(100, Math.max(0, (value / 99) * 100));
               const barColor = playerRatingAccent(value);
               return (
-                <div key={attr.key} className="rs-player-card__stat-row">
+                <div key={attr.key} className="grid grid-cols-[42px_1fr_34px] items-center gap-3">
                   <div>
-                    <p className="rs-player-card__attr-label">{attr.label}</p>
-                    <p className="rs-player-card__attr-name" style={{ color: "rgba(255,255,255,0.45)" }}>
+                    <p className="text-xs font-black tracking-wider text-white">{attr.label}</p>
+                    <p className="text-[10px] hidden sm:block" style={{ color: "rgba(255,255,255,0.45)" }}>
                       {attr.name}
                     </p>
                   </div>
-                  <div className="rs-player-card__meter" style={{ background: "rgba(255,255,255,0.10)" }}>
+                  <div className="h-2.5 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.10)" }}>
                     <div
-                      className="rs-player-card__meter-fill"
+                      className="h-full rounded-full"
                       style={{
                         width: `${width}%`,
                         background: `linear-gradient(90deg, ${barColor}, rgba(255,255,255,0.88))`,
                       }}
                     />
                   </div>
-                  <p className="rs-player-card__value rs-mono">{value}</p>
+                  <p className="text-sm font-black text-right tabular-nums text-white">{value}</p>
                 </div>
               );
             })}
@@ -205,7 +205,10 @@ function Card({
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <p className="rs-stat-label" style={{ color: "var(--text-muted)" }}>
+    <p
+      className="text-xs uppercase tracking-wider"
+      style={{ color: "var(--text-muted)" }}
+    >
       {children}
     </p>
   );
@@ -561,36 +564,34 @@ export default async function Dashboard({
 
   // ─────────────────────────────────────────────────────────────────────────
   return (
-    <div className="rs-page">
-      <div className="rs-page__head">
-        <div>
-          <p className="rs-page__greeting">Dashboard</p>
-          <h1 className="rs-page__title">Today&apos;s training</h1>
-        </div>
-        <p className="rs-page__date">{formatAEST(today, "EEEE, d MMMM yyyy")}</p>
-      </div>
+    <div className="flex flex-col lg:flex-row gap-5 lg:gap-5 items-start">
+      {/* ── Main column ──────────────────────────────────────────────────── */}
+      <div className="flex-1 min-w-0 space-y-4">
 
         {/* OAuth error */}
         {oauthError && (
           <div
-            className="rs-card rs-alert"
+            className="rounded-xl px-4 py-3 text-sm"
             style={{ background: "#2d1515", border: "1px solid #7f1d1d" }}
           >
-            <p className="rs-alert__title">
+            <p className="font-semibold text-red-400">
               {oauthError === "strava_denied"
                 ? "Strava authorisation denied"
                 : "Strava connection failed"}
             </p>
-            <p className="rs-alert__body" style={{ color: "#fca5a5" }}>
+            <p className="mt-1 text-xs" style={{ color: "#fca5a5" }}>
               Something went wrong during authentication. Please try again.
             </p>
             {oauthErrorId && (
-              <p className="rs-alert__id rs-mono" style={{ color: "#fca5a5" }}>
+              <p className="mt-1 font-mono text-xs break-all" style={{ color: "#fca5a5" }}>
                 Reference ID: {oauthErrorId}
               </p>
             )}
           </div>
         )}
+
+        {/* Logo icon + phase header */}
+        <Logo size="md" showWordmark={false} />
 
         {playerRating && showPlayerRatingSummary && (
           <PlayerRatingDeltaPanel
@@ -599,198 +600,297 @@ export default async function Dashboard({
           />
         )}
 
-      <div className="rs-hero rs-hero--asym">
-        <div>
-          <p className="rs-hero__eyebrow">Today&apos;s run</p>
-          <h2 className="rs-hero__asym-title">
-            <span className="rs-hero__asym-type">{todayPlanEntry?.session.type ?? "rest"}</span>
-            <span className="rs-hero__asym-num">
-              {(todayPlanEntry?.session.targetDistanceKm ?? 0).toFixed(1)}
-              <span>km</span>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3 min-w-0">
+            <span className="text-lg sm:text-xl md:text-2xl font-bold text-white shrink-0">Dashboard</span>
+            <span
+              className="text-xs font-semibold px-2.5 py-1 rounded-full shrink-0"
+              style={phaseStyle(currentPhase)}
+            >
+              Week {currentWeek} · {currentPhase}
             </span>
-          </h2>
-          <p className="rs-hero__asym-effort">
-            {todayPlanEntry
-              ? todayPlanEntry.session.description
-              : "No structured session today. Keep effort easy and recover."}
+          </div>
+          <p className="text-xs w-full sm:w-auto" style={{ color: "var(--text-muted)" }}>
+            {formatAEST(today, "EEEE, d MMMM yyyy")}
           </p>
-          <div className="rs-hero__asym-meta">
-            <div>
-              <p className="rs-stat-label">Target pace</p>
-              <p className="rs-hero__stat-pace">
-                {todayPlanEntry ? formatTargetPace(todayPlanEntry.session.targetPaceMinPerKm) : "—"}
+        </div>
+
+        <PlayerCard rating={playerRating} />
+
+        {/* Today's plan — full width on small screens (sidebar is lg+) */}
+        <div className="lg:hidden w-full">
+          <Card className="p-4">
+            <SectionLabel>Today&apos;s workout</SectionLabel>
+            {todayPlanEntry ? (
+              <div className="mt-3 space-y-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-white font-semibold text-sm">
+                    {todayPlanEntry.dayLabel} {formatAEST(todayPlanEntry.date, "d MMM")}
+                  </span>
+                  <span
+                    className="text-xs px-2 py-0.5 rounded-full font-medium capitalize"
+                    style={runTypePillStyle(todayPlanEntry.session.type)}
+                  >
+                    {todayPlanEntry.session.type}
+                  </span>
+                  {todayPlanEntry.completed && (
+                    <span className="text-xs font-medium text-green-400">Done</span>
+                  )}
+                </div>
+                <p className="text-sm text-white">
+                  {todayPlanEntry.session.targetDistanceKm} km ·{" "}
+                  {formatTargetPace(todayPlanEntry.session.targetPaceMinPerKm)}
+                </p>
+                <p className="text-xs leading-snug" style={{ color: "var(--text-muted)" }}>
+                  {todayPlanEntry.session.description}
+                </p>
+              </div>
+            ) : (
+              <p className="text-sm mt-2" style={{ color: "var(--text-muted)" }}>
+                No structured session on the plan for today.
               </p>
-            </div>
-            <div>
-              <p className="rs-stat-label">Phase</p>
-              <p className="rs-hero__stat-pace">Week {currentWeek} · {currentPhase}</p>
-            </div>
-          </div>
-        </div>
-        <div className="rs-hero__asym-week">
-          <Logo size="md" showWordmark={false} />
-        </div>
-      </div>
-
-      <PlayerCard rating={playerRating} />
-
-      <div className="rs-status">
-        <div className="rs-card rs-status__card">
-          <SectionLabel>Weekly Distance</SectionLabel>
-          <div className="rs-status__row">
-            <p className="rs-status__primary rs-mono">{weekActualKm.toFixed(1)} / {weekTargetKm.toFixed(1)} km</p>
-          </div>
-          <div className="rs-status__bar">
-            <div
-              className="rs-status__bar-fill"
-              style={{
-                width: `${Math.min(100, weekTargetKm > 0 ? (weekActualKm / weekTargetKm) * 100 : 0)}%`,
-                background: "var(--accent)",
-              }}
-            />
-          </div>
-          <p className="rs-stat-sub">distance this week</p>
+            )}
+          </Card>
         </div>
 
-        <div className="rs-card rs-status__card">
-          <SectionLabel>Runs Completed</SectionLabel>
-          <div className="rs-status__row">
-            <p className="rs-status__primary rs-mono">{weekDone} / {weekPlanned}</p>
-          </div>
-          <p className="rs-stat-sub">sessions this week</p>
-        </div>
-
-        <div className="rs-card rs-status__card">
-          <SectionLabel>Avg Run Rating</SectionLabel>
-          <div className="rs-status__row">
-            <p className="rs-status__primary rs-mono" style={{ color: avgWeekRating !== null ? ratingStatColor(avgWeekRating) : "var(--text-muted)" }}>
-              {avgWeekRating !== null ? `${avgWeekRating.toFixed(1)} / 10` : "—"}
+        {/* ── Stat tiles ─────────────────────────────────────────────────── */}
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+          {/* Weekly distance */}
+          <Card className="p-4">
+            <SectionLabel>Weekly Distance</SectionLabel>
+            <p className="text-xl sm:text-2xl font-bold text-white mt-2 tabular-nums">
+              {weekActualKm.toFixed(1)}
+              <span className="text-xs sm:text-sm font-normal ml-1" style={{ color: "var(--text-muted)" }}>
+                / {weekTargetKm.toFixed(1)} km
+              </span>
             </p>
-          </div>
-          <p className="rs-stat-sub">{avgWeekRating !== null ? `from ${weekRatings.length} runs` : "no runs this week"}</p>
+            <div
+              className="mt-3 h-1 rounded-full overflow-hidden"
+              style={{ background: "rgba(255,255,255,0.08)" }}
+            >
+              <div
+                className="h-full rounded-full transition-all"
+                style={{
+                  width: `${Math.min(100, weekTargetKm > 0 ? (weekActualKm / weekTargetKm) * 100 : 0)}%`,
+                  background: "var(--accent)",
+                }}
+              />
+            </div>
+          </Card>
+
+          {/* Runs completed */}
+          <Card className="p-4">
+            <SectionLabel>Runs Completed</SectionLabel>
+            <p className="text-xl sm:text-2xl font-bold text-white mt-2 tabular-nums">
+              {weekDone}
+              <span className="text-xs sm:text-sm font-normal ml-1" style={{ color: "var(--text-muted)" }}>
+                / {weekPlanned}
+              </span>
+            </p>
+            <p className="text-xs mt-3" style={{ color: "var(--text-muted)" }}>
+              this week
+            </p>
+          </Card>
+
+          {/* Avg rating */}
+          <Card className="p-4">
+            <SectionLabel>Avg Run Rating</SectionLabel>
+            {avgWeekRating !== null ? (
+              <>
+                <p
+                  className="text-xl sm:text-2xl font-bold mt-2 tabular-nums"
+                  style={{ color: ratingStatColor(avgWeekRating) }}
+                >
+                  {avgWeekRating.toFixed(1)}
+                  <span className="text-xs sm:text-sm font-normal ml-1 text-white">/ 10</span>
+                </p>
+                <p className="text-xs mt-3" style={{ color: "var(--text-muted)" }}>
+                  from {weekRatings.length} {weekRatings.length === 1 ? "run" : "runs"}
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="text-xl sm:text-2xl font-bold mt-2" style={{ color: "var(--text-muted)" }}>
+                  —
+                </p>
+                <p className="text-xs mt-3" style={{ color: "var(--text-muted)" }}>
+                  no runs this week
+                </p>
+              </>
+            )}
+          </Card>
         </div>
-      </div>
 
-      <Card className="rs-card rs-block">
-        <SectionLabel>Weekly Distance (km)</SectionLabel>
-        <WeeklyKmChart data={weeklyKmData} />
-      </Card>
-
-      <div className="rs-two-col">
-        <Card className="rs-card rs-block">
-          <SectionLabel>Avg Easy Pace</SectionLabel>
-          <AvgPaceTrendChart data={paceData} />
-        </Card>
-        <Card className="rs-card rs-block">
-          <SectionLabel>Training Load</SectionLabel>
-          <TrainingLoadChart data={loadData} />
-        </Card>
-      </div>
-
-      <div className="rs-dash__grid">
-        <Card className="rs-card rs-recent">
-          <div className="rs-recent__head">
-            <SectionLabel>Recent Runs</SectionLabel>
+        {/* ── Weekly km chart ─────────────────────────────────────────────── */}
+        <Card className="p-4">
+          <SectionLabel>Weekly Distance (km)</SectionLabel>
+          <div className="mt-4">
+            <WeeklyKmChart data={weeklyKmData} />
           </div>
-          {recentRunsRows.length === 0 ? (
-            <p className="rs-stat-sub">No completed runs yet. Sync Strava to import activities.</p>
-          ) : (
-            <ul className="rs-recent__list">
-              {recentRunsRows.map((run) => {
+        </Card>
+
+        {/* ── Pace + Load charts side by side ─────────────────────────────── */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <Card className="p-4">
+            <SectionLabel>Avg Easy Pace</SectionLabel>
+            <p className="text-xs mt-0.5 mb-3" style={{ color: "rgba(156,163,175,0.6)" }}>
+              easy runs only · lower = faster
+            </p>
+            <AvgPaceTrendChart data={paceData} />
+          </Card>
+          <Card className="p-4">
+            <SectionLabel>Training Load</SectionLabel>
+            <p className="text-xs mt-0.5 mb-3" style={{ color: "rgba(156,163,175,0.6)" }}>
+              km by run type
+            </p>
+            <TrainingLoadChart data={loadData} />
+          </Card>
+        </div>
+
+        {/* ── Recent runs | Upcoming sessions (side by side on md+) ─────────── */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <Card>
+            <div className="px-4 pt-4 pb-2">
+              <SectionLabel>Recent Runs</SectionLabel>
+            </div>
+            {recentRunsRows.length === 0 ? (
+              <div className="px-4 py-6 text-center">
+                <p className="text-sm" style={{ color: "var(--text-muted)" }}>
+                  No completed runs yet. Sync Strava to import activities.
+                </p>
+              </div>
+            ) : (
+              recentRunsRows.map((run, idx) => {
                 const pill = runTypePillStyle(run.runType);
                 const score = run.rating;
+                const badge = score != null ? ratingBadgeStyle(score) : { background: "rgba(255,255,255,0.06)", color: "var(--text-muted)" };
                 return (
-                  <li key={run.id} className="rs-recent__row">
-                    <div className="rs-recent__rating" data-feel="strong">
-                      <span className="rs-mono">{score != null ? score.toFixed(1) : "—"}</span>
-                    </div>
-                    <div className="rs-recent__main">
-                      <div className="rs-recent__title-row">
-                        <span className="rs-recent__name">{run.name ?? `${run.distanceKm.toFixed(1)} km run`}</span>
-                        <span className="rs-type-pill" style={pill}>
-                          <span className="rs-type-pill__dot" style={{ background: pill.color }} />
-                          {run.runType}
-                        </span>
+                  <div
+                    key={run.id}
+                    className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center"
+                    style={{ borderTop: idx === 0 ? undefined : "1px solid rgba(255,255,255,0.06)" }}
+                  >
+                    <div className="flex items-start gap-3 min-w-0">
+                      <div
+                        className="w-11 h-11 shrink-0 rounded-lg flex items-center justify-center text-sm font-bold"
+                        style={badge}
+                      >
+                        {score != null ? score.toFixed(1) : "—"}
                       </div>
-                      <p className="rs-recent__date">{formatAEST(run.date, "EEE d MMM")}</p>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-white font-semibold text-sm break-words">
+                            {run.name ?? `${run.distanceKm.toFixed(1)} km run`}
+                          </span>
+                          <span className="text-xs px-2 py-0.5 rounded-full font-medium shrink-0 capitalize" style={pill}>
+                            {run.runType}
+                          </span>
+                        </div>
+                        <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
+                          {formatAEST(run.date, "EEE d MMM")}
+                        </p>
+                      </div>
                     </div>
-                    <div className="rs-recent__stats">
-                      <p className="rs-mono">{run.distanceKm.toFixed(2)} km</p>
-                      <p className="rs-recent__pace rs-mono">{run.avgPaceSecKm > 0 ? `${formatPace(run.avgPaceSecKm)} /km` : "—"}</p>
+                    <div className="grid grid-cols-2 gap-3 text-xs sm:flex sm:flex-wrap sm:gap-4 sm:justify-end sm:ml-auto sm:text-right">
+                      <div className="min-w-0">
+                        <p className="text-white font-medium tabular-nums">{run.distanceKm.toFixed(2)} km</p>
+                        <p style={{ color: "var(--text-muted)" }}>dist</p>
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-white font-medium tabular-nums">
+                          {run.avgPaceSecKm > 0 ? `${formatPace(run.avgPaceSecKm)} /km` : "—"}
+                        </p>
+                        <p style={{ color: "var(--text-muted)" }}>pace</p>
+                      </div>
                     </div>
-                  </li>
+                  </div>
                 );
-              })}
-            </ul>
-          )}
-        </Card>
+              })
+            )}
+          </Card>
 
-        <Card className="rs-card rs-insight">
-          <div className="rs-insight__mascot">
-            <Logo size="sm" showWordmark={false} />
-          </div>
-          <div>
-            <p className="rs-insight__eyebrow rs-stat-label">Insight</p>
-            <p className="rs-insight__title">Momentum is building</p>
-            <p className="rs-insight__body">
-              {upcomingSessions.length > 0
-                ? `Next up: ${upcomingSessions[0].session.type} on ${upcomingSessions[0].dayLabel}. Keep easy days controlled so quality sessions stay sharp.`
-                : "No upcoming sessions are pending right now. Keep consistency high and recover well for the next block."}
-            </p>
-          </div>
-        </Card>
-      </div>
-
-      <Card className="rs-card rs-upcoming">
-        <SectionLabel>Upcoming Sessions</SectionLabel>
-        {upcomingSessions.length === 0 ? (
-          <p className="rs-stat-sub">No upcoming sessions in the plan, or all are already completed.</p>
-        ) : (
-          <ul className="rs-recent__list">
-            {upcomingSessions.map((row) => {
-              const s = row.session;
-              const pill = runTypePillStyle(s.type);
-              return (
-                <li key={`upcoming-${row.week}-${s.day}`} className="rs-recent__row">
-                  <div className="rs-recent__rating" data-feel="easy">
-                    <span>{row.dayLabel}</span>
-                  </div>
-                  <div className="rs-recent__main">
-                    <div className="rs-recent__title-row">
-                      <span className="rs-recent__name">{s.type}</span>
-                      <span className="rs-type-pill" style={pill}>
-                        <span className="rs-type-pill__dot" style={{ background: pill.color }} />
-                        {s.type}
-                      </span>
+          <Card>
+            <div className="px-4 pt-4 pb-2">
+              <SectionLabel>Upcoming Sessions</SectionLabel>
+            </div>
+            {upcomingSessions.length === 0 ? (
+              <div className="px-4 py-6 text-center">
+                <p className="text-sm" style={{ color: "var(--text-muted)" }}>
+                  No upcoming sessions in the plan, or all are already completed.
+                </p>
+              </div>
+            ) : (
+              upcomingSessions.map((row, idx) => {
+                const s = row.session;
+                const pill = runTypePillStyle(s.type);
+                return (
+                  <div
+                    key={`upcoming-${row.week}-${s.day}`}
+                    className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center"
+                    style={{ borderTop: idx === 0 ? undefined : "1px solid rgba(255,255,255,0.06)" }}
+                  >
+                    <div className="flex items-start gap-3 min-w-0 flex-1">
+                      <div
+                        className="w-11 h-11 shrink-0 rounded-lg flex items-center justify-center text-xs font-bold"
+                        style={{ background: "rgba(255,255,255,0.06)", color: "var(--text-muted)" }}
+                      >
+                        {row.dayLabel}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-white font-semibold text-sm capitalize">{s.type}</span>
+                          <span className="text-xs px-2 py-0.5 rounded-full font-medium shrink-0 capitalize" style={pill}>
+                            {s.type}
+                          </span>
+                        </div>
+                        <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
+                          {row.dayLabel} {formatAEST(row.date, "d MMM yyyy")}
+                        </p>
+                      </div>
                     </div>
-                    <p className="rs-recent__date">{row.dayLabel} {formatAEST(row.date, "d MMM yyyy")}</p>
+                    <div className="grid grid-cols-2 gap-3 text-xs sm:flex sm:gap-4 sm:ml-auto sm:text-right">
+                      <div>
+                        <p className="text-white font-medium">{s.targetDistanceKm} km</p>
+                        <p style={{ color: "var(--text-muted)" }}>target</p>
+                      </div>
+                      <div>
+                        <p className="text-white font-medium tabular-nums">{formatTargetPace(s.targetPaceMinPerKm)}</p>
+                        <p style={{ color: "var(--text-muted)" }}>target pace</p>
+                      </div>
+                    </div>
                   </div>
-                  <div className="rs-recent__stats">
-                    <p>{s.targetDistanceKm} km</p>
-                    <p className="rs-recent__pace rs-mono">{formatTargetPace(s.targetPaceMinPerKm)}</p>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </Card>
-
-      <div className="rs-sync-row">
-        <div className="rs-sync-copy" style={{ color: "var(--text-muted)" }}>
-          <span>Synced via Strava</span>
-          <span> · </span>
-          <span>Last run imported {lastRunImportedLabel}</span>
-          <span> · </span>
-          <span>Last refreshed {lastRefreshedLabel}</span>
+                );
+              })
+            )}
+          </Card>
         </div>
-        <SyncButton
-          lastSynced={lastSyncedAt}
-          stravaConnected={profile?.stravaConnected ?? false}
-        />
+
+        {/* ── Strava sync indicator ────────────────────────────────────────── */}
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:flex-wrap px-1 pb-2">
+          <div
+            className="flex flex-col gap-0.5 text-xs sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-1"
+            style={{ color: "var(--text-muted)" }}
+          >
+            <span>Synced via Strava</span>
+            <span className="hidden sm:inline" aria-hidden>
+              ·
+            </span>
+            <span>Last run imported {lastRunImportedLabel}</span>
+            <span className="hidden sm:inline" aria-hidden>
+              ·
+            </span>
+            <span>Last refreshed {lastRefreshedLabel}</span>
+          </div>
+          <SyncButton
+            lastSynced={lastSyncedAt}
+            stravaConnected={profile?.stravaConnected ?? false}
+          />
+        </div>
+
       </div>
 
-      <aside className="rs-sidebar-panel">
+      {/* ── Sidebar ──────────────────────────────────────────────────────── */}
+      <aside className="w-[220px] shrink-0 space-y-3 hidden lg:block">
         <PlanAdaptationCards initialItems={planAdaptations.map((item) => ({
           id: item.id,
           weekNumber: item.weekNumber,
@@ -799,50 +899,115 @@ export default async function Dashboard({
           changes: item.changes,
         }))} />
 
-        <Card className="rs-card rs-panel-card">
+        {/* This week panel */}
+        <Card className="p-4">
           <SectionLabel>This Week</SectionLabel>
-          <p className="rs-panel-title">Week {currentWeek} · {currentPhase}</p>
-          <div className="rs-status__bar">
+          <p className="text-sm font-semibold text-white mt-2 mb-1">
+            Week {currentWeek} · {currentPhase}
+          </p>
+
+          {/* Progress bar */}
+          <div className="flex justify-between text-xs mb-1">
+            <span style={{ color: "var(--text-muted)" }}>{weekActualKm.toFixed(1)} km</span>
+            <span style={{ color: "var(--text-muted)" }}>{weekTargetKm.toFixed(1)} km</span>
+          </div>
+          <div
+            className="h-1.5 rounded-full overflow-hidden mb-4"
+            style={{ background: "rgba(255,255,255,0.08)" }}
+          >
             <div
-              className="rs-status__bar-fill"
+              className="h-full rounded-full"
               style={{
                 width: `${Math.min(100, weekTargetKm > 0 ? (weekActualKm / weekTargetKm) * 100 : 0)}%`,
                 background: "var(--accent)",
               }}
             />
           </div>
-          <div className="rs-panel-list">
-            {sessionChecklist.map(({ session, completed, missed, dayLabel }) => (
-              <div key={session.day} className="rs-panel-item">
-                <span className="rs-panel-item__mark">
-                  {completed ? "✓" : missed ? "×" : "·"}
-                </span>
-                <span>
-                  {dayLabel} · {session.type} {session.targetDistanceKm} km @ {formatTargetPace(session.targetPaceMinPerKm)}
-                </span>
+
+          {/* Session checklist */}
+          <div className="space-y-2.5">
+            {lastWeekMisses > 0 && (
+              <p className="text-xs font-medium" style={{ color: "#fbbf24" }}>
+                You missed {lastWeekMisses} session{lastWeekMisses === 1 ? "" : "s"} last week
+              </p>
+            )}
+            {sessionChecklist.map(({ session, date, completed, future, missed, active, dayLabel }) => (
+              <div key={session.day} className="flex items-start gap-2.5">
+                <div
+                  className="w-4 h-4 rounded mt-0.5 flex items-center justify-center text-xs flex-shrink-0"
+                  style={{
+                    background: completed
+                      ? "var(--accent)"
+                      : missed
+                        ? "rgba(251,191,36,0.35)"
+                      : "rgba(255,255,255,0.08)",
+                    color: completed ? "#fff" : missed ? "#fbbf24" : "transparent",
+                  }}
+                >
+                  {completed ? "✓" : missed ? "×" : ""}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p
+                    className="text-xs font-medium leading-tight capitalize"
+                    style={{ color: !active || completed ? "var(--text-muted)" : "white" }}
+                  >
+                    {dayLabel} · {session.type}{" "}
+                    {session.targetDistanceKm} km @ {formatTargetPace(session.targetPaceMinPerKm)}
+                  </p>
+                  {future && !completed && (
+                    <p
+                      className="text-xs leading-tight"
+                      style={{ color: "rgba(156,163,175,0.5)" }}
+                    >
+                      {formatAEST(date, "d MMM")}
+                    </p>
+                  )}
+                </div>
               </div>
             ))}
+            {sessionChecklist.length === 0 && (
+              <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+                No sessions this week
+              </p>
+            )}
           </div>
         </Card>
 
-        <Card className="rs-card rs-panel-card">
+        {/* Phase progress */}
+        <Card className="p-4">
           <SectionLabel>Phase Progress</SectionLabel>
-          <p className="rs-panel-title">{currentPhase}</p>
-          <div className="rs-status__bar">
+          <p className="text-sm font-semibold text-white mt-2">{currentPhase}</p>
+          <p className="text-xs mt-0.5 mb-2" style={{ color: "var(--text-muted)" }}>
+            Week {currentWeek} of {totalWeeks}
+          </p>
+          <div
+            className="h-1.5 rounded-full overflow-hidden mb-3"
+            style={{ background: "rgba(255,255,255,0.08)" }}
+          >
             <div
-              className="rs-status__bar-fill"
+              className="h-full rounded-full"
               style={{
                 width: `${phaseProgress}%`,
                 background: phaseStyle(currentPhase).color,
               }}
             />
           </div>
-          <p className="rs-stat-sub">
-            {raceSpecificWeek != null
-              ? `Race Specific starts Week ${raceSpecificWeek}`
-              : "Race week is here 🏁"}
-          </p>
+          {raceSpecificWeek != null ? (
+            <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+              Race Specific starts Week {raceSpecificWeek}
+            </p>
+          ) : (
+            <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+              Race week is here 🏁
+            </p>
+          )}
         </Card>
+
+        {/* Plan start reference */}
+        <p className="text-xs px-1" style={{ color: "rgba(156,163,175,0.4)" }}>
+          Plan starts {formatAEST(toBrisbaneYmd(planStart), "d MMM yyyy")}
+        </p>
+
       </aside>
     </div>
   );
