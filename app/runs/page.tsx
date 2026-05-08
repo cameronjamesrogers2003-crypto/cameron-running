@@ -13,7 +13,7 @@ export default async function RunsPage() {
   const tempoThresholdSec    = settings.tempoPaceMaxSec;
 
   return (
-    <div className="space-y-5">
+    <div className="runs-shell space-y-5">
       <div className="flex items-start justify-between mb-6 pt-2">
         <div>
           <div className="flex items-center gap-3 mb-1">

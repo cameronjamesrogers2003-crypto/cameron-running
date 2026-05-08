@@ -178,7 +178,7 @@ export default async function RatingPage() {
   const pointsToNext = nextTier ? Math.max(0, nextTier.min - ovr) : 0;
 
   return (
-    <div className="w-full max-w-5xl">
+    <div className="rating-shell w-full max-w-5xl">
       <div className="flex items-start justify-between mb-6 pt-2">
         <div>
           <p className="text-sm font-medium mb-1" style={{ color: "var(--text-muted)" }}>

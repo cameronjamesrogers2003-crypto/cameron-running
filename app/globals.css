@@ -35,7 +35,7 @@
 
 .light {
   --layer-0: #eef2f7;
-  --layer-1: #e2e8f0;
+  --layer-1: #dde5f0;
   --layer-2: #ffffff;
   --layer-3: #ffffff;
 
@@ -117,7 +117,7 @@ body {
 
 .light .rounded-2xl {
   background: var(--layer-2) !important;
-  border-color: rgba(15,23,42,0.06) !important;
+  border-color: rgba(15,23,42,0.05) !important;
   box-shadow: 0 1px 2px rgba(15,23,42,0.08),
               0 10px 24px rgba(15,23,42,0.08) !important;
 }
@@ -135,11 +135,11 @@ body {
 }
 
 .light .border-white\/\[0\.08\] {
-  border-color: rgba(15,23,42,0.10) !important;
+  border-color: rgba(15,23,42,0.08) !important;
 }
 
 .light .border-white\/\[0\.06\] {
-  border-color: rgba(15,23,42,0.08) !important;
+  border-color: rgba(15,23,42,0.06) !important;
 }
 
 .light .border-white\/\[0\.10\] {
@@ -201,7 +201,7 @@ body {
 }
 
 .light nav .text-white\/50 {
-  color: rgba(30,41,59,0.76) !important;
+  color: rgba(30,41,59,0.70) !important;
 }
 
 .light .rs-sidebar {
@@ -218,7 +218,7 @@ body {
 }
 
 .light .rs-sidebar a.bg-teal-500\/10 {
-  background: rgba(15,23,42,0.16) !important;
+  background: rgba(15,23,42,0.18) !important;
   color: #0b1220 !important;
   border-left-color: #0d9488 !important;
 }
@@ -274,19 +274,51 @@ body {
 
 .light .dashboard-shell .rounded-2xl,
 .light .program-shell .rounded-2xl,
-.light .calendar-shell .rounded-2xl {
+.light .calendar-shell .rounded-2xl,
+.light .runs-shell .rounded-2xl,
+.light .settings-shell .rounded-2xl,
+.light .rating-shell .rounded-2xl {
   background: #ffffff !important;
 }
 
 .light .dashboard-shell [class*="border-white"],
 .light .program-shell [class*="border-white"],
-.light .calendar-shell [class*="border-white"] {
+.light .calendar-shell [class*="border-white"],
+.light .runs-shell [class*="border-white"],
+.light .settings-shell [class*="border-white"],
+.light .rating-shell [class*="border-white"] {
   border-color: rgba(15,23,42,0.10) !important;
 }
 
+.light .dashboard-shell > .space-y-4,
+.light .runs-shell > .space-y-4,
+.light .settings-shell > .space-y-4,
+.light .rating-shell > .space-y-4 {
+  row-gap: 0.9rem !important;
+}
+
 .light .program-shell .space-y-6,
-.light .program-shell .space-y-8 {
-  row-gap: 1.25rem !important;
+.light .program-shell .space-y-8,
+.light .calendar-shell .space-y-5 {
+  row-gap: 1rem !important;
+}
+
+.light .dashboard-shell .rounded-2xl:hover,
+.light .program-shell .rounded-2xl:hover,
+.light .calendar-shell .rounded-2xl:hover,
+.light .runs-shell .rounded-2xl:hover,
+.light .settings-shell .rounded-2xl:hover,
+.light .rating-shell .rounded-2xl:hover {
+  box-shadow: 0 2px 4px rgba(15,23,42,0.08),
+              0 14px 30px rgba(15,23,42,0.10) !important;
+}
+
+.light .calendar-shell .rounded-xl {
+  box-shadow: inset 0 0 0 1px rgba(15,23,42,0.06);
+}
+
+.light .calendar-shell .grid.grid-cols-7 > div {
+  color: rgba(30,41,59,0.78);
 }
 
 * {
