@@ -33,6 +33,7 @@ export interface RunRatingComponentBreakdown {
 
 export interface RunRatingResult {
   total: number;
+  band?: "Elite" | "Strong" | "Solid" | "Rough" | "Off Day";
   components: {
     pace: RunRatingComponentBreakdown;
     effort: RunRatingComponentBreakdown;
@@ -59,6 +60,12 @@ function isRunRatingResult(value: unknown): value is RunRatingResult {
   const components = rating.components as Record<string, unknown> | undefined;
   return (
     typeof rating.total === "number"
+    && (rating.band === undefined
+      || rating.band === "Elite"
+      || rating.band === "Strong"
+      || rating.band === "Solid"
+      || rating.band === "Rough"
+      || rating.band === "Off Day")
     && !!components
     && isRatingComponent(components.pace)
     && isRatingComponent(components.effort)
@@ -136,6 +143,14 @@ function paceKmStr(secPerKm: number): string {
 /** Converts a run type key into a human-readable label. */
 function runTypeLabel(t: RunType): string {
   return t.charAt(0).toUpperCase() + t.slice(1);
+}
+
+function ratingBand(total: number): "Elite" | "Strong" | "Solid" | "Rough" | "Off Day" {
+  if (total >= 9.0) return "Elite";
+  if (total >= 7.0) return "Strong";
+  if (total >= 5.5) return "Solid";
+  if (total >= 4.0) return "Rough";
+  return "Off Day";
 }
 
 /** Calculates a 0-10 run quality score and returns component scores plus explanation text. */
@@ -224,6 +239,9 @@ export function calculateRunRating(
   if (dists.length < 3) {
     distanceScoreRaw = 1.0;
     distanceReason = `Not enough prior ${runTypeLabel(runType)} runs yet to calculate a benchmark — neutral score applied (${dists.length} of 3 needed).`;
+  } else if (dists.length < 5) {
+    distanceScoreRaw = 1.2;
+    distanceReason = `Early ${runTypeLabel(runType)} benchmark signal from ${dists.length} prior runs — partial credit applied until 5 runs are available.`;
   } else {
     const bench = median(dists);
     const ratio = bench > 0 ? activity.distanceKm / bench : 0;
@@ -240,25 +258,25 @@ export function calculateRunRating(
     conditionsReason = "No temperature data — neutral score applied.";
   } else {
     let bonus = 0;
-    let heatPart = "";
+    const bonusParts: string[] = [];
     if (t > 28) {
       const hBonus = Math.min(0.3, (t - 28) * 0.1);
       bonus += hBonus;
-      heatPart = ` Heat bonus +${hBonus.toFixed(1)} (>${28}°C).`;
+      bonusParts.push(`heat bonus +${hBonus.toFixed(1)}`);
     }
     const h = activity.humidityPct;
-    let humPart = "";
     if (h != null && !Number.isNaN(h) && h > 80) {
       const hu = Math.min(0.2, Math.floor((h - 80) / 5) * 0.1);
       bonus += hu;
-      humPart = ` Humidity bonus +${hu.toFixed(1)} (>80%).`;
+      bonusParts.push(`humidity bonus +${hu.toFixed(1)}`);
     }
-    conditionsScoreRaw = Math.min(1.0, 1.0 + bonus);
+    conditionsScoreRaw = Math.min(1.0, 0.8 + bonus);
     const humDisp = h != null && !Number.isNaN(h) ? `${h.toFixed(0)}%` : "—";
     if (bonus === 0) {
-      conditionsReason = `Weather data present. No heat or humidity bonus (${t.toFixed(1)}°C, ${humDisp}).`;
+      conditionsReason = `Normal conditions (${t.toFixed(1)}°C, ${humDisp}) — base score 0.8.`;
     } else {
-      conditionsReason = `Weather data present (${t.toFixed(1)}°C, ${humDisp}).${heatPart}${humPart}`.trim();
+      const label = t > 28 ? "Hot conditions" : "Humid conditions";
+      conditionsReason = `${label} (${t.toFixed(1)}°C, ${humDisp}) — ${bonusParts.join(", ")} → ${Math.min(1.0, 0.8 + bonus).toFixed(1)}.`;
     }
   }
 
@@ -267,9 +285,11 @@ export function calculateRunRating(
   const distance = round1(distanceScoreRaw);
   const conditions = round1(conditionsScoreRaw);
   const total = round1(Math.max(0, Math.min(10, pace + effort + distance + conditions)));
+  const band = ratingBand(total);
 
   return {
     total,
+    band,
     components: {
       pace:       { score: pace,       max: 4.0, reason: paceReason },
       effort:     { score: effort,     max: 3.0, reason: effortReason },
