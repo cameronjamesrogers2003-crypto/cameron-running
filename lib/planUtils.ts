@@ -25,8 +25,11 @@ export function getPlanWeekForDate(date: Date, planStart: Date): number {
 
 /** Returns the week anchor instant that starts a given plan week (same origin as planStart). */
 export function getWeekStartForPlanWeek(weekNumber: number, planStart: Date): Date {
-  const ms = planStart.getTime() + (weekNumber - 1) * 7 * 24 * 60 * 60 * 1000;
-  return new Date(ms);
+  const planStartDay = new Date(planStart);
+  const dayOfWeek = planStartDay.getUTCDay(); // 0=Sun ... 6=Sat
+  const daysSinceSat = dayOfWeek === 6 ? 0 : (dayOfWeek + 1) % 7;
+  const satAnchor = new Date(planStart.getTime() - daysSinceSat * MS_PER_DAY);
+  return new Date(satAnchor.getTime() + (weekNumber - 1) * 7 * MS_PER_DAY);
 }
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
