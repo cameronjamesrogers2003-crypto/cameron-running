@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import type { Day, PlanConfig } from "@/data/trainingPlan";
 import { useSettings } from "@/context/SettingsContext";
 import { getDefaultLongRunDay, getScheduleWarnings } from "@/lib/generatePlan";
+import { toBrisbaneYmd } from "@/lib/dateUtils";
 import VdotCalculator, { type VdotPersonalFields } from "@/components/VdotCalculator";
 import { FORM_CONTROL_TW } from "@/lib/formControlClasses";
 
@@ -442,7 +443,7 @@ export default function OnboardingPage() {
             <p><span style={{ color: "var(--text-muted)" }}>Plan length:</span> {planLengthWeeks} weeks</p>
             <p><span style={{ color: "var(--text-muted)" }}>Training days:</span> {sortedTrainingDays.map((d) => DAY_LABEL[d]).join(", ")}</p>
             <p><span style={{ color: "var(--text-muted)" }}>Long run day:</span> {effectiveLongRunDay ? DAY_LABEL[effectiveLongRunDay] : "Not set"}</p>
-            <p><span style={{ color: "var(--text-muted)" }}>Start date:</span> {settings.planStartDate?.slice(0, 10) ?? "Not set"}</p>
+            <p><span style={{ color: "var(--text-muted)" }}>Start date:</span> {settings.planStartDate ? toBrisbaneYmd(new Date(settings.planStartDate)) : "Not set"}</p>
           </div>
           <button
             type="button"

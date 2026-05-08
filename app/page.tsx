@@ -362,8 +362,10 @@ export default async function Dashboard({
   ]);
 
   // ── Stat tile data ────────────────────────────────────────────────────────
-  const weekTargetKm = currentPlanWeek ? getWeeklyTargetKm(currentPlanWeek) : 0;
-  const weekActualKm = weekActivities.reduce((s, a) => s + a.distanceKm, 0);
+  const weekTargetKmRaw = currentPlanWeek ? getWeeklyTargetKm(currentPlanWeek) : 0;
+  const weekActualKmRaw = weekActivities.reduce((s, a) => s + a.distanceKm, 0);
+  const weekTargetKm = Math.round(weekTargetKmRaw * 10) / 10;
+  const weekActualKm = Math.round(weekActualKmRaw * 10) / 10;
   const weekPlanned =
     Array.isArray(stored?.config?.days) && stored.config.days.length > 0
       ? stored.config.days.length
@@ -659,7 +661,7 @@ export default async function Dashboard({
             <p className="text-xl sm:text-2xl font-bold text-white mt-2 tabular-nums">
               {weekActualKm.toFixed(1)}
               <span className="text-xs sm:text-sm font-normal ml-1" style={{ color: "var(--text-muted)" }}>
-                / {weekTargetKm.toFixed(0)} km
+                / {weekTargetKm.toFixed(1)} km
               </span>
             </p>
             <div
@@ -907,7 +909,7 @@ export default async function Dashboard({
           {/* Progress bar */}
           <div className="flex justify-between text-xs mb-1">
             <span style={{ color: "var(--text-muted)" }}>{weekActualKm.toFixed(1)} km</span>
-            <span style={{ color: "var(--text-muted)" }}>{weekTargetKm} km</span>
+            <span style={{ color: "var(--text-muted)" }}>{weekTargetKm.toFixed(1)} km</span>
           </div>
           <div
             className="h-1.5 rounded-full overflow-hidden mb-4"
