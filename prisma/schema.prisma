@@ -39,6 +39,10 @@ model Activity {
   ratingBreakdown    String?
   // Pace-zone type from classifyRunByPaceZones; kept in sync with rating
   classifiedRunType  String?
+  // JSON string array of Strava per-km splits_metric entries.
+  splitsJson         String?
+  // Human-readable explanation of classification confidence/method.
+  classificationMethod String?
 }
 
 model Profile {

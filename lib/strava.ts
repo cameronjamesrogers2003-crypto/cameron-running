@@ -135,9 +135,9 @@ interface StravaActivity {
 
 export interface StravaSplit {
   distance: number;
+  elapsed_time: number;
   moving_time: number;
   average_speed: number;
-  average_grade_adjusted_speed?: number;
   average_heartrate?: number;
 }
 
@@ -261,8 +261,22 @@ export async function syncActivities(): Promise<{ synced: number; errors: number
           elevationGainM: act.total_elevation_gain ?? null,
           startLat,
           startLon,
+          splitsJson: null,
         },
       });
+
+      try {
+        const detailed = await fetchFullActivity(id);
+        const splits = Array.isArray(detailed?.splits_metric) ? detailed.splits_metric : null;
+        await prisma.activity.update({
+          where: { id },
+          data: {
+            splitsJson: splits ? JSON.stringify(splits) : null,
+          },
+        });
+      } catch (splitErr) {
+        console.error("[strava] splits fetch failed:", splitErr);
+      }
 
       // Fetch and store historical weather inline
       const weather = await fetchHistoricalWeather(
