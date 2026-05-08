@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useSettings } from "@/context/SettingsContext";
-import { brisbaneMidnightUtcForYmd } from "@/lib/dateUtils";
-import { planStartAusDisplayToIsoYmd, planStartIsoYmdToAusDisplay } from "@/lib/planStartDateFormat";
+import { brisbaneMidnightUtcForYmd, toBrisbaneYmd } from "@/lib/dateUtils";
+import { planStartIsoYmdToAusDisplay } from "@/lib/planStartDateFormat";
 import { type UserSettings } from "@/lib/settings";
 import { deriveRatingPaceZones } from "@/lib/planPaces";
 import type { Day } from "@/data/trainingPlan";
@@ -63,22 +63,6 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
   );
 }
 
-function TextInput({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder?: string }) {
-  return (
-    <input
-      type="text"
-      value={value}
-      onChange={e => onChange(e.target.value)}
-      placeholder={placeholder}
-      className="w-full max-w-full sm:max-w-xs rounded-md px-3 py-2 min-h-11 text-sm text-white outline-none focus:ring-1"
-      style={{
-        background: "rgba(255,255,255,0.06)",
-        border: "1px solid rgba(255,255,255,0.1)",
-      }}
-    />
-  );
-}
-
 const DAY_ORDER: Day[] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 const DAYS: Day[] = DAY_ORDER;
 const DAY_LABEL: Record<Day, string> = {
@@ -122,7 +106,9 @@ export default function SettingsForm() {
   const authJsonHeaders: Record<string, string> = { "Content-Type": "application/json" };
   if (token) authJsonHeaders.Authorization = `Bearer ${token}`;
 
-  const [planStartDate, setPlanStartDate] = useState(() => planStartIsoYmdToAusDisplay(settings.planStartDate));
+  const [planStartDateIsoYmd, setPlanStartDateIsoYmd] = useState(() =>
+    settings.planStartDate ? settings.planStartDate.slice(0, 10) : ""
+  );
   const [experienceLevel, setExperienceLevel] = useState<"BEGINNER" | "INTERMEDIATE" | "ADVANCED">(
     settings.experienceLevel ?? "BEGINNER",
   );
@@ -177,7 +163,7 @@ export default function SettingsForm() {
   useEffect(() => {
     if (loading) return;
 
-    setPlanStartDate(planStartIsoYmdToAusDisplay(settings.planStartDate));
+    setPlanStartDateIsoYmd(settings.planStartDate ? settings.planStartDate.slice(0, 10) : "");
     setExperienceLevel(settings.experienceLevel ?? "BEGINNER");
     setGoalRace(settings.goalRace ?? "HALF");
     setPlanLengthWeeks((settings.planLengthWeeks ?? 16) as 12 | 16 | 20);
@@ -211,6 +197,8 @@ export default function SettingsForm() {
 
   const runningExperienceForPaces =
     vdotPersonal.runningExperience || settings.runningExperience;
+
+  const minPlanStartIsoYmd = useMemo(() => toBrisbaneYmd(new Date()), []);
 
   async function applyVdotCalculatorPatch(payload: {
     vdot: number;
@@ -273,11 +261,16 @@ export default function SettingsForm() {
     setSaveError(null);
     setSaveStatus("saving");
     try {
-      const trimmed = planStartDate.trim();
+      const trimmedIsoYmd = planStartDateIsoYmd.trim();
       let planIso: string | null = null;
-      if (trimmed) {
-        const isoYmd = planStartAusDisplayToIsoYmd(planStartDate);
-        if (!isoYmd) throw new Error("Invalid plan start date (use DD/MM/YYYY)");
+      if (trimmedIsoYmd) {
+        const isoYmd = trimmedIsoYmd;
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(isoYmd)) {
+          throw new Error("Invalid plan start date (expected yyyy-mm-dd)");
+        }
+        if (isoYmd < minPlanStartIsoYmd) {
+          throw new Error("Plan start date cannot be in the past.");
+        }
         planIso = brisbaneMidnightUtcForYmd(isoYmd).toISOString();
       }
 
@@ -380,7 +373,20 @@ export default function SettingsForm() {
     <div className="space-y-5 w-full max-w-2xl min-w-0">
       <Panel title="1. Training plan configuration">
         <Field label="Plan start date" hint="First day your program counts (Brisbane calendar)">
-          <TextInput value={planStartDate} onChange={setPlanStartDate} placeholder="DD/MM/YYYY" />
+          <div className="flex flex-col gap-2">
+            <input
+              type="date"
+              value={planStartDateIsoYmd}
+              min={minPlanStartIsoYmd}
+              onChange={(e) => setPlanStartDateIsoYmd(e.target.value)}
+              className="w-full rounded-md px-3 py-2 min-h-11 text-sm text-gray-900 dark:text-white bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 outline-none focus:ring-1 focus:ring-teal-400/40"
+            />
+            {planStartDateIsoYmd ? (
+              <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+                {planStartIsoYmdToAusDisplay(planStartDateIsoYmd)}
+              </p>
+            ) : null}
+          </div>
         </Field>
 
         <div className="space-y-4">
