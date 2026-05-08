@@ -47,14 +47,15 @@ function parseSettingsDays(trainingDaysJson: string | null): Day[] {
 // ── Style helpers ─────────────────────────────────────────────────────────────
 
 function ratingBadgeStyle(score: number): { background: string; color: string } {
-  if (score >= 9)   return { background: "#2e1065", color: "#c4b5fd" };
-  if (score >= 7.5) return { background: "#052e16", color: "#4ade80" };
-  if (score >= 6)   return { background: "#0c1a2e", color: "#60a5fa" };
-  if (score >= 4)   return { background: "#431407", color: "#fb923c" };
-  return               { background: "#450a0a", color: "#f87171" };
+  if (score >= 9.0) return { background: "rgba(167,139,250,0.25)", color: "#a78bfa" };
+  if (score >= 7.0) return { background: "rgba(74,222,128,0.25)", color: "#4ade80" };
+  if (score >= 5.5) return { background: "rgba(45,212,191,0.25)", color: "var(--accent)" };
+  if (score >= 4.0) return { background: "rgba(245,180,84,0.25)", color: "#f5b454" };
+  return { background: "rgba(248,113,113,0.25)", color: "#f87171" };
 }
 
 function ratingStatColor(score: number): string {
+  if (score >= 9.0) return "#a78bfa";
   if (score >= 7.0) return "#4ade80";
   if (score >= 5.5) return "var(--accent)";
   if (score >= 4.0) return "#f5b454";
@@ -91,15 +92,18 @@ function formatTargetPace(minPerKm: number): string {
 function Card({
   children,
   className = "",
+  style,
 }: {
   children: React.ReactNode;
   className?: string;
+  style?: React.CSSProperties;
 }) {
   return (
     <div
       className={`rounded-2xl border bg-white/[0.04] border-white/[0.08] backdrop-blur-sm ${className}`}
       style={{
         borderRadius: "var(--card-radius)",
+        ...style,
       }}
     >
       {children}
@@ -540,7 +544,7 @@ export default async function Dashboard({
 
         {/* Today's plan — full width on small screens (sidebar is lg+) */}
         <div className="lg:hidden w-full">
-          <Card className="p-4">
+          <Card className="p-4" style={{ animation: "fadeInUp 300ms ease-out forwards", animationDelay: "0ms", opacity: 0 }}>
             <SectionLabel>Today&apos;s workout</SectionLabel>
             {todayPlanEntry ? (
               <div className="mt-3 space-y-1">
@@ -572,7 +576,7 @@ export default async function Dashboard({
         {/* ── Stat tiles ─────────────────────────────────────────────────── */}
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
           {/* Weekly distance */}
-          <Card className="p-4">
+          <Card className="p-4" style={{ animation: "fadeInUp 300ms ease-out forwards", animationDelay: "60ms", opacity: 0 }}>
             <SectionLabel>Weekly Distance</SectionLabel>
             <p className="text-4xl font-black font-mono tabular-nums text-white mt-2">
               {weekActualKm.toFixed(1)}
@@ -591,7 +595,7 @@ export default async function Dashboard({
           </Card>
 
           {/* Runs completed */}
-          <Card className="p-4">
+          <Card className="p-4" style={{ animation: "fadeInUp 300ms ease-out forwards", animationDelay: "120ms", opacity: 0 }}>
             <SectionLabel>Runs Completed</SectionLabel>
             <p className="text-4xl font-black font-mono tabular-nums text-white mt-2">
               {weekDone}

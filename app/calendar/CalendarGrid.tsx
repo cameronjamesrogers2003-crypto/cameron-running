@@ -130,6 +130,7 @@ export default function CalendarGrid({ year, todayKey, calendarData, plannedDayM
     const m = month > 12 ? 1 : month;
     cells.push({ key: `${y}-${String(m).padStart(2, "0")}-${String(nextDay).padStart(2, "0")}`, day: nextDay, inMonth: false });
   }
+  const monthHasRuns = cells.some((cell) => cell.inMonth && (calendarData[cell.key]?.length ?? 0) > 0);
 
   return (
     <div className="w-full">
@@ -231,7 +232,7 @@ export default function CalendarGrid({ year, todayKey, calendarData, plannedDayM
           return (
             <div
               key={cell.key}
-              className={`relative rounded-xl p-2.5 flex flex-col transition-all ${canOpen ? "cursor-pointer hover:brightness-125" : "cursor-default"}`}
+              className={`relative rounded-xl p-2.5 flex flex-col transition-all duration-150 ${canOpen ? "cursor-pointer hover:brightness-105 hover:scale-[1.005] active:scale-[0.998]" : "cursor-default"}`}
               style={{
                 background: bestRating != null
                   ? ratingCellTint(bestRating)
@@ -280,6 +281,11 @@ export default function CalendarGrid({ year, todayKey, calendarData, plannedDayM
           );
         })}
       </div>
+      {!monthHasRuns && (
+        <p className="text-center py-8 text-sm" style={{ color: "var(--text-dim)" }}>
+          No runs recorded this month.
+        </p>
+      )}
 
       <div className="flex items-center gap-4 mt-4 flex-wrap">
         <div className="flex items-center gap-1.5 text-xs" style={{ color: "var(--text-muted)" }}><span className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--accent)" }} /> Planned</div>

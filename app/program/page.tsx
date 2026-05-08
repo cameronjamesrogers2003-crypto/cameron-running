@@ -22,6 +22,8 @@ import PlanUpdatedBanner from "./PlanUpdatedBanner";
 import Logo from "@/components/Logo";
 import { RunTypePill } from "@/components/RunTypePill";
 import { runTypeColor } from "@/lib/runTypeStyles";
+import { EmptyState } from "@/components/EmptyState";
+import { Calendar } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -96,11 +98,11 @@ function fmtTargetPace(minPerKm: number): string {
 }
 
 function ratingBadgeStyle(score: number): { background: string; color: string } {
-  if (score >= 9)   return { background: "#2e1065", color: "#c4b5fd" };
-  if (score >= 7.5) return { background: "#052e16", color: "#4ade80" };
-  if (score >= 6)   return { background: "#0c1a2e", color: "#60a5fa" };
-  if (score >= 4)   return { background: "#431407", color: "#fb923c" };
-  return               { background: "#450a0a", color: "#f87171" };
+  if (score >= 9.0) return { background: "rgba(167,139,250,0.25)", color: "#a78bfa" };
+  if (score >= 7.0) return { background: "rgba(74,222,128,0.25)", color: "#4ade80" };
+  if (score >= 5.5) return { background: "rgba(45,212,191,0.25)", color: "var(--accent)" };
+  if (score >= 4.0) return { background: "rgba(245,180,84,0.25)", color: "#f5b454" };
+  return { background: "rgba(248,113,113,0.25)", color: "#f87171" };
 }
 
 function phaseChipStyle(phase: Phase): { background: string; color: string } {
@@ -187,6 +189,21 @@ export default async function ProgramPage({
   const planStart  = getEffectivePlanStart(settings.planStartDate);
   const rawWeek    = getPlanWeekForDate(today, planStart);
   const maxHR       = settings.maxHR;
+
+  if (!storedPlan?.plan?.length && !settings.experienceLevel) {
+    return (
+      <div className="program-shell w-full pt-2 pb-24 lg:pb-8">
+        <div className="rounded-2xl border bg-white/[0.04] border-white/[0.08]">
+          <EmptyState
+            icon={<Calendar className="w-7 h-7" style={{ color: "var(--accent)" }} />}
+            title="No training plan yet"
+            body="Complete your onboarding to generate a personalised training plan."
+            action={{ label: "Get started", href: "/onboarding" }}
+          />
+        </div>
+      </div>
+    );
+  }
 
   let planToRender: TrainingWeek[];
   let totalWeeksAdded = 0;

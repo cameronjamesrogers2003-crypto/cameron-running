@@ -201,7 +201,7 @@ export default async function CalendarPage({
               className="text-lg font-black font-mono tabular-nums text-white"
               style={
                 item.isRating && avgRating28 != null
-                  ? { color: avgRating28 >= 7.0 ? "#4ade80" : avgRating28 >= 5.5 ? "var(--accent)" : avgRating28 >= 4.0 ? "#f5b454" : "#f87171" }
+                  ? { color: avgRating28 >= 9.0 ? "#a78bfa" : avgRating28 >= 7.0 ? "#4ade80" : avgRating28 >= 5.5 ? "var(--accent)" : avgRating28 >= 4.0 ? "#f5b454" : "#f87171" }
                   : undefined
               }
             >

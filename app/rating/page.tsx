@@ -2,6 +2,7 @@ import prisma from "@/lib/db";
 import PlayerCard from "@/components/PlayerCard";
 import { TIERS, getTier } from "@/lib/playerCardTiers";
 import { RunTypePill } from "@/components/RunTypePill";
+import { EmptyState } from "@/components/EmptyState";
 import { buildTrainingPlan, type TrainingWeek } from "@/data/trainingPlan";
 import { inferRunType, type StatActivity } from "@/lib/rating";
 import { dbSettingsToUserSettings, DEFAULT_SETTINGS, formatPace, type UserSettings } from "@/lib/settings";
@@ -11,6 +12,7 @@ import {
 } from "@/lib/playerRating";
 import { formatAEST, startOfNextDayAEST, toBrisbaneYmd } from "@/lib/dateUtils";
 import { getEffectivePlanStart, getPlanWeekForDate, getSessionDate, isActivityOnOrAfterPlanStart } from "@/lib/planUtils";
+import { Star } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -171,7 +173,29 @@ export default async function RatingPage() {
   const planStart = getEffectivePlanStart(settings.planStartDate);
   const plan = buildTrainingPlan(settings);
 
-  const ovr = Math.round(playerRating?.overall ?? 1);
+  if (!playerRating) {
+    return (
+      <div className="rating-shell w-full max-w-5xl">
+        <div className="flex items-start justify-between mb-6 pt-2">
+          <div>
+            <p className="text-sm font-medium mb-1" style={{ color: "var(--text-muted)" }}>
+              Your athletic profile
+            </p>
+            <h1 className="text-2xl font-bold tracking-tight text-white">Player Rating</h1>
+          </div>
+        </div>
+        <div className="rounded-2xl border bg-white/[0.04] border-white/[0.08]">
+          <EmptyState
+            icon={<Star className="w-7 h-7" style={{ color: "var(--accent)" }} />}
+            title="No rating yet"
+            body="Sync your first run from Strava to generate your player rating."
+          />
+        </div>
+      </div>
+    );
+  }
+
+  const ovr = Math.round(playerRating.overall ?? 1);
   const tier = getTier(ovr);
   const currentTierIndex = Math.max(0, TIERS.findIndex((t) => t.name === tier.name));
   const nextTier = TIERS[currentTierIndex + 1] ?? null;
