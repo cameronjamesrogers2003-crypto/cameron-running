@@ -1,5 +1,5 @@
 import type { PlayerRating, PrismaClient } from "@prisma/client";
-import { buildTrainingPlan, type RunType } from "@/data/trainingPlan";
+import { buildTrainingPlan, type RunType, type TrainingWeek } from "@/data/trainingPlan";
 import { parseInterruptionType, reconfigurePlan, type PlanInterruption } from "@/lib/interruptions";
 import { sameDayAEST, toBrisbaneYmd } from "@/lib/dateUtils";
 import {
@@ -11,6 +11,7 @@ import {
 } from "@/lib/planUtils";
 import { inferRunType, parseRatingBreakdown, type StatActivity } from "@/lib/rating";
 import { dbSettingsToUserSettings, DEFAULT_SETTINGS, type UserSettings } from "@/lib/settings";
+import { loadGeneratedPlan } from "@/lib/planStorage";
 
 const RUNNING_TYPES = ["running", "trail_running"];
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -101,7 +102,7 @@ function isRunningActivity(a: { activityType?: string | null }): boolean {
 
 /** Calculates the speed attribute from recent tempo and interval pace. */
 function calculateSpeed(activities: RatingActivity[], settings: UserSettings, now: Date): number {
-  const since = new Date(now.getTime() - 30 * MS_PER_DAY);
+  const since = new Date(now.getTime() - 42 * MS_PER_DAY);
   const qualifying = activities.filter((a) => {
     const d = new Date(a.date);
     if (d < since || d > now || a.avgPaceSecKm <= 0) return false;
@@ -111,8 +112,16 @@ function calculateSpeed(activities: RatingActivity[], settings: UserSettings, no
 
   if (qualifying.length === 0) return 1;
 
-  const bestPace = Math.min(...qualifying.map((a) => a.avgPaceSecKm));
-  const speedKmMin = (1 / bestPace) * 60;
+  const weightedBestPace = qualifying.reduce((best, run) => {
+    const runDate = new Date(run.date);
+    const daysOld = Math.floor((now.getTime() - runDate.getTime()) / MS_PER_DAY);
+    const weight = daysOld <= 14 ? 1.0 : 0.8;
+    const effectivePace = run.avgPaceSecKm / weight;
+    return effectivePace < best ? effectivePace : best;
+  }, Number.POSITIVE_INFINITY);
+  if (!Number.isFinite(weightedBestPace)) return 1;
+
+  const speedKmMin = (1 / weightedBestPace) * 60;
   const worldRecord = (1 / 173) * 60;
   const slowest = (1 / 600) * 60;
   return scoreFromRaw((speedKmMin - slowest) / (worldRecord - slowest));
@@ -142,13 +151,13 @@ function calculateEndurance(activities: RatingActivity[], now: Date): number {
 function calculateConsistency(
   activities: RatingActivity[],
   settings: UserSettings,
+  plan: TrainingWeek[],
   _interruptions: PlanInterruption[],
   now: Date,
 ): number {
   const since = new Date(now.getTime() - 28 * MS_PER_DAY);
   const hitDays = new Set<string>();
   const planStart = getEffectivePlanStart(settings.planStartDate);
-  const plan = buildTrainingPlan(settings);
   let plannedSessions = 0;
 
   for (const week of plan) {
@@ -250,6 +259,7 @@ function calculateOverall(scores: Omit<PlayerRatingScores, "overall">): number {
 function calculateScores(
   activities: RatingActivity[],
   settings: UserSettings,
+  plan: TrainingWeek[],
   interruptions: PlanInterruption[],
   now = new Date(),
 ): PlayerRatingScores {
@@ -257,7 +267,7 @@ function calculateScores(
   const scores = {
     speed: calculateSpeed(runningActivities, settings, now),
     endurance: calculateEndurance(runningActivities, now),
-    consistency: calculateConsistency(runningActivities, settings, interruptions, now),
+    consistency: calculateConsistency(runningActivities, settings, plan, interruptions, now),
     hrEfficiency: calculateHrEfficiency(runningActivities, settings, now),
     toughness: calculateToughness(runningActivities, now),
   };
@@ -356,13 +366,15 @@ export async function calculatePlayerRatingScores(
   prisma: PrismaClient,
   settingsOverride?: UserSettings,
 ): Promise<PlayerRatingScores> {
-  const [settings, interruptions, activities] = await Promise.all([
+  const [settings, interruptions, activities, storedPlan] = await Promise.all([
     settingsOverride ? Promise.resolve(settingsOverride) : loadSettings(prisma),
     loadInterruptions(prisma),
     loadActivities(prisma),
+    loadGeneratedPlan(),
   ]);
+  const plan = storedPlan?.plan ?? buildTrainingPlan(settings);
 
-  return calculateScores(activities, settings, interruptions);
+  return calculateScores(activities, settings, plan, interruptions);
 }
 
 /** Creates or replaces the single player rating row and returns the saved row. */
@@ -412,13 +424,15 @@ export async function updatePlayerRating(
     return { rating, delta: deltaFrom(previousScores(rating), previousScores(rating)) };
   }
 
-  const [settings, interruptions, activities] = await Promise.all([
+  const [settings, interruptions, activities, storedPlan] = await Promise.all([
     settingsOverride ? Promise.resolve(settingsOverride) : loadSettings(prisma),
     loadInterruptions(prisma),
     loadActivities(prisma),
+    loadGeneratedPlan(),
   ]);
   const before = previousScores(existing);
-  const scores = calculateScores(activities, settings, interruptions);
+  const plan = storedPlan?.plan ?? buildTrainingPlan(settings);
+  const scores = calculateScores(activities, settings, plan, interruptions);
   const rating = await prisma.playerRating.update({
     where: { id: existing.id },
     data: ratingData(scores, before),
