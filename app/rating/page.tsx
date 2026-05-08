@@ -177,7 +177,7 @@ export default async function RatingPage() {
   if (!playerRating) {
     return (
       <div className="rating-shell w-full max-w-5xl">
-        <div className="flex items-start justify-between mb-6 pt-2">
+      <div className="flex items-start justify-between mb-5 pt-1.5 gap-3">
           <div>
             <p className="text-sm font-medium mb-1" style={{ color: "var(--text-muted)" }}>
               Your athletic profile
@@ -204,7 +204,7 @@ export default async function RatingPage() {
 
   return (
     <div className="rating-shell w-full max-w-5xl">
-      <div className="flex items-start justify-between mb-5 pt-1.5">
+      <div className="flex items-start justify-between mb-5 pt-1.5 gap-3">
         <div>
           <p className="text-sm font-medium mb-1" style={{ color: "var(--text-muted)" }}>
             Your athletic profile

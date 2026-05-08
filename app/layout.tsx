@@ -29,8 +29,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       >
         <SettingsProvider>
           <Nav />
-          <main className="flex-1 w-full min-w-0 px-4 pb-24 pt-2 lg:px-6 lg:pb-8 lg:pt-4 lg:pl-64">
-            <div className="max-w-[1100px] mx-auto w-full">
+          <main className="flex-1 w-full min-w-0 px-4 pb-24 pt-2.5 lg:px-6 lg:pb-8 lg:pt-4.5 lg:pl-64">
+            <div className="max-w-[1120px] mx-auto w-full">
               <PageTransition>{children}</PageTransition>
             </div>
           </main>

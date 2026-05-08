@@ -476,7 +476,7 @@ export default async function Dashboard({
 
   // ─────────────────────────────────────────────────────────────────────────
   return (
-    <div className="dashboard-shell flex flex-col lg:flex-row gap-4 lg:gap-4 items-start">
+    <div className="dashboard-shell flex flex-col lg:flex-row gap-3.5 lg:gap-4 items-start">
       {/* ── Main column ──────────────────────────────────────────────────── */}
       <div className="flex-1 min-w-0 space-y-3.5">
 
@@ -503,7 +503,7 @@ export default async function Dashboard({
         )}
 
         {/* Logo icon + phase header */}
-        <Logo size="md" showWordmark={false} />
+        <Logo size="lg" showWordmark={false} className="scale-[0.56] sm:scale-[0.66] origin-left" />
 
         {playerRating && showPlayerRatingSummary && (
           <PlayerRatingDeltaPanel
@@ -512,14 +512,14 @@ export default async function Dashboard({
           />
         )}
 
-        <div className="flex items-start justify-between mb-5 pt-1.5 gap-3">
+        <div className="flex items-start justify-between mb-5 pt-1 gap-3">
           <div>
-            <p className="text-sm font-medium mb-1" style={{ color: "var(--text-muted)" }}>
+            <p className="text-sm font-medium mb-1.5" style={{ color: "var(--text-muted)" }}>
               {greeting}, {displayName}.
             </p>
-            <h1 className="text-2xl font-bold tracking-tight text-white">Dashboard</h1>
+            <h1 className="text-[1.9rem] sm:text-[2.15rem] font-black tracking-[-0.03em] leading-none text-white">Dashboard</h1>
             <span
-              className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-semibold mt-1.5"
+              className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-semibold mt-2"
               style={{
                 background: "var(--accent-dim)",
                 color: "var(--accent)",
