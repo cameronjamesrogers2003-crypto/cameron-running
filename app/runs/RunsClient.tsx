@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { classifyRunByPaceZones, parseRatingBreakdown } from "@/lib/rating";
+import { parseRatingBreakdown } from "@/lib/rating";
 import type { RunType } from "@/data/trainingPlan";
 import { formatPace, formatDuration } from "@/lib/settings";
 import { FORM_CONTROL_TW } from "@/lib/formControlClasses";
@@ -24,6 +24,7 @@ interface Run {
   runType: RunType;
   rating: number | null;
   ratingBreakdown: string | null;
+  classificationMethod: string | null;
 }
 
 interface RunsResponse {
@@ -118,64 +119,9 @@ function SortIcon({ active, dir }: { active: boolean; dir: "asc" | "desc" }) {
   );
 }
 
-interface ClassificationCheck {
-  text: string;
-  passed: boolean; // true = this check ruled out that type; false = matched → final
-}
-
-function buildClassificationChecks(
-  avgPaceSecKm: number,
-  distanceKm: number,
-  intervalThresholdSec: number,
-  tempoThresholdSec: number,
-): { checks: ClassificationCheck[]; result: RunType } {
-  const resultType = classifyRunByPaceZones(
-    avgPaceSecKm, distanceKm, intervalThresholdSec, tempoThresholdSec,
-  );
-  const paceMinPerKm    = avgPaceSecKm / 60;
-  const intThreshMin    = intervalThresholdSec / 60;
-  const tempoThreshMin  = tempoThresholdSec  / 60;
-
-  function fmtSec(sec: number) {
-    const m = Math.floor(sec / 60);
-    const s = Math.round(sec % 60);
-    return `${m}:${String(s).padStart(2, "0")}/km`;
-  }
-  function fmtMin(min: number) {
-    const m = Math.floor(min);
-    const s = Math.round((min - m) * 60);
-    return `${m}:${String(s).padStart(2, "0")}/km`;
-  }
-
-  const pace = fmtMin(paceMinPerKm);
-  const intT = fmtSec(intervalThresholdSec);
-  const temT = fmtSec(tempoThresholdSec);
-  const checks: ClassificationCheck[] = [];
-
-  if (paceMinPerKm <= intThreshMin) {
-    checks.push({ text: `Pace ${pace} ≤ ${intT} interval upper boundary`, passed: false });
-    return { checks, result: resultType };
-  }
-  checks.push({ text: `Pace ${pace} > ${intT} interval upper boundary → not Interval`, passed: true });
-
-  if (paceMinPerKm <= tempoThreshMin) {
-    checks.push({ text: `Pace ${pace} ≤ ${temT} tempo upper boundary`, passed: false });
-    return { checks, result: resultType };
-  }
-  checks.push({ text: `Pace ${pace} > ${temT} tempo upper boundary → not Tempo`, passed: true });
-
-  if (distanceKm >= 15) {
-    checks.push({ text: `Distance ${distanceKm.toFixed(2)} km ≥ 15 km`, passed: false });
-    return { checks, result: resultType };
-  }
-  checks.push({ text: `Distance ${distanceKm.toFixed(2)} km < 15 km → not Long`, passed: true });
-
-  return { checks, result: resultType };
-}
-
 export default function RunsClient({
-  intervalThresholdSec,
-  tempoThresholdSec,
+  intervalThresholdSec: _intervalThresholdSec,
+  tempoThresholdSec: _tempoThresholdSec,
 }: {
   intervalThresholdSec: number;
   tempoThresholdSec: number;
@@ -434,14 +380,7 @@ export default function RunsClient({
               >
                 <span className="text-sm text-white truncate pr-2">{run.name ?? "Run"}</span>
                 <span>
-                  <Pill
-                    type={classifyRunByPaceZones(
-                      run.avgPaceSecKm,
-                      run.distanceKm,
-                      intervalThresholdSec,
-                      tempoThresholdSec,
-                    )}
-                  />
+                  <Pill type={run.runType} />
                 </span>
                 <span className="text-sm text-white">{run.distanceKm.toFixed(2)} km</span>
                 <span className="text-sm text-white">{run.avgPaceSecKm > 0 ? formatPace(run.avgPaceSecKm) + "/km" : "—"}</span>
@@ -508,35 +447,20 @@ export default function RunsClient({
                       <span className="text-white">{value}</span>
                     </div>
                   ))}
-                  {/* Classification checks */}
-                  {run.avgPaceSecKm > 0 && (() => {
-                    const { checks, result } = buildClassificationChecks(
-                      run.avgPaceSecKm, run.distanceKm,
-                      intervalThresholdSec, tempoThresholdSec,
-                    );
-                    return (
-                      <div
-                        className="col-span-2 mt-2 rounded-md px-3 py-2.5 space-y-1"
-                        style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}
-                      >
-                        <p className="text-[10px] uppercase tracking-wider mb-1.5" style={{ color: "var(--text-muted)" }}>
-                          Type classification
-                        </p>
-                        {checks.map((c, i) => (
-                          <p key={i} className="text-xs" style={{ color: c.passed ? "rgba(255,255,255,0.4)" : "rgba(255,255,255,0.7)" }}>
-                            <span style={{ color: c.passed ? "#5DCAA5" : "#AFA9EC" }}>{c.passed ? "✓" : "→"}</span>
-                            {" "}{c.text}
-                          </p>
-                        ))}
-                        <p className="text-xs font-semibold pt-0.5" style={{ color: TYPE_COLORS[result] }}>
-                          → Classified as: {result.charAt(0).toUpperCase() + result.slice(1)}
-                        </p>
-                        <p className="text-[10px] pt-1" style={{ color: "rgba(156,163,175,0.4)" }}>
-                          Thresholds from your manual pace zones in Settings
-                        </p>
-                      </div>
-                    );
-                  })()}
+                  <div
+                    className="col-span-2 mt-2 rounded-md px-3 py-2.5 space-y-1"
+                    style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}
+                  >
+                    <p className="text-[10px] uppercase tracking-wider mb-1.5" style={{ color: "var(--text-muted)" }}>
+                      Type classification
+                    </p>
+                    <p className="text-xs text-white">
+                      Classified as: {run.runType.charAt(0).toUpperCase() + run.runType.slice(1)}
+                    </p>
+                    <p className="text-xs" style={{ color: "rgba(255,255,255,0.7)" }}>
+                      Classified by: {run.classificationMethod ?? "Average pace classification (legacy activity)"}
+                    </p>
+                  </div>
                 </div>
               )}
             </div>
@@ -575,14 +499,7 @@ export default function RunsClient({
                       {formatDateAest(run.dateIso)}
                     </p>
                     <div className="mt-2">
-                      <Pill
-                        type={classifyRunByPaceZones(
-                          run.avgPaceSecKm,
-                          run.distanceKm,
-                          intervalThresholdSec,
-                          tempoThresholdSec,
-                        )}
-                      />
+                      <Pill type={run.runType} />
                     </div>
                   </button>
                   <button
@@ -666,31 +583,20 @@ export default function RunsClient({
                       <span className="text-white text-right">{value}</span>
                     </div>
                   ))}
-                  {run.avgPaceSecKm > 0 && (() => {
-                    const { checks, result } = buildClassificationChecks(
-                      run.avgPaceSecKm, run.distanceKm,
-                      intervalThresholdSec, tempoThresholdSec,
-                    );
-                    return (
-                      <div
-                        className="mt-2 rounded-md px-3 py-2.5 space-y-1 col-span-1"
-                        style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}
-                      >
-                        <p className="text-[10px] uppercase tracking-wider mb-1.5" style={{ color: "var(--text-muted)" }}>
-                          Type classification
-                        </p>
-                        {checks.map((c, j) => (
-                          <p key={j} className="text-xs" style={{ color: c.passed ? "rgba(255,255,255,0.4)" : "rgba(255,255,255,0.7)" }}>
-                            <span style={{ color: c.passed ? "#5DCAA5" : "#AFA9EC" }}>{c.passed ? "✓" : "→"}</span>
-                            {" "}{c.text}
-                          </p>
-                        ))}
-                        <p className="text-xs font-semibold pt-0.5" style={{ color: TYPE_COLORS[result] }}>
-                          → Classified as: {result.charAt(0).toUpperCase() + result.slice(1)}
-                        </p>
-                      </div>
-                    );
-                  })()}
+                  <div
+                    className="mt-2 rounded-md px-3 py-2.5 space-y-1 col-span-1"
+                    style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}
+                  >
+                    <p className="text-[10px] uppercase tracking-wider mb-1.5" style={{ color: "var(--text-muted)" }}>
+                      Type classification
+                    </p>
+                    <p className="text-xs text-white">
+                      Classified as: {run.runType.charAt(0).toUpperCase() + run.runType.slice(1)}
+                    </p>
+                    <p className="text-xs" style={{ color: "rgba(255,255,255,0.7)" }}>
+                      Classified by: {run.classificationMethod ?? "Average pace classification (legacy activity)"}
+                    </p>
+                  </div>
                 </div>
               )}
             </div>

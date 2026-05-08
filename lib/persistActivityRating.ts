@@ -1,10 +1,12 @@
 import type { PrismaClient } from "@prisma/client";
 import {
   calculateRunRating,
-  classifyRunByPaceZones,
   type StatActivity,
 } from "@/lib/rating";
 import { dbSettingsToUserSettings, DEFAULT_SETTINGS, type UserSettings } from "@/lib/settings";
+import { loadGeneratedPlan } from "@/lib/planStorage";
+import { getEffectivePlanStart } from "@/lib/planUtils";
+import { enhancedClassifyRun, getPlanContextForDate } from "@/lib/runClassification";
 
 function toStat(a: {
   id: string;
@@ -16,6 +18,7 @@ function toStat(a: {
   temperatureC: number | null;
   humidityPct: number | null;
   classifiedRunType: string | null;
+  splitsJson: string | null;
 }): StatActivity {
   return {
     id: a.id,
@@ -27,16 +30,20 @@ function toStat(a: {
     temperatureC: a.temperatureC,
     humidityPct: a.humidityPct,
     classifiedRunType: a.classifiedRunType,
+    splitsJson: a.splitsJson,
   };
 }
 
 function effectiveType(a: StatActivity, settings: UserSettings): string {
-  return classifyRunByPaceZones(
-    a.avgPaceSecKm,
-    a.distanceKm,
-    settings.intervalPaceMaxSec,
-    settings.tempoPaceMaxSec,
-  );
+  return a.classifiedRunType
+    ?? enhancedClassifyRun(
+      {
+        distanceKm: a.distanceKm,
+        avgPaceSecKm: a.avgPaceSecKm,
+        splitsJson: a.splitsJson ?? null,
+      },
+      settings,
+    ).runType;
 }
 
 /**
@@ -47,21 +54,29 @@ export async function persistActivityRating(
   prisma: PrismaClient,
   activityId: string,
 ): Promise<void> {
-  const [settingsRow, act] = await Promise.all([
+  const [settingsRow, act, generatedPlan] = await Promise.all([
     prisma.userSettings.findUnique({ where: { id: 1 } }),
     prisma.activity.findUnique({ where: { id: activityId } }),
+    loadGeneratedPlan(),
   ]);
 
   if (!act || !["running", "trail_running"].includes(act.activityType)) return;
 
   const settings = settingsRow ? dbSettingsToUserSettings(settingsRow) : DEFAULT_SETTINGS;
-
-  const classified = classifyRunByPaceZones(
-    act.avgPaceSecKm,
-    act.distanceKm,
-    settings.intervalPaceMaxSec,
-    settings.tempoPaceMaxSec,
+  const planStart = getEffectivePlanStart(settings.planStartDate);
+  const planContext = generatedPlan
+    ? getPlanContextForDate(act.date, generatedPlan.plan, planStart)
+    : undefined;
+  const classification = enhancedClassifyRun(
+    {
+      distanceKm: act.distanceKm,
+      avgPaceSecKm: act.avgPaceSecKm,
+      splitsJson: act.splitsJson,
+    },
+    settings,
+    planContext,
   );
+  const classified = classification.runType;
 
   const prior = await prisma.activity.findMany({
     where: {
@@ -81,6 +96,7 @@ export async function persistActivityRating(
       temperatureC: true,
       humidityPct: true,
       classifiedRunType: true,
+      splitsJson: true,
     },
   });
 
@@ -103,6 +119,7 @@ export async function persistActivityRating(
       rating: ratingResult.total,
       ratingBreakdown: JSON.stringify(ratingResult),
       classifiedRunType: classified,
+      classificationMethod: classification.method,
     },
   });
 }

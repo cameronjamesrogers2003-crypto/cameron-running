@@ -22,6 +22,7 @@ export interface StatActivity {
   humidityPct?: number | null;
   rating?: number | null;
   classifiedRunType?: string | null;
+  splitsJson?: string | null;
 }
 
 export interface RunRatingComponentBreakdown {
