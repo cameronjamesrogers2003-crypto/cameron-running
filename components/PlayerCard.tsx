@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useTheme } from "@/context/ThemeContext";
 import { getTier } from "@/lib/playerCardTiers";
 
 interface PlayerCardProps {
@@ -50,7 +49,6 @@ export default function PlayerCard({
   prevOvr,
   mode = "dashboard",
 }: PlayerCardProps) {
-  const { theme } = useTheme();
   const tier = getTier(ovr);
   const attrs = [
     { key: "SPD", fullName: "Speed", val: spd, color: "var(--c-interval)" },
@@ -96,7 +94,7 @@ export default function PlayerCard({
   return (
     <div
       style={{
-        background: theme === "light" ? tier.lightCardBg : tier.cardBg,
+        background: tier.cardBg,
         border: `1px solid ${tier.borderColor}`,
         borderRadius: "16px",
         padding: isDashboard ? "20px" : "24px",
@@ -135,7 +133,7 @@ export default function PlayerCard({
         <>
           <div style={{ position: "relative", zIndex: 1 }}>
             <RunnerSilhouette color={tier.accentColor} size={80} />
-            <p style={{ fontWeight: 900, fontSize: "0.85rem", letterSpacing: "0.1em", color: theme === "light" ? "#111827" : "white", marginTop: "6px", textAlign: "center" }}>
+            <p style={{ fontWeight: 900, fontSize: "0.85rem", letterSpacing: "0.1em", color: "white", marginTop: "6px", textAlign: "center" }}>
               {name}
             </p>
             <p style={{ fontSize: "0.6rem", letterSpacing: "0.15em", color: tier.accentColor, textAlign: "center", opacity: 0.8 }}>
@@ -156,7 +154,7 @@ export default function PlayerCard({
             >
               {isDashboard ? ovr : displayOvr}
             </p>
-            <p style={{ fontSize: "0.6rem", fontWeight: 700, letterSpacing: "0.15em", color: theme === "light" ? "rgba(0,0,0,0.4)" : "rgba(255,255,255,0.4)", marginTop: "2px" }}>
+            <p style={{ fontSize: "0.6rem", fontWeight: 700, letterSpacing: "0.15em", color: "rgba(255,255,255,0.4)", marginTop: "2px" }}>
               O V R
             </p>
             {prevOvr !== undefined && ovr !== prevOvr && (
@@ -202,7 +200,7 @@ export default function PlayerCard({
         >
           <div>
             <RunnerSilhouette color={tier.accentColor} size={120} />
-            <p style={{ fontWeight: 900, fontSize: "0.95rem", letterSpacing: "0.1em", color: theme === "light" ? "#111827" : "white", marginTop: "8px", textAlign: "center" }}>
+            <p style={{ fontWeight: 900, fontSize: "0.95rem", letterSpacing: "0.1em", color: "white", marginTop: "8px", textAlign: "center" }}>
               {name}
             </p>
             <p style={{ fontSize: "0.65rem", letterSpacing: "0.15em", color: tier.accentColor, textAlign: "center", opacity: 0.8 }}>
@@ -222,7 +220,7 @@ export default function PlayerCard({
             >
               {displayOvr}
             </p>
-            <p style={{ fontSize: "0.7rem", fontWeight: 700, letterSpacing: "0.15em", color: theme === "light" ? "rgba(0,0,0,0.4)" : "rgba(255,255,255,0.4)", marginTop: "2px" }}>
+            <p style={{ fontSize: "0.7rem", fontWeight: 700, letterSpacing: "0.15em", color: "rgba(255,255,255,0.4)", marginTop: "2px" }}>
               O V R
             </p>
             {prevOvr !== undefined && ovr !== prevOvr && (
