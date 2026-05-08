@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist } from "next/font/google";
 import "./globals.css";
+import "./runshift/styles.css";
 import Nav from "@/components/Nav";
 import MobileBottomNav from "@/components/MobileBottomNav";
 import { SettingsProvider } from "@/context/SettingsContext";
@@ -22,16 +23,15 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${geist.variable} h-full overflow-x-hidden`}>
-      <body
-        className="min-h-screen flex flex-col overflow-x-hidden"
-        style={{ background: "var(--background)", color: "var(--text)" }}
-      >
+      <body style={{ background: "var(--background)", color: "var(--text)" }}>
         <SettingsProvider>
-          <Nav />
-          <main className="flex-1 w-full max-w-6xl mx-auto px-4 py-5 sm:px-6 sm:py-6 pb-24 md:pb-6 min-w-0">
-            {children}
-          </main>
-          <MobileBottomNav />
+          <div className="rs-app">
+            <Nav />
+            <main className="rs-main">
+              <div className="rs-main__inner">{children}</div>
+            </main>
+            <MobileBottomNav />
+          </div>
         </SettingsProvider>
       </body>
     </html>
