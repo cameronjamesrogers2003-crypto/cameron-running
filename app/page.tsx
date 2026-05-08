@@ -809,7 +809,7 @@ export default async function Dashboard({
       </div>
 
       {/* ── Sidebar ──────────────────────────────────────────────────────── */}
-      <aside className="w-[220px] min-w-[220px] shrink-0 space-y-2.5 hidden lg:block">
+      <aside className="w-[220px] min-w-[220px] shrink-0 space-y-2.5 hidden lg:block mt-[220px]">
         <PlanAdaptationCards initialItems={planAdaptations.map((item) => ({
           id: item.id,
           weekNumber: item.weekNumber,
@@ -819,7 +819,7 @@ export default async function Dashboard({
         }))} />
 
         <div className="px-4 py-4">
-          <p className="text-xs text-zinc-400 mb-3 px-1">
+          <p className="text-xs text-zinc-400 mb-3 px-1 pt-4">
             {formatAEST(today, "EEEE, d MMMM yyyy")}
           </p>
           <div className="flex flex-col gap-4">
@@ -908,7 +908,7 @@ export default async function Dashboard({
               </div>
             </Card>
 
-            <div className="border-t border-zinc-700/50 my-1" />
+            <div className="border-t border-zinc-600 my-3" />
 
             {/* Phase progress */}
             <Card className="px-4 py-3.5">
@@ -938,14 +938,12 @@ export default async function Dashboard({
                   Race week is here 🏁
                 </p>
               )}
+              <p className="text-xs mt-1" style={{ color: "rgba(156,163,175,0.4)" }}>
+                Plan starts {formatAEST(toBrisbaneYmd(planStart), "d MMM yyyy")}
+              </p>
             </Card>
           </div>
         </div>
-
-        {/* Plan start reference */}
-        <p className="text-xs px-1" style={{ color: "rgba(156,163,175,0.4)" }}>
-          Plan starts {formatAEST(toBrisbaneYmd(planStart), "d MMM yyyy")}
-        </p>
 
       </aside>
     </div>
