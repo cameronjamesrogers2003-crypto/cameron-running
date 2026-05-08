@@ -529,9 +529,6 @@ export default async function Dashboard({
               Week {currentWeek} · {currentPhase}
             </span>
           </div>
-          <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-            {formatAEST(today, "EEEE, d MMMM yyyy")}
-          </p>
         </div>
 
         <PlayerCard
@@ -821,120 +818,129 @@ export default async function Dashboard({
           changes: item.changes,
         }))} />
 
-        {/* This week panel */}
-        <Card className="p-3.5">
-          <SectionLabel>This Week</SectionLabel>
-          <p className="text-sm font-semibold text-white mt-1.5 mb-1">
-            Week {currentWeek} · {currentPhase}
+        <div className="px-4 py-4">
+          <p className="text-xs text-zinc-400 mb-3">
+            {formatAEST(today, "EEEE, d MMMM yyyy")}
           </p>
-
-          {/* Progress bar */}
-          <div className="flex justify-between text-xs mb-1">
-            <span style={{ color: "var(--text-muted)" }}>{weekActualKm.toFixed(1)} km</span>
-            <span style={{ color: "var(--text-muted)" }}>{weekTargetKm.toFixed(1)} km</span>
-          </div>
-          <div
-            className="h-1.5 rounded-full overflow-hidden mb-3"
-            style={{ background: "rgba(255,255,255,0.08)" }}
-          >
-            <div
-              className="h-full rounded-full"
-              style={{
-                width: `${Math.min(100, weekTargetKm > 0 ? (weekActualKm / weekTargetKm) * 100 : 0)}%`,
-                background: "var(--accent)",
-              }}
-            />
-          </div>
-
-          {/* Session checklist */}
-          <div className="space-y-2">
-            {lastWeekMisses > 0 && (
-              <p className="text-xs font-medium" style={{ color: "#fbbf24" }}>
-                You missed {lastWeekMisses} session{lastWeekMisses === 1 ? "" : "s"} last week
+          <div className="flex flex-col gap-4">
+            {/* This week panel */}
+            <Card className="p-3.5">
+              <SectionLabel>This Week</SectionLabel>
+              <p className="text-sm font-semibold text-white mt-1.5 mb-1">
+                Week {currentWeek} · {currentPhase}
               </p>
-            )}
-            {sessionChecklist.map(({ session, date, completed, future, missed, active, dayLabel }) => {
-              const prePlan = !active;
-              const baseColor = runTypeColor(session.type);
-              const leftBorderColor = completed
-                ? baseColor
-                : missed
-                  ? "rgba(249,115,22,0.6)"
-                  : future
-                    ? `${baseColor}80`
-                    : "rgba(255,255,255,0.15)";
-              const rowOpacity = completed ? 1 : missed ? 0.6 : future ? 0.7 : 0.35;
-              return (
+
+              {/* Progress bar */}
+              <div className="flex justify-between text-xs mb-1">
+                <span style={{ color: "var(--text-muted)" }}>{weekActualKm.toFixed(1)} km</span>
+                <span style={{ color: "var(--text-muted)" }}>{weekTargetKm.toFixed(1)} km</span>
+              </div>
+              <div
+                className="h-1.5 rounded-full overflow-hidden mb-3"
+                style={{ background: "rgba(255,255,255,0.08)" }}
+              >
                 <div
-                  key={session.day}
-                  className={`flex items-center gap-1.5 flex-nowrap overflow-hidden ${completed ? "opacity-100" : missed ? "opacity-60" : future ? "opacity-70" : ""}`}
-                  style={{ borderLeft: `3px solid ${leftBorderColor}`, paddingLeft: "12px", marginLeft: "4px", opacity: rowOpacity }}
-                >
-                  <div
-                    className="w-4 h-4 rounded-full mt-0.5 flex items-center justify-center text-xs flex-shrink-0"
-                    style={{
-                      border: completed
-                        ? "1px solid var(--accent)"
-                        : missed
-                          ? "1px solid rgba(249,115,22,0.6)"
-                          : prePlan
-                            ? "1px solid rgba(255,255,255,0.15)"
-                            : "1px solid rgba(255,255,255,0.25)",
-                      background: completed ? "var(--accent)" : "transparent",
-                      color: completed ? "#fff" : missed ? "#f5b454" : "var(--text-dim)",
-                    }}
-                  >
-                    {completed ? "✓" : missed ? "×" : prePlan ? "—" : ""}
-                  </div>
-                  <div className="flex-1 min-w-0 flex items-center gap-1.5 flex-nowrap overflow-hidden">
-                    <p className="text-xs font-semibold text-white">{dayLabel}</p>
-                    <p className="text-xs truncate flex-1 min-w-0 font-mono text-white capitalize">
-                      {session.type} {session.targetDistanceKm} km
-                    </p>
-                    <p className="text-xs shrink-0 ml-auto" style={{ color: "var(--text-dim)" }}>
-                      {formatAEST(date, "d MMM")}
-                    </p>
-                  </div>
-                </div>
-              );
-            })}
-            {sessionChecklist.length === 0 && (
-              <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-                No sessions this week
-              </p>
-            )}
-          </div>
-        </Card>
+                  className="h-full rounded-full"
+                  style={{
+                    width: `${Math.min(100, weekTargetKm > 0 ? (weekActualKm / weekTargetKm) * 100 : 0)}%`,
+                    background: "var(--accent)",
+                  }}
+                />
+              </div>
 
-        {/* Phase progress */}
-        <Card className="p-3.5">
-          <SectionLabel>Phase Progress</SectionLabel>
-          <p className="text-sm font-semibold text-white mt-2">{currentPhase}</p>
-          <p className="text-xs mt-0.5 mb-2" style={{ color: "var(--text-muted)" }}>
-            Week {currentWeek} of {totalWeeks}
-          </p>
-          <div
-            className="h-1.5 rounded-full overflow-hidden mb-3"
-            style={{ background: "rgba(255,255,255,0.08)" }}
-          >
-            <div
-              className="h-full rounded-full"
-              style={{
-                width: `${phaseProgress}%`,
-                background: phaseStyle(currentPhase).color,
-              }}
-            />
+              {/* Session checklist */}
+              <div className="space-y-2">
+                {lastWeekMisses > 0 && (
+                  <p className="text-xs font-medium" style={{ color: "#fbbf24" }}>
+                    You missed {lastWeekMisses} session{lastWeekMisses === 1 ? "" : "s"} last week
+                  </p>
+                )}
+                {sessionChecklist.map(({ session, date, completed, future, missed, active, dayLabel }) => {
+                  const prePlan = !active;
+                  const baseColor = runTypeColor(session.type);
+                  const leftBorderColor = completed
+                    ? baseColor
+                    : missed
+                      ? "rgba(249,115,22,0.6)"
+                      : future
+                        ? `${baseColor}80`
+                        : "rgba(255,255,255,0.15)";
+                  const rowOpacity = completed ? 1 : missed ? 0.6 : future ? 0.7 : 0.35;
+                  return (
+                    <div
+                      key={session.day}
+                      className={`flex items-center gap-1.5 flex-nowrap overflow-hidden ${completed ? "opacity-100" : missed ? "opacity-60" : future ? "opacity-70" : ""}`}
+                      style={{ borderLeft: `3px solid ${leftBorderColor}`, paddingLeft: "12px", marginLeft: "4px", opacity: rowOpacity }}
+                    >
+                      <div
+                        className="w-4 h-4 rounded-full mt-0.5 flex items-center justify-center text-xs flex-shrink-0"
+                        style={{
+                          border: completed
+                            ? "1px solid var(--accent)"
+                            : missed
+                              ? "1px solid rgba(249,115,22,0.6)"
+                              : prePlan
+                                ? "1px solid rgba(255,255,255,0.15)"
+                                : "1px solid rgba(255,255,255,0.25)",
+                          background: completed ? "var(--accent)" : "transparent",
+                          color: completed ? "#fff" : missed ? "#f5b454" : "var(--text-dim)",
+                        }}
+                      >
+                        {completed ? "✓" : missed ? "×" : prePlan ? "—" : ""}
+                      </div>
+                      <div className="flex-1 min-w-0 flex items-center gap-1.5 flex-nowrap overflow-hidden">
+                        <p className="text-xs font-semibold text-white">{dayLabel}</p>
+                        <p className="text-xs truncate flex-1 min-w-0 font-mono text-white capitalize">
+                          {session.type} {session.targetDistanceKm} km
+                        </p>
+                        <p className="text-xs shrink-0 ml-auto" style={{ color: "var(--text-dim)" }}>
+                          {formatAEST(date, "d MMM")}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+                {sessionChecklist.length === 0 && (
+                  <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+                    No sessions this week
+                  </p>
+                )}
+              </div>
+            </Card>
+
+            <div className="border-t border-zinc-700/50" />
+
+            {/* Phase progress */}
+            <Card className="p-3.5">
+              <SectionLabel>Phase Progress</SectionLabel>
+              <p className="text-sm font-semibold text-white mt-2">{currentPhase}</p>
+              <p className="text-xs mt-0.5 mb-2" style={{ color: "var(--text-muted)" }}>
+                Week {currentWeek} of {totalWeeks}
+              </p>
+              <div
+                className="h-1.5 rounded-full overflow-hidden mb-3"
+                style={{ background: "rgba(255,255,255,0.08)" }}
+              >
+                <div
+                  className="h-full rounded-full"
+                  style={{
+                    width: `${phaseProgress}%`,
+                    background: phaseStyle(currentPhase).color,
+                  }}
+                />
+              </div>
+              {raceSpecificWeek != null ? (
+                <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+                  Race Specific starts Week {raceSpecificWeek}
+                </p>
+              ) : (
+                <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+                  Race week is here 🏁
+                </p>
+              )}
+            </Card>
           </div>
-          {raceSpecificWeek != null ? (
-            <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-              Race Specific starts Week {raceSpecificWeek}
-            </p>
-          ) : (
-            <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-              Race week is here 🏁
-            </p>
-          )}
-        </Card>
+        </div>
 
         {/* Plan start reference */}
         <p className="text-xs px-1" style={{ color: "rgba(156,163,175,0.4)" }}>
