@@ -11,7 +11,6 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { useMediaQuery } from "@/lib/useMediaQuery";
-import { useTheme } from "@/context/ThemeContext";
 
 interface WeeklyKmData {
   week: string;
@@ -27,13 +26,12 @@ const TOOLTIP_STYLE = {
 };
 
 export default function WeeklyKmChart({ data }: { data: WeeklyKmData[] }) {
-  const { theme } = useTheme();
   const compact = useMediaQuery("(max-width: 767px)");
   const tickSize = compact ? 9 : 11;
   const tipSize = compact ? 11 : 12;
-  const gridColor = theme === "light" ? "rgba(0,0,0,0.08)" : "rgba(255,255,255,0.06)";
-  const textColor = theme === "light" ? "rgba(0,0,0,0.45)" : "rgba(255,255,255,0.40)";
-  const barColor = theme === "light" ? "#0d9488" : "var(--accent)";
+  const gridColor = "rgba(255,255,255,0.06)";
+  const textColor = "rgba(255,255,255,0.40)";
+  const barColor = "var(--accent)";
 
   return (
     <div className="w-full min-w-0 -mx-1 sm:mx-0">

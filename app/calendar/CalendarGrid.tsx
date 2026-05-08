@@ -6,7 +6,6 @@ import { formatDuration, formatPace } from "@/lib/settings";
 import type { CalendarRun, CalendarData, PlannedDayMeta } from "./types";
 import { formatAEST } from "@/lib/dateUtils";
 import { RunTypePill } from "@/components/RunTypePill";
-import { useTheme } from "@/context/ThemeContext";
 
 interface Props {
   year: number;
@@ -94,18 +93,16 @@ function breakdownRows(json: string | null | undefined): Array<{ label: string; 
 
 export default function CalendarGrid({ year, todayKey, calendarData, plannedDayMeta }: Props) {
   const router = useRouter();
-  const { theme } = useTheme();
   const [viewMonth, setViewMonth] = useState(Number(todayKey.split("-")[1]));
   const [modalRun, setModalRun] = useState<CalendarRun | null>(null);
   const todayMonth = Number(todayKey.split("-")[1]);
   const todayYear = Number(todayKey.split("-")[0]);
   const isCurrentYear = year === todayYear;
-  const isLight = theme === "light";
-  const ctrlBg = isLight ? "rgba(15,23,42,0.06)" : "rgba(255,255,255,0.06)";
-  const ctrlBorder = isLight ? "rgba(15,23,42,0.12)" : "rgba(255,255,255,0.08)";
-  const cellBase = isLight ? "rgba(255,255,255,0.92)" : "rgba(255,255,255,0.02)";
-  const modalBg = isLight ? "#f8fafc" : "#111214";
-  const modalBorder = isLight ? "1px solid rgba(15,23,42,0.12)" : "1px solid rgba(255,255,255,0.10)";
+  const ctrlBg = "rgba(255,255,255,0.06)";
+  const ctrlBorder = "rgba(255,255,255,0.08)";
+  const cellBase = "rgba(255,255,255,0.02)";
+  const modalBg = "#111214";
+  const modalBorder = "1px solid rgba(255,255,255,0.10)";
 
   const firstOfMonth = new Date(Date.UTC(year, viewMonth - 1, 1) - 10 * 60 * 60 * 1000);
   const firstDow = (new Date(firstOfMonth.getTime() + 10 * 60 * 60 * 1000).getUTCDay() + 6) % 7;
@@ -183,7 +180,7 @@ export default function CalendarGrid({ year, todayKey, calendarData, plannedDayM
                   ? { background: "rgba(45,212,191,0.15)", border: "1px solid rgba(45,212,191,0.30)", color: "var(--accent)" }
                   : isTodayMonth
                     ? { background: "rgba(255,255,255,0.08)", color: "white" }
-                    : { background: isLight ? "rgba(15,23,42,0.06)" : "rgba(255,255,255,0.04)", color: isLight ? "rgba(15,23,42,0.56)" : "rgba(255,255,255,0.40)" }
+                    : { background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.40)" }
               }
             >
               {label}
@@ -237,7 +234,7 @@ export default function CalendarGrid({ year, todayKey, calendarData, plannedDayM
                 background: bestRating != null
                   ? ratingCellTint(bestRating)
                   : planMeta?.kind === "missed"
-                    ? (isLight ? "rgba(245,180,84,0.10)" : "rgba(245,180,84,0.03)")
+                    ? "rgba(245,180,84,0.03)"
                     : cellBase,
                 border: isToday
                   ? "1px solid rgba(45,212,191,0.25)"
@@ -308,7 +305,7 @@ export default function CalendarGrid({ year, todayKey, calendarData, plannedDayM
       {modalRun && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ background: isLight ? "rgba(15,23,42,0.28)" : "rgba(0,0,0,0.75)", backdropFilter: "blur(8px)" }}
+          style={{ background: "rgba(0,0,0,0.75)", backdropFilter: "blur(8px)" }}
           onClick={() => setModalRun(null)}
         >
           <div

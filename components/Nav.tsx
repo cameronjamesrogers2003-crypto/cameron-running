@@ -4,7 +4,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Activity, Calendar, CircleHelp, ClipboardList, LayoutDashboard, RefreshCw, Settings, Trophy } from "lucide-react";
 import Logo from "@/components/Logo";
-import { ThemeToggle } from "@/components/ThemeToggle";
 import { SidebarSubtitle } from "@/components/SidebarSubtitle";
 
 const mainLinks = [
@@ -29,7 +28,6 @@ export default function Nav() {
           <span className="font-semibold text-sm" style={{ color: "var(--text-primary)" }}>Runshift</span>
         </Link>
         <div className="flex items-center gap-2">
-          <ThemeToggle />
           <button
             type="button"
             className="flex items-center justify-center w-9 h-9 rounded-full bg-white/[0.08] border border-white/[0.10] transition-colors duration-150"
@@ -75,7 +73,6 @@ export default function Nav() {
 
         <div className="mt-auto">
           <div className="flex items-center gap-2 px-4 pb-2">
-            <ThemeToggle />
             <button
               type="button"
               className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-sm font-medium bg-white/[0.05] border border-white/[0.08] hover:bg-white/[0.08] transition-colors duration-150"
