@@ -746,13 +746,14 @@ export default async function Dashboard({
                 </p>
               </div>
             ) : (
-              upcomingSessions.map((row) => {
+              upcomingSessions.map((row, idx) => {
                 const s = row.session;
                 const dayNumber = formatAEST(row.date, "d");
                 return (
                   <div
                     key={`upcoming-${row.week}-${s.day}`}
-                    className="grid grid-cols-[auto_1fr] items-start gap-2.5 px-3.5 py-2 border-b border-white/[0.05] last:border-0"
+                    className="flex items-center gap-2.5 px-3.5 py-2"
+                    style={{ borderTop: idx === 0 ? undefined : "1px solid rgba(255,255,255,0.06)" }}
                   >
                     <div
                       className="flex flex-col items-center justify-start w-9 h-9 rounded-lg text-center shrink-0 pt-0.5"
@@ -763,13 +764,20 @@ export default async function Dashboard({
                       </p>
                       <p className="text-[13px] font-mono font-semibold leading-tight text-white mt-0.5">{dayNumber}</p>
                     </div>
-                    <div className="min-w-0 flex flex-col items-start gap-0.5 pt-0.5">
-                      <p className="text-sm font-mono font-semibold text-white leading-tight">
-                        {s.targetDistanceKm} km
-                      </p>
-                      <RunTypePill type={s.type} size="sm" />
-                      <p className="text-[11px] font-mono leading-tight" style={{ color: "var(--text-muted)" }}>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="text-sm font-mono font-semibold text-white leading-tight">
+                          {s.targetDistanceKm} km
+                        </p>
+                        <RunTypePill type={s.type} size="sm" />
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0 pl-1">
+                      <p className="text-xs font-mono tabular-nums leading-tight text-white">
                         {formatTargetPace(s.targetPaceMinPerKm)}
+                      </p>
+                      <p className="text-[10px] leading-tight" style={{ color: "var(--text-muted)" }}>
+                        pace
                       </p>
                     </div>
                   </div>
