@@ -252,7 +252,7 @@ export default async function ProgramPage({
     : 0;
 
   return (
-    <div className="flex flex-col lg:flex-row items-start gap-0 w-full min-w-0">
+    <div className="program-shell flex flex-col lg:flex-row items-start gap-0 w-full min-w-0">
 
       {/* ── Main content ─────────────────────────────────────────────── */}
       <div className="flex-1 min-w-0 w-full space-y-6 sm:space-y-8 lg:pr-6">

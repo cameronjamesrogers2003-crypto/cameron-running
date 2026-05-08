@@ -468,7 +468,7 @@ export default async function Dashboard({
 
   // ─────────────────────────────────────────────────────────────────────────
   return (
-    <div className="flex flex-col lg:flex-row gap-5 lg:gap-5 items-start">
+    <div className="dashboard-shell flex flex-col lg:flex-row gap-5 lg:gap-5 items-start">
       {/* ── Main column ──────────────────────────────────────────────────── */}
       <div className="flex-1 min-w-0 space-y-4">
 

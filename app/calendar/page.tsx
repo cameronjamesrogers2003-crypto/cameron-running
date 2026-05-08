@@ -175,7 +175,7 @@ export default async function CalendarPage({
   const todayKey = toBrisbaneYmd(today);
 
   return (
-    <div className="max-w-[1100px] mx-auto w-full">
+    <div className="calendar-shell max-w-[1100px] mx-auto w-full">
       <div className="flex items-start justify-between mb-6 pt-2">
         <div>
           <p className="text-sm font-medium mb-1" style={{ color: "var(--text-muted)" }}>
