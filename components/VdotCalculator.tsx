@@ -145,6 +145,8 @@ export default function VdotCalculator({
 
   const fieldCls =
     "w-full min-h-11 rounded-md px-3 py-2 bg-black/20 border border-white/10 text-white";
+  const selectCls =
+    "w-full min-h-11 rounded-md px-3 py-2 text-gray-900 dark:text-white bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 outline-none focus:ring-1 focus:ring-teal-400/40";
 
   return (
     <div
@@ -173,12 +175,20 @@ export default function VdotCalculator({
             <select
               value={personal.gender}
               onChange={(e) => setPersonal({ ...personal, gender: e.target.value })}
-              className={fieldCls}
+              className={selectCls}
             >
-              <option value="">—</option>
-              <option value="Male">Male</option>
-              <option value="Female">Female</option>
-              <option value="Prefer not to say">Prefer not to say</option>
+              <option value="" className="text-gray-900 dark:text-white">
+                —
+              </option>
+              <option value="Male" className="text-gray-900 dark:text-white">
+                Male
+              </option>
+              <option value="Female" className="text-gray-900 dark:text-white">
+                Female
+              </option>
+              <option value="Prefer not to say" className="text-gray-900 dark:text-white">
+                Prefer not to say
+              </option>
             </select>
           </label>
           <label className="text-xs block space-y-1">
@@ -198,13 +208,23 @@ export default function VdotCalculator({
             <select
               value={personal.runningExperience}
               onChange={(e) => setPersonal({ ...personal, runningExperience: e.target.value })}
-              className={fieldCls}
+              className={selectCls}
             >
-              <option value="">—</option>
-              <option value={RUNNING_EXPERIENCE_LT1}>&lt; 1 year</option>
-              <option value={RUNNING_EXPERIENCE_1_3}>1–3 years</option>
-              <option value={RUNNING_EXPERIENCE_3_5}>3–5 years</option>
-              <option value={RUNNING_EXPERIENCE_5PLUS}>5+ years</option>
+              <option value="" className="text-gray-900 dark:text-white">
+                —
+              </option>
+              <option value={RUNNING_EXPERIENCE_LT1} className="text-gray-900 dark:text-white">
+                &lt; 1 year
+              </option>
+              <option value={RUNNING_EXPERIENCE_1_3} className="text-gray-900 dark:text-white">
+                1–3 years
+              </option>
+              <option value={RUNNING_EXPERIENCE_3_5} className="text-gray-900 dark:text-white">
+                3–5 years
+              </option>
+              <option value={RUNNING_EXPERIENCE_5PLUS} className="text-gray-900 dark:text-white">
+                5+ years
+              </option>
             </select>
           </label>
           <label className="text-xs block space-y-1 sm:col-span-2">
