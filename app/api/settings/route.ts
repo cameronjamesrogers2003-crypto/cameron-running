@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
+import { brisbaneMidnightUtcForYmd, toBrisbaneYmd } from "@/lib/dateUtils";
 import { dbSettingsToUserSettings, DEFAULT_SETTINGS } from "@/lib/settings";
 import type { Day } from "@/data/trainingPlan";
 
@@ -104,9 +105,16 @@ const ALLOWED_FIELDS = new Set([
 
 function applySetting(update: SettingsUpdate, key: string, value: unknown): void {
   switch (key) {
-    case "planStartDate":
-      update.planStartDate = typeof value === "string" && value ? new Date(value) : null;
+    case "planStartDate": {
+      if (typeof value !== "string" || !value.trim()) {
+        update.planStartDate = null;
+        return;
+      }
+      // Normalize to Brisbane-midnight UTC for the selected calendar day (consistent with SettingsForm).
+      const ymd = toBrisbaneYmd(new Date(value));
+      update.planStartDate = brisbaneMidnightUtcForYmd(ymd);
       return;
+    }
     case "raceDate":
       update.raceDate = typeof value === "string" && value ? new Date(value) : null;
       return;

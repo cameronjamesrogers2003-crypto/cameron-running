@@ -9,7 +9,7 @@ import {
   getWeeklyTargetKm,
   isActivityOnOrAfterPlanStart,
 } from "@/lib/planUtils";
-import { sameDayAEST, startOfDayAEST } from "@/lib/dateUtils";
+import { formatAEST, sameDayAEST, startOfDayAEST } from "@/lib/dateUtils";
 import { dbSettingsToUserSettings, DEFAULT_SETTINGS } from "@/lib/settings";
 import { parseInterruptionType, reconfigurePlan, type PlanInterruption } from "@/lib/interruptions";
 import { loadGeneratedPlan } from "@/lib/planStorage";
@@ -69,6 +69,11 @@ function getZoneBadge(
 }
 
 // ── Volume change vs previous week in the plan ───────────────────────────────
+
+function formatRunTypeWord(t: string | null | undefined): string {
+  if (!t) return "Unclassified";
+  return t.charAt(0).toUpperCase() + t.slice(1);
+}
 
 function getVolumeChange(planWeek: TrainingWeek, plan: TrainingWeek[]): number | null {
   const idx = plan.indexOf(planWeek);
@@ -171,6 +176,7 @@ export default async function ProgramPage({
     prisma.userSettings.findUnique({ where: { id: 1 } }),
     prisma.activity.findMany({
       where: { activityType: { in: ["running", "trail_running"] } },
+      orderBy: { date: "desc" },
     }),
     prisma.planInterruption.findMany({ orderBy: { startDate: "asc" } }),
     loadGeneratedPlan(),
@@ -372,6 +378,16 @@ export default async function ProgramPage({
                 const volumeChange  = getVolumeChange(planWeek, planToRender);
                 const focusLabel = planWeek.weekSubtitle;
 
+                const extraRuns = activities.filter((a) => {
+                  const d = new Date(a.date);
+                  if (!isActivityOnOrAfterPlanStart(d, planStart)) return false;
+                  const weekNum = getPlanWeekForDate(d, planStart);
+                  if (weekNum !== planWeek.week) return false;
+                  return !planWeek.sessions.some((s) =>
+                    sameDayAEST(d, getSessionDate(planWeek.week, s.day, planStart)),
+                  );
+                });
+
                 return (
                   <div
                     key={planWeek.week}
@@ -444,22 +460,28 @@ export default async function ProgramPage({
                         </div>
                       </div>
 
-                      {/* Session cards */}
-                      <div
-                        className="flex-1 grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-2 min-w-0 w-full"
-                        style={{ gridTemplateColumns: `repeat(${Math.min(planWeek.sessions.length, 6)}, 1fr)` }}
-                      >
+                      {/* Session cards + extra runs */}
+                      <div className="flex-1 min-w-0 w-full space-y-2">
+                        <div
+                          className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-2 min-w-0 w-full"
+                          style={{ gridTemplateColumns: `repeat(${Math.min(planWeek.sessions.length, 6)}, 1fr)` }}
+                        >
                         {planWeek.sessions.map((session) => {
                           const sessionDate = getSessionDate(planWeek.week, session.day, planStart);
                           const isPast      = sessionDate < todayMidnight;
-                          const matchedAct  = activities.find((a) => {
+                          const sameDayRuns = activities.filter((a) => {
                             const d = new Date(a.date);
                             return (
                               isActivityOnOrAfterPlanStart(d, planStart)
                               && sameDayAEST(d, sessionDate)
                             );
                           });
+                          const matchedAct =
+                            sameDayRuns.find((a) => a.classifiedRunType === session.type)
+                            ?? sameDayRuns[0];
                           const isCompleted = !!matchedAct;
+                          const runTypeMismatch =
+                            !!matchedAct && matchedAct.classifiedRunType !== session.type;
                           const showRating  = isCompleted && (isPast || isCurrentWeek);
 
                           const ratingNum =
@@ -536,6 +558,19 @@ export default async function ProgramPage({
                                 {session.type.charAt(0).toUpperCase() + session.type.slice(1)}
                               </span>
 
+                              {runTypeMismatch && (
+                                <p
+                                  className="text-[10px] mt-1.5 leading-snug rounded px-1.5 py-1"
+                                  style={{
+                                    background: "rgba(245,158,11,0.14)",
+                                    color: "#fbbf24",
+                                  }}
+                                >
+                                  ⚠️ Run type mismatch — planned: {formatRunTypeWord(session.type)}, actual:{" "}
+                                  {formatRunTypeWord(matchedAct.classifiedRunType)}
+                                </p>
+                              )}
+
                               {/* Effort label */}
                               <p
                                 className="text-[11px] mt-0.5 mb-2"
@@ -577,6 +612,25 @@ export default async function ProgramPage({
                             </div>
                           );
                         })}
+                        </div>
+
+                        {extraRuns.length > 0 && (
+                          <p
+                            className="text-[11px] leading-relaxed pl-0 sm:pl-0"
+                            style={{ color: "rgba(232,230,224,0.38)" }}
+                          >
+                            <span className="font-medium" style={{ color: "rgba(232,230,224,0.5)" }}>
+                              Extra runs this week:
+                            </span>{" "}
+                            {extraRuns.map((a, i) => (
+                              <span key={a.id}>
+                                {formatAEST(a.date, "EEE d MMM")} — {a.distanceKm.toFixed(1)} km{" "}
+                                {formatRunTypeWord(a.classifiedRunType)}
+                                {i < extraRuns.length - 1 ? "; " : ""}
+                              </span>
+                            ))}
+                          </p>
+                        )}
                       </div>
 
                       {/* Total km + volume change */}
