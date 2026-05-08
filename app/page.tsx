@@ -476,9 +476,9 @@ export default async function Dashboard({
 
   // ─────────────────────────────────────────────────────────────────────────
   return (
-    <div className="dashboard-shell flex flex-col lg:flex-row gap-5 lg:gap-5 items-start">
+    <div className="dashboard-shell flex flex-col lg:flex-row gap-4 lg:gap-4 items-start">
       {/* ── Main column ──────────────────────────────────────────────────── */}
-      <div className="flex-1 min-w-0 space-y-4">
+      <div className="flex-1 min-w-0 space-y-3.5">
 
         {/* OAuth error */}
         {oauthError && (
@@ -512,14 +512,14 @@ export default async function Dashboard({
           />
         )}
 
-        <div className="flex items-start justify-between mb-6 pt-2 gap-3">
+        <div className="flex items-start justify-between mb-5 pt-1.5 gap-3">
           <div>
             <p className="text-sm font-medium mb-1" style={{ color: "var(--text-muted)" }}>
               {greeting}, {displayName}.
             </p>
             <h1 className="text-2xl font-bold tracking-tight text-white">Dashboard</h1>
             <span
-              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold mt-2"
+              className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-semibold mt-1.5"
               style={{
                 background: "var(--accent-dim)",
                 color: "var(--accent)",
@@ -548,10 +548,10 @@ export default async function Dashboard({
 
         {/* Today's plan — full width on small screens (sidebar is lg+) */}
         <div className="lg:hidden w-full">
-          <Card className="p-4" style={{ animation: "fadeInUp 300ms ease-out forwards", animationDelay: "0ms", opacity: 0 }}>
+          <Card className="p-3.5" style={{ animation: "fadeInUp 300ms ease-out forwards", animationDelay: "0ms", opacity: 0 }}>
             <SectionLabel>Today&apos;s workout</SectionLabel>
             {todayPlanEntry ? (
-              <div className="mt-3 space-y-1">
+              <div className="mt-2.5 space-y-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-white font-semibold text-sm">
                     {todayPlanEntry.dayLabel} {formatAEST(todayPlanEntry.date, "d MMM")}
@@ -578,9 +578,9 @@ export default async function Dashboard({
         </div>
 
         {/* ── Stat tiles ─────────────────────────────────────────────────── */}
-        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-2.5">
           {/* Weekly distance */}
-          <Card className="p-4" style={{ animation: "fadeInUp 300ms ease-out forwards", animationDelay: "60ms", opacity: 0 }}>
+          <Card className="p-3.5" style={{ animation: "fadeInUp 300ms ease-out forwards", animationDelay: "60ms", opacity: 0 }}>
             <SectionLabel>Weekly Distance</SectionLabel>
             <p className="text-4xl font-black font-mono tabular-nums text-white mt-2">
               {weekActualKm.toFixed(1)}
@@ -599,7 +599,7 @@ export default async function Dashboard({
           </Card>
 
           {/* Runs completed */}
-          <Card className="p-4" style={{ animation: "fadeInUp 300ms ease-out forwards", animationDelay: "120ms", opacity: 0 }}>
+          <Card className="p-3.5" style={{ animation: "fadeInUp 300ms ease-out forwards", animationDelay: "120ms", opacity: 0 }}>
             <SectionLabel>Runs Completed</SectionLabel>
             <p className="text-4xl font-black font-mono tabular-nums text-white mt-2">
               {weekDone}
@@ -622,7 +622,7 @@ export default async function Dashboard({
           </Card>
 
           {/* Avg rating */}
-          <Card className="p-4">
+          <Card className="p-3.5">
             <SectionLabel>Avg Run Rating</SectionLabel>
             {avgWeekRating !== null ? (
               <>
@@ -651,25 +651,25 @@ export default async function Dashboard({
         </div>
 
         {/* ── Weekly km chart ─────────────────────────────────────────────── */}
-        <Card className="p-4">
+        <Card className="p-3.5">
           <SectionLabel>Weekly Distance (km)</SectionLabel>
-          <div className="mt-4">
+          <div className="mt-3.5">
             <WeeklyKmChart data={weeklyKmData} />
           </div>
         </Card>
 
         {/* ── Pace + Load charts side by side ─────────────────────────────── */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <Card className="p-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+          <Card className="p-3.5">
             <SectionLabel>Avg Easy Pace</SectionLabel>
-            <p className="text-xs mt-0.5 mb-3" style={{ color: "rgba(156,163,175,0.6)" }}>
+            <p className="text-xs mt-0.5 mb-2.5" style={{ color: "rgba(156,163,175,0.6)" }}>
               easy runs only · lower = faster
             </p>
             <AvgPaceTrendChart data={paceData} />
           </Card>
-          <Card className="p-4">
+          <Card className="p-3.5">
             <SectionLabel>Training Load</SectionLabel>
-            <p className="text-xs mt-0.5 mb-3" style={{ color: "rgba(156,163,175,0.6)" }}>
+            <p className="text-xs mt-0.5 mb-2.5" style={{ color: "rgba(156,163,175,0.6)" }}>
               km by run type
             </p>
             <TrainingLoadChart data={loadData} />
@@ -677,9 +677,9 @@ export default async function Dashboard({
         </div>
 
         {/* ── Recent runs | Upcoming sessions (side by side on md+) ─────────── */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
           <Card>
-            <div className="px-4 pt-4 pb-2">
+            <div className="px-3.5 pt-3.5 pb-1.5">
               <SectionLabel>Recent Runs</SectionLabel>
             </div>
             {recentRunsRows.length === 0 ? (
@@ -695,7 +695,7 @@ export default async function Dashboard({
                 return (
                   <div
                     key={run.id}
-                    className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center"
+                  className="flex flex-col gap-2.5 px-3.5 py-2.5 sm:flex-row sm:items-center"
                     style={{ borderTop: idx === 0 ? undefined : "1px solid rgba(255,255,255,0.06)" }}
                   >
                     <div className="flex items-start gap-3 min-w-0">
@@ -717,7 +717,7 @@ export default async function Dashboard({
                         </p>
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-3 text-xs sm:flex sm:flex-wrap sm:gap-4 sm:justify-end sm:ml-auto sm:text-right">
+                    <div className="grid grid-cols-2 gap-2.5 text-xs sm:flex sm:flex-wrap sm:gap-3.5 sm:justify-end sm:ml-auto sm:text-right">
                       <div className="min-w-0">
                         <p className="text-white font-medium tabular-nums">{run.distanceKm.toFixed(2)} km</p>
                         <p style={{ color: "var(--text-muted)" }}>dist</p>
@@ -736,7 +736,7 @@ export default async function Dashboard({
           </Card>
 
           <Card>
-            <div className="px-4 pt-4 pb-2">
+            <div className="px-3.5 pt-3.5 pb-1.5">
               <SectionLabel>Upcoming Sessions</SectionLabel>
             </div>
             {upcomingSessions.length === 0 ? (
@@ -752,23 +752,23 @@ export default async function Dashboard({
                 return (
                   <div
                     key={`upcoming-${row.week}-${s.day}`}
-                    className="flex items-center gap-3 py-3 border-b border-white/[0.06] last:border-0"
+                    className="grid grid-cols-[auto_1fr] items-start gap-2.5 px-3.5 py-2 border-b border-white/[0.05] last:border-0"
                   >
                     <div
-                      className="flex flex-col items-center justify-center w-10 h-10 rounded-xl text-center shrink-0"
-                      style={{ background: "rgba(255,255,255,0.06)" }}
+                      className="flex flex-col items-center justify-start w-9 h-9 rounded-lg text-center shrink-0 pt-0.5"
+                      style={{ background: "rgba(255,255,255,0.05)" }}
                     >
-                      <p className="text-xs font-bold uppercase" style={{ color: "var(--text-muted)" }}>
+                      <p className="text-[10px] font-bold uppercase leading-none" style={{ color: "var(--text-muted)" }}>
                         {row.dayLabel}
                       </p>
-                      <p className="text-sm font-mono font-semibold text-white">{dayNumber}</p>
+                      <p className="text-[13px] font-mono font-semibold leading-tight text-white mt-0.5">{dayNumber}</p>
                     </div>
-                    <div className="flex-1 min-w-0 space-y-1">
-                      <RunTypePill type={s.type} size="sm" />
-                      <p className="text-sm font-mono text-white">
+                    <div className="min-w-0 flex flex-col items-start gap-0.5 pt-0.5">
+                      <p className="text-sm font-mono font-semibold text-white leading-tight">
                         {s.targetDistanceKm} km
                       </p>
-                      <p className="text-xs font-mono" style={{ color: "var(--text-muted)" }}>
+                      <RunTypePill type={s.type} size="sm" />
+                      <p className="text-[11px] font-mono leading-tight" style={{ color: "var(--text-muted)" }}>
                         {formatTargetPace(s.targetPaceMinPerKm)}
                       </p>
                     </div>
@@ -780,7 +780,7 @@ export default async function Dashboard({
         </div>
 
         {/* ── Strava sync indicator ────────────────────────────────────────── */}
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:flex-wrap px-1 pb-2">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:flex-wrap px-1 pb-1">
           <div
             className="flex flex-col gap-0.5 text-xs sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-1"
             style={{ color: "var(--text-muted)" }}
@@ -804,7 +804,7 @@ export default async function Dashboard({
       </div>
 
       {/* ── Sidebar ──────────────────────────────────────────────────────── */}
-      <aside className="w-[220px] min-w-[220px] shrink-0 space-y-3 hidden lg:block">
+      <aside className="w-[220px] min-w-[220px] shrink-0 space-y-2.5 hidden lg:block">
         <PlanAdaptationCards initialItems={planAdaptations.map((item) => ({
           id: item.id,
           weekNumber: item.weekNumber,
@@ -814,9 +814,9 @@ export default async function Dashboard({
         }))} />
 
         {/* This week panel */}
-        <Card className="p-4">
+        <Card className="p-3.5">
           <SectionLabel>This Week</SectionLabel>
-          <p className="text-sm font-semibold text-white mt-2 mb-1">
+          <p className="text-sm font-semibold text-white mt-1.5 mb-1">
             Week {currentWeek} · {currentPhase}
           </p>
 
@@ -826,7 +826,7 @@ export default async function Dashboard({
             <span style={{ color: "var(--text-muted)" }}>{weekTargetKm.toFixed(1)} km</span>
           </div>
           <div
-            className="h-1.5 rounded-full overflow-hidden mb-4"
+            className="h-1.5 rounded-full overflow-hidden mb-3"
             style={{ background: "rgba(255,255,255,0.08)" }}
           >
             <div
@@ -839,7 +839,7 @@ export default async function Dashboard({
           </div>
 
           {/* Session checklist */}
-          <div className="space-y-2.5">
+          <div className="space-y-2">
             {lastWeekMisses > 0 && (
               <p className="text-xs font-medium" style={{ color: "#fbbf24" }}>
                 You missed {lastWeekMisses} session{lastWeekMisses === 1 ? "" : "s"} last week
@@ -859,7 +859,7 @@ export default async function Dashboard({
               return (
                 <div
                   key={session.day}
-                  className={`flex items-center gap-2 flex-nowrap overflow-hidden ${completed ? "opacity-100" : missed ? "opacity-60" : future ? "opacity-70" : ""}`}
+                  className={`flex items-center gap-1.5 flex-nowrap overflow-hidden ${completed ? "opacity-100" : missed ? "opacity-60" : future ? "opacity-70" : ""}`}
                   style={{ borderLeft: `3px solid ${leftBorderColor}`, paddingLeft: "12px", marginLeft: "4px", opacity: rowOpacity }}
                 >
                   <div
@@ -878,9 +878,9 @@ export default async function Dashboard({
                   >
                     {completed ? "✓" : missed ? "×" : prePlan ? "—" : ""}
                   </div>
-                  <div className="flex-1 min-w-0 flex items-center gap-2 flex-nowrap overflow-hidden">
-                    <p className="text-sm font-semibold text-white">{dayLabel}</p>
-                    <p className="text-sm truncate flex-1 min-w-0 font-mono text-white capitalize">
+                  <div className="flex-1 min-w-0 flex items-center gap-1.5 flex-nowrap overflow-hidden">
+                    <p className="text-xs font-semibold text-white">{dayLabel}</p>
+                    <p className="text-xs truncate flex-1 min-w-0 font-mono text-white capitalize">
                       {session.type} {session.targetDistanceKm} km
                     </p>
                     <p className="text-xs shrink-0 ml-auto" style={{ color: "var(--text-dim)" }}>
@@ -899,7 +899,7 @@ export default async function Dashboard({
         </Card>
 
         {/* Phase progress */}
-        <Card className="p-4">
+        <Card className="p-3.5">
           <SectionLabel>Phase Progress</SectionLabel>
           <p className="text-sm font-semibold text-white mt-2">{currentPhase}</p>
           <p className="text-xs mt-0.5 mb-2" style={{ color: "var(--text-muted)" }}>

@@ -41,7 +41,7 @@ export default function Nav() {
 
       {/* Desktop sidebar */}
       <aside className="rs-sidebar hidden lg:flex flex-col fixed left-0 top-0 bottom-0 w-56 bg-black/60 backdrop-blur-xl border-r border-white/[0.08] z-40">
-        <div className="px-4 pt-5 pb-4 border-b border-white/[0.08]">
+        <div className="px-4 pt-4 pb-3 border-b border-white/[0.08]">
           <Link href="/" className="inline-flex items-center gap-2 transition-opacity hover:opacity-80">
             <Logo size="sm" showWordmark={false} />
             <span className="text-base font-black tracking-tight text-white">Runshift</span>
@@ -51,7 +51,7 @@ export default function Nav() {
           </div>
         </div>
 
-        <nav className="flex-1 pt-3" aria-label="Sidebar">
+        <nav className="flex-1 pt-2.5" aria-label="Sidebar">
           {mainLinks.map((link) => {
             const active = pathname === link.href || (link.href !== "/" && pathname.startsWith(`${link.href}/`));
             const Icon = link.Icon;
@@ -59,12 +59,12 @@ export default function Nav() {
               <Link
                 key={link.href}
                 href={link.href}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl mx-2 text-sm font-medium transition-colors duration-150 cursor-pointer ${
-                  active ? "bg-teal-500/10 text-teal-400" : "text-white/50 hover:text-white/80 hover:bg-white/[0.05]"
+                className={`flex items-center gap-2.5 px-3 py-2 rounded-xl mx-2 text-sm font-medium transition-colors duration-150 cursor-pointer ${
+                  active ? "bg-teal-500/10 text-teal-400" : "text-white/45 hover:text-white/75 hover:bg-white/[0.04]"
                 }`}
                 style={active ? { borderLeft: "2px solid var(--accent)" } : undefined}
               >
-                <Icon className="w-[18px] h-[18px]" strokeWidth={2} />
+                <Icon className="w-4 h-4" strokeWidth={2} />
                 <span>{link.label}</span>
               </Link>
             );
@@ -75,10 +75,10 @@ export default function Nav() {
           <div className="flex items-center gap-2 px-4 pb-2">
             <button
               type="button"
-              className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-sm font-medium bg-white/[0.05] border border-white/[0.08] hover:bg-white/[0.08] transition-colors duration-150"
+              className="flex-1 flex items-center justify-center gap-2 px-3 py-1.5 rounded-xl text-xs font-medium bg-white/[0.04] border border-white/[0.08] hover:bg-white/[0.07] transition-colors duration-150"
             >
               <RefreshCw className="w-4 h-4" style={{ color: "var(--accent)" }} />
-              <span className="text-white/80">Sync Strava</span>
+              <span className="text-white/75">Sync Strava</span>
             </button>
           </div>
           <p className="mx-4 mb-4 text-xs" style={{ color: "var(--text-dim)" }}>
