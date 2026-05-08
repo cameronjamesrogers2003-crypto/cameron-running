@@ -590,17 +590,24 @@ export default async function Dashboard({
           />
         )}
 
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
-          <div className="flex flex-wrap items-center gap-2 sm:gap-3 min-w-0">
-            <span className="text-2xl font-bold tracking-tight text-white shrink-0">Dashboard</span>
+        <div className="flex items-start justify-between mb-6 pt-2 gap-3">
+          <div>
+            <p className="text-sm font-medium mb-1" style={{ color: "var(--text-muted)" }}>
+              Hey, Cameron.
+            </p>
+            <h1 className="text-2xl font-bold tracking-tight text-white">Dashboard</h1>
             <span
-              className="text-xs font-semibold px-2.5 py-1 rounded-full shrink-0"
-              style={phaseStyle(currentPhase)}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold mt-2"
+              style={{
+                background: "var(--accent-dim)",
+                color: "var(--accent)",
+                border: "1px solid var(--accent-border)",
+              }}
             >
               Week {currentWeek} · {currentPhase}
             </span>
           </div>
-          <p className="text-xs w-full sm:w-auto" style={{ color: "var(--text-muted)" }}>
+          <p className="text-sm" style={{ color: "var(--text-muted)" }}>
             {formatAEST(today, "EEEE, d MMMM yyyy")}
           </p>
         </div>

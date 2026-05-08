@@ -2,14 +2,16 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CircleHelp, Settings } from "lucide-react";
+import { Activity, Calendar, CircleHelp, ClipboardList, LayoutDashboard, RefreshCw, Settings } from "lucide-react";
 import Logo from "@/components/Logo";
 
 const mainLinks = [
-  { href: "/", label: "Dashboard" },
-  { href: "/program", label: "Program" },
-  { href: "/calendar", label: "Calendar" },
-  { href: "/runs", label: "Runs" },
+  { href: "/", label: "Dashboard", Icon: LayoutDashboard },
+  { href: "/program", label: "Program", Icon: ClipboardList },
+  { href: "/calendar", label: "Calendar", Icon: Calendar },
+  { href: "/runs", label: "Runs", Icon: Activity },
+  { href: "/settings", label: "Settings", Icon: Settings },
+  { href: "/help", label: "Help", Icon: CircleHelp },
 ] as const;
 
 export default function Nav() {
@@ -17,75 +19,67 @@ export default function Nav() {
 
   return (
     <>
-    {/* Mobile: brand bar only (links live in bottom nav) */}
-    <header
-      className="md:hidden sticky top-0 z-50 border-b"
-      style={{ background: "var(--surface)", borderColor: "var(--border)" }}
-    >
-      <div className="max-w-6xl mx-auto px-4 flex items-center min-h-12">
-        <Link href="/" className="min-h-11 inline-flex items-center py-2" aria-label="Home">
-          <Logo size="sm" showWordmark={true} />
+      {/* Mobile top bar */}
+      <header className="lg:hidden sticky top-0 z-40 flex items-center justify-between px-4 h-14 bg-black/80 backdrop-blur-xl border-b border-white/[0.06]">
+        <Link href="/" className="inline-flex items-center gap-2 transition-opacity hover:opacity-80" aria-label="Home">
+          <Logo size="sm" showWordmark={false} />
+          <span className="font-semibold text-sm text-white">Cameron Running</span>
         </Link>
-      </div>
-    </header>
+        <button
+          type="button"
+          className="flex items-center justify-center w-9 h-9 rounded-full bg-white/[0.08] border border-white/[0.10] transition-colors duration-150"
+          style={{ color: "var(--accent)" }}
+          aria-label="Sync"
+        >
+          <RefreshCw className="w-4 h-4" />
+        </button>
+      </header>
 
-    <header
-      className="sticky top-0 z-50 border-b hidden md:block"
-      style={{ background: "var(--surface)", borderColor: "var(--border)" }}
-    >
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 flex items-center justify-between min-h-14 h-auto py-2">
-        <Logo size="sm" showWordmark={true} />
-        <nav className="flex items-center gap-1 flex-wrap justify-end">
+      {/* Desktop sidebar */}
+      <aside className="hidden lg:flex flex-col fixed left-0 top-0 bottom-0 w-56 bg-black/60 backdrop-blur-xl border-r border-white/[0.08] z-40">
+        <div className="px-4 pt-5 pb-4 border-b border-white/[0.08]">
+          <Link href="/" className="inline-flex items-center gap-2 transition-opacity hover:opacity-80">
+            <Logo size="sm" showWordmark={false} />
+            <span className="font-bold text-base text-white">Cameron Running</span>
+          </Link>
+          <p className="text-xs mt-2" style={{ color: "var(--text-muted)" }}>
+            Week X · Phase
+          </p>
+        </div>
+
+        <nav className="flex-1 pt-3" aria-label="Sidebar">
           {mainLinks.map((link) => {
-            const active = pathname === link.href;
+            const active = pathname === link.href || (link.href !== "/" && pathname.startsWith(`${link.href}/`));
+            const Icon = link.Icon;
             return (
               <Link
                 key={link.href}
                 href={link.href}
-                className="min-h-11 px-3 inline-flex items-center rounded-md text-sm font-medium transition-colors"
-                style={{
-                  color: active ? "var(--accent)" : "var(--text-muted)",
-                  background: active ? "rgba(249,115,22,0.1)" : "transparent",
-                }}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl mx-2 text-sm font-medium transition-colors duration-150 cursor-pointer ${
+                  active ? "bg-teal-500/10 text-teal-400" : "text-white/50 hover:text-white/80 hover:bg-white/[0.05]"
+                }`}
+                style={active ? { borderLeft: "2px solid var(--accent)" } : undefined}
               >
-                {link.label}
+                <Icon className="w-[18px] h-[18px]" strokeWidth={2} />
+                <span>{link.label}</span>
               </Link>
             );
           })}
-
-          <div
-            className="mx-2 self-stretch min-h-8"
-            style={{ width: 1, background: "rgba(255,255,255,0.1)" }}
-          />
-
-          <Link
-            href="/settings"
-            className="min-h-11 min-w-11 px-2.5 rounded-md transition-colors inline-flex items-center justify-center gap-1.5"
-            style={{
-              color: pathname === "/settings" ? "var(--accent)" : "var(--text-muted)",
-              background: pathname === "/settings" ? "rgba(249,115,22,0.1)" : "transparent",
-            }}
-            title="Settings"
-          >
-            <Settings className="w-4 h-4 shrink-0" strokeWidth={2} aria-hidden />
-            <span className="text-sm font-medium">Settings</span>
-          </Link>
-
-          <Link
-            href="/help"
-            className="min-h-11 min-w-11 px-2.5 rounded-md transition-colors inline-flex items-center justify-center gap-1.5"
-            style={{
-              color: pathname === "/help" ? "#5eead4" : "var(--text-muted)",
-              background: pathname === "/help" ? "rgba(20,184,166,0.12)" : "transparent",
-            }}
-            title="Help"
-          >
-            <CircleHelp className="w-4 h-4 shrink-0" strokeWidth={2} aria-hidden />
-            <span className="text-sm font-medium">Help</span>
-          </Link>
         </nav>
-      </div>
-    </header>
+
+        <div className="mt-auto">
+          <button
+            type="button"
+            className="mx-4 mb-1 flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium bg-white/[0.05] border border-white/[0.08] hover:bg-white/[0.08] transition-colors duration-150 w-[calc(100%-2rem)]"
+          >
+            <RefreshCw className="w-4 h-4" style={{ color: "var(--accent)" }} />
+            <span className="text-white/80">Sync Strava</span>
+          </button>
+          <p className="mx-4 mb-4 text-xs" style={{ color: "var(--text-dim)" }}>
+            Last sync: —
+          </p>
+        </div>
+      </aside>
     </>
   );
 }

@@ -250,18 +250,22 @@ export default async function ProgramPage({
       <div className="flex-1 min-w-0 w-full space-y-6 sm:space-y-8 lg:pr-6">
 
         {/* Page header */}
-        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+        <div className="flex items-start justify-between mb-6 pt-2 gap-3">
           <Logo size="sm" showWordmark={false} />
-          <h1 className="text-2xl font-bold tracking-tight text-white">Training Program</h1>
-          <span
-            className="text-xs font-semibold px-2.5 py-1 rounded-full"
-            style={phaseChipStyle(currentPlanEntry?.phase ?? "Base")}
-          >
-            {currentPlanEntry?.phase ?? "Base"}
-          </span>
-          <span className="text-sm" style={{ color: "var(--text-muted)" }}>
-            Week {currentWeek} of {planToRender.length}
-          </span>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-2xl font-bold tracking-tight text-white">Training Program</h1>
+            <div className="flex items-center gap-2 mt-2 flex-wrap">
+              <span
+                className="text-xs font-semibold px-2.5 py-1 rounded-full"
+                style={phaseChipStyle(currentPlanEntry?.phase ?? "Base")}
+              >
+                {currentPlanEntry?.phase ?? "Base"}
+              </span>
+              <span className="text-sm" style={{ color: "var(--text-muted)" }}>
+                Week {currentWeek} of {planToRender.length}
+              </span>
+            </div>
+          </div>
         </div>
 
         {/* Race flag banner (only when plan extends past race date) */}
