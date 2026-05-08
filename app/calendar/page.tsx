@@ -436,7 +436,7 @@ export default async function CalendarPage({
       {/* ── Page header ──────────────────────────────────────────────────── */}
       <div className="flex flex-wrap items-center gap-2 sm:gap-3">
         <Logo size="sm" showWordmark={false} />
-        <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-white">Calendar</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-white">Calendar</h1>
       </div>
 
       {/* ── Top strip ───────────────────────────────────────────────────── */}
@@ -451,11 +451,8 @@ export default async function CalendarPage({
         />
 
         {/* Panel 3: Stats strip */}
-        <div
-          className="rounded-[10px] p-4"
-          style={{ background: "#181818", border: "1px solid rgba(255,255,255,0.08)" }}
-        >
-          <p className="text-xs uppercase tracking-wider mb-3" style={{ color: "var(--text-muted)" }}>
+        <div className="rounded-2xl border bg-white/[0.04] border-white/[0.08] backdrop-blur-sm p-4">
+          <p className="text-xs font-semibold tracking-widest uppercase mb-3" style={{ color: "var(--text-label)" }}>
             Stats
           </p>
           <div className="space-y-3">
@@ -470,7 +467,7 @@ export default async function CalendarPage({
                 <span className="text-xs" style={{ color: "var(--text-muted)" }}>
                   {label}
                 </span>
-                <span className="text-sm font-semibold text-white">{value}</span>
+                <span className="text-sm font-semibold text-white font-mono">{value}</span>
               </div>
             ))}
           </div>

@@ -11,10 +11,8 @@ function SectionCard({
 }) {
   return (
     <div
-      className="rounded-xl p-4 sm:p-5 space-y-2.5"
+      className="rounded-2xl border bg-white/[0.04] border-white/[0.08] backdrop-blur-sm p-4 sm:p-5 space-y-2.5"
       style={{
-        background: "#181818",
-        border: "1px solid rgba(255,255,255,0.08)",
       }}
     >
       <h3 className="text-base sm:text-lg font-semibold text-white flex items-center gap-2">
@@ -37,10 +35,8 @@ function QA({
 }) {
   return (
     <div
-      className="rounded-xl p-4 sm:p-5 space-y-2"
+      className="rounded-2xl border bg-white/[0.04] border-white/[0.08] backdrop-blur-sm p-4 sm:p-5 space-y-2"
       style={{
-        background: "#181818",
-        border: "1px solid rgba(255,255,255,0.08)",
       }}
     >
       <p className="text-white font-semibold text-sm sm:text-base">{question}</p>
@@ -56,7 +52,7 @@ export default function HelpPage() {
     <div className="space-y-5 scroll-smooth">
       <div className="flex items-center gap-3">
         <Logo size="sm" showWordmark={false} />
-        <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-white">Help</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-white">Help</h1>
       </div>
 
       <div

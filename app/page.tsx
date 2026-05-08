@@ -27,6 +27,7 @@ import SyncButton from "@/components/SyncButton";
 import Logo from "@/components/Logo";
 import PlayerRatingDeltaPanel from "@/components/PlayerRatingDeltaPanel";
 import PlanAdaptationCards from "@/components/PlanAdaptationCards";
+import { RunTypePill } from "@/components/RunTypePill";
 import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
@@ -77,15 +78,6 @@ function phaseStyle(phase: Phase): { background: string; color: string } {
       return { background: "#3f3f46", color: "#e4e4e7" };
     case "Recovery":
       return { background: "#1a1133", color: "#a78bfa" };
-  }
-}
-
-function runTypePillStyle(type: RunType): { background: string; color: string } {
-  switch (type) {
-    case "easy":     return { background: "#1e1b4b", color: "#a5b4fc" };
-    case "tempo":    return { background: "#134e4a", color: "#5eead4" };
-    case "interval": return { background: "#431407", color: "#fb923c" };
-    case "long":     return { background: "#292524", color: "#d6d3d1" };
   }
 }
 
@@ -191,11 +183,9 @@ function Card({
 }) {
   return (
     <div
-      className={className}
+      className={`rounded-2xl border bg-white/[0.04] border-white/[0.08] backdrop-blur-sm ${className}`}
       style={{
-        background: "#181818",
-        border: "1px solid rgba(255,255,255,0.08)",
-        borderRadius: 12,
+        borderRadius: "var(--card-radius)",
       }}
     >
       {children}
@@ -206,8 +196,8 @@ function Card({
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
     <p
-      className="text-xs uppercase tracking-wider"
-      style={{ color: "var(--text-muted)" }}
+      className="text-xs font-semibold tracking-widest uppercase"
+      style={{ color: "var(--text-label)" }}
     >
       {children}
     </p>
@@ -602,7 +592,7 @@ export default async function Dashboard({
 
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
           <div className="flex flex-wrap items-center gap-2 sm:gap-3 min-w-0">
-            <span className="text-lg sm:text-xl md:text-2xl font-bold text-white shrink-0">Dashboard</span>
+            <span className="text-2xl font-bold tracking-tight text-white shrink-0">Dashboard</span>
             <span
               className="text-xs font-semibold px-2.5 py-1 rounded-full shrink-0"
               style={phaseStyle(currentPhase)}
@@ -627,17 +617,12 @@ export default async function Dashboard({
                   <span className="text-white font-semibold text-sm">
                     {todayPlanEntry.dayLabel} {formatAEST(todayPlanEntry.date, "d MMM")}
                   </span>
-                  <span
-                    className="text-xs px-2 py-0.5 rounded-full font-medium capitalize"
-                    style={runTypePillStyle(todayPlanEntry.session.type)}
-                  >
-                    {todayPlanEntry.session.type}
-                  </span>
+                  <RunTypePill type={todayPlanEntry.session.type} size="sm" />
                   {todayPlanEntry.completed && (
                     <span className="text-xs font-medium text-green-400">Done</span>
                   )}
                 </div>
-                <p className="text-sm text-white">
+                <p className="text-sm text-white font-mono">
                   {todayPlanEntry.session.targetDistanceKm} km ·{" "}
                   {formatTargetPace(todayPlanEntry.session.targetPaceMinPerKm)}
                 </p>
@@ -761,7 +746,6 @@ export default async function Dashboard({
               </div>
             ) : (
               recentRunsRows.map((run, idx) => {
-                const pill = runTypePillStyle(run.runType);
                 const score = run.rating;
                 const badge = score != null ? ratingBadgeStyle(score) : { background: "rgba(255,255,255,0.06)", color: "var(--text-muted)" };
                 return (
@@ -782,9 +766,7 @@ export default async function Dashboard({
                           <span className="text-white font-semibold text-sm break-words">
                             {run.name ?? `${run.distanceKm.toFixed(1)} km run`}
                           </span>
-                          <span className="text-xs px-2 py-0.5 rounded-full font-medium shrink-0 capitalize" style={pill}>
-                            {run.runType}
-                          </span>
+                          <RunTypePill type={run.runType} size="sm" />
                         </div>
                         <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
                           {formatAEST(run.date, "EEE d MMM")}
@@ -822,7 +804,6 @@ export default async function Dashboard({
             ) : (
               upcomingSessions.map((row, idx) => {
                 const s = row.session;
-                const pill = runTypePillStyle(s.type);
                 return (
                   <div
                     key={`upcoming-${row.week}-${s.day}`}
@@ -839,9 +820,7 @@ export default async function Dashboard({
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="text-white font-semibold text-sm capitalize">{s.type}</span>
-                          <span className="text-xs px-2 py-0.5 rounded-full font-medium shrink-0 capitalize" style={pill}>
-                            {s.type}
-                          </span>
+                          <RunTypePill type={s.type} size="sm" />
                         </div>
                         <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
                           {row.dayLabel} {formatAEST(row.date, "d MMM yyyy")}
@@ -850,7 +829,7 @@ export default async function Dashboard({
                     </div>
                     <div className="grid grid-cols-2 gap-3 text-xs sm:flex sm:gap-4 sm:ml-auto sm:text-right">
                       <div>
-                        <p className="text-white font-medium">{s.targetDistanceKm} km</p>
+                        <p className="text-white font-medium font-mono">{s.targetDistanceKm} km</p>
                         <p style={{ color: "var(--text-muted)" }}>target</p>
                       </div>
                       <div>

@@ -9,6 +9,26 @@
   --text-muted: #9ca3af;
   --accent: #f97316;
   --accent-hover: #ea6a0a;
+  /* Run type colours */
+  --c-easy: #7dd3fc;
+  --c-tempo: #2dd4bf;
+  --c-interval: #f97316;
+  --c-long: #a78bfa;
+
+  /* Accent */
+  --accent: #2dd4bf;
+  --accent-dim: rgba(45, 212, 191, 0.15);
+  --accent-border: rgba(45, 212, 191, 0.30);
+
+  /* Card surfaces */
+  --card-bg: rgba(255, 255, 255, 0.04);
+  --card-border: rgba(255, 255, 255, 0.08);
+  --card-radius: 14px;
+
+  /* Text hierarchy */
+  --text-muted: rgba(255, 255, 255, 0.50);
+  --text-dim: rgba(255, 255, 255, 0.28);
+  --text-label: rgba(255, 255, 255, 0.38);
 }
 
 @theme inline {
