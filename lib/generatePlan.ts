@@ -365,7 +365,10 @@ export function sessionDescriptionForPlan(type: RunType, phase: Phase, isCutback
     return "Sustained threshold effort. Comfortably hard pace — you should be able to speak in short sentences.";
   }
   if (type === "interval") {
-    return "High intensity intervals. Hard effort with structured recovery between reps.";
+    if (phase === "Taper") {
+      return "Short interval sharpener. Keep volume low, maintain intensity.";
+    }
+    return "High intensity intervals. Include 1.5km easy warm-up, repeats at interval pace with equal rest, 1km cool-down.";
   }
   if (phase === "Taper") {
     return "Taper long run. Shorter than peak — stay fresh for race day.";
@@ -577,6 +580,12 @@ export function generatePlan(config: PlanConfig): TrainingWeek[] {
   const tempoPace = pMin.tempo;
   const intervalPace = pMin.interval;
   const longRunPace = pMin.long;
+  const intervalCaps: Record<PlanConfig["level"], number> = {
+    BEGINNER: 6,
+    INTERMEDIATE: 8,
+    ADVANCED: 10,
+  };
+  const intervalCap = intervalCaps[config.level] ?? 8;
 
   const plan: TrainingWeek[] = [];
 
@@ -639,6 +648,8 @@ export function generatePlan(config: PlanConfig): TrainingWeek[] {
       const km =
         type === "long"
           ? wkLongKm
+          : type === "interval"
+            ? round1(clamp(eachOther, 3, Math.min(intervalCap, nonLongCap)))
           : round1(clamp(eachOther, 3, Math.max(3, nonLongCap)));
 
       let pace =
