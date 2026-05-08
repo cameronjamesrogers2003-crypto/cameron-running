@@ -16,7 +16,7 @@ const mainLinks = [
   { href: "/help", label: "Help", Icon: CircleHelp },
 ] as const;
 
-export default function Nav() {
+export default function Nav({ trainingLabel = "No active plan" }: { trainingLabel?: string }) {
   const pathname = usePathname();
 
   return (
@@ -48,7 +48,7 @@ export default function Nav() {
             <span className="font-bold text-base text-white">Cameron Running</span>
           </Link>
           <p className="text-xs mt-2" style={{ color: "var(--text-muted)" }}>
-            Week X · Phase
+            {trainingLabel}
           </p>
         </div>
 
