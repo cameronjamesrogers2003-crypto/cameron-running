@@ -171,6 +171,7 @@ export async function checkAndAdaptPlan(prisma: PrismaClient): Promise<{
   }
 
   const settings = settingsRow ? dbSettingsToUserSettings(settingsRow) : DEFAULT_SETTINGS;
+  const name = settings.firstName ?? "Runner";
   const planStart = getEffectivePlanStart(settings.planStartDate);
   const currentWeek = getPlanWeekForDate(new Date(), planStart);
   if (currentWeek <= 0) {
@@ -419,7 +420,7 @@ export async function checkAndAdaptPlan(prisma: PrismaClient): Promise<{
       data: {
         weekNumber: targetWeekNumber,
         type: "vdot_improved",
-        reason: `Your fitness has improved! VDOT updated from ${prior} to ${vdotEstimate} based on recent runs.`,
+        reason: `${name}, your fitness has improved! VDOT updated from ${prior} to ${vdotEstimate}.`,
         changes: JSON.stringify([`Pace targets updated to VDOT ${vdotEstimate} for all unlocked weeks.`]),
       },
     });
@@ -452,8 +453,8 @@ export async function checkAndAdaptPlan(prisma: PrismaClient): Promise<{
           : adaptationType === "extended_recovery"
             ? "You missed multiple planned sessions for three consecutive weeks."
       : adaptationType === "volume_reduced"
-        ? `Runs averaged ${recent3.avg.toFixed(1)}/10 across 3 weeks.`
-        : `Runs averaged ${recent3.avg.toFixed(1)}/10 across 3 weeks.`;
+        ? `${name}, your recent runs are averaging ${recent3.avg.toFixed(1)}/10. We've eased next week slightly.`
+        : `${name}, you're running strong! We've added a little more volume next week.`;
 
   if (reason && adaptationType && adaptationType !== "vdot_improved") {
     await prisma.planAdaptation.create({

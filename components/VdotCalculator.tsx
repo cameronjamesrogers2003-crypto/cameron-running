@@ -16,6 +16,8 @@ import {
   RUNNING_EXPERIENCE_LT1,
 } from "@/lib/planPaces";
 import { FORM_CONTROL_TW } from "@/lib/formControlClasses";
+import { Card } from "@/components/ui/Card";
+import { Button } from "@/components/ui/Button";
 
 export type VdotLevel = "BEGINNER" | "INTERMEDIATE" | "ADVANCED";
 
@@ -164,13 +166,10 @@ export default function VdotCalculator({
       : null;
   const level = adjustedVdot != null ? suggestedLevelFromVdot(adjustedVdot) : null;
 
-  const controlCls = `w-full px-4 py-2.5 rounded-xl text-sm bg-white/[0.06] border border-white/[0.10] text-white outline-none focus:border-teal-500/50 transition-colors ${FORM_CONTROL_TW}`;
+  const controlCls = `w-full px-4 py-2.5 rounded-xl text-sm outline-none transition-colors ${FORM_CONTROL_TW}`;
 
   return (
-    <div
-      className="rounded-[10px] p-4 space-y-5"
-      style={{ background: "#141414", border: "1px solid rgba(255,255,255,0.08)" }}
-    >
+    <Card className="rounded-[10px] p-4 space-y-5">
       <div>
         <p className="text-xs uppercase tracking-wider mb-2" style={{ color: "var(--text-muted)" }}>
           Personal details (optional)
@@ -294,7 +293,7 @@ export default function VdotCalculator({
           ] as const
         ).map(({ label, state, set }) => (
           <div key={label}>
-            <p className="text-sm font-semibold text-white mb-2">{label}</p>
+            <p className="text-sm font-semibold mb-2" style={{ color: "var(--text-primary)" }}>{label}</p>
             <div className="grid grid-cols-2 gap-2 mb-4">
               <div>
                 <input
@@ -303,7 +302,7 @@ export default function VdotCalculator({
                   pattern="[0-9]*"
                   value={state.minutes}
                   onChange={(e) => set({ ...state, minutes: e.target.value })}
-                  className={`px-3 py-2.5 rounded-xl text-sm text-center font-mono bg-white/[0.06] border border-white/[0.10] text-white focus:border-teal-500/50 outline-none transition-colors ${FORM_CONTROL_TW}`}
+                  className={`px-3 py-2.5 rounded-xl text-sm text-center font-mono outline-none transition-colors ${FORM_CONTROL_TW}`}
                   placeholder="0"
                 />
                 <p className="text-xs text-center mt-1" style={{ color: "var(--text-dim)" }}>
@@ -317,7 +316,7 @@ export default function VdotCalculator({
                   pattern="[0-9]*"
                   value={state.seconds}
                   onChange={(e) => set({ ...state, seconds: e.target.value })}
-                  className={`px-3 py-2.5 rounded-xl text-sm text-center font-mono bg-white/[0.06] border border-white/[0.10] text-white focus:border-teal-500/50 outline-none transition-colors ${FORM_CONTROL_TW}`}
+                  className={`px-3 py-2.5 rounded-xl text-sm text-center font-mono outline-none transition-colors ${FORM_CONTROL_TW}`}
                   placeholder="00"
                 />
                 <p className="text-xs text-center mt-1" style={{ color: "var(--text-dim)" }}>
@@ -343,37 +342,38 @@ export default function VdotCalculator({
           <p className="text-sm font-mono mt-1" style={{ color: "var(--text-muted)" }}>
             VO2max estimate: {result.displayVo2.toFixed(1)} ml/kg/min
           </p>
-          <p className="text-base font-bold text-white mt-2">{fitnessIdentityLabel(adjustedVdot)}</p>
+          <p className="text-base font-bold mt-2" style={{ color: "var(--text-primary)" }}>{fitnessIdentityLabel(adjustedVdot)}</p>
           <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
             Suggested level: {levelDisplay(level)}
           </p>
           <div className="grid grid-cols-2 gap-2 mt-3">
             <div>
               <p className="text-xs" style={{ color: "var(--text-dim)" }}>Easy</p>
-              <p className="text-sm font-mono font-semibold text-white">
+              <p className="text-sm font-mono font-semibold" style={{ color: "var(--text-primary)" }}>
                 {formatPace(previewPaces.easyMinSecKm)} – {formatPace(previewPaces.easyMaxSecKm)} /km
               </p>
             </div>
             <div>
               <p className="text-xs" style={{ color: "var(--text-dim)" }}>Tempo</p>
-              <p className="text-sm font-mono font-semibold text-white">
+              <p className="text-sm font-mono font-semibold" style={{ color: "var(--text-primary)" }}>
                 {formatPace(getSliderBaseSecKm("tempo", adjustedVdot, runningExperience))} /km
               </p>
             </div>
             <div>
               <p className="text-xs" style={{ color: "var(--text-dim)" }}>Interval</p>
-              <p className="text-sm font-mono font-semibold text-white">
+              <p className="text-sm font-mono font-semibold" style={{ color: "var(--text-primary)" }}>
                 {formatPace(getSliderBaseSecKm("interval", adjustedVdot, runningExperience))} /km
               </p>
             </div>
             <div>
               <p className="text-xs" style={{ color: "var(--text-dim)" }}>Long run</p>
-              <p className="text-sm font-mono font-semibold text-white">{formatPace(longPreviewSec)} /km</p>
+              <p className="text-sm font-mono font-semibold" style={{ color: "var(--text-primary)" }}>{formatPace(longPreviewSec)} /km</p>
             </div>
           </div>
-          <button
+          <Button
             type="button"
-            className="w-full mt-4 py-2.5 rounded-xl text-sm font-semibold transition-all hover:bg-teal-400/20"
+            className="w-full mt-4 py-2.5 text-sm font-semibold"
+            variant="secondary"
             style={{
               background: "rgba(45,212,191,0.15)",
               border: "1px solid rgba(45,212,191,0.35)",
@@ -412,9 +412,9 @@ export default function VdotCalculator({
             }}
           >
             Apply
-          </button>
+          </Button>
         </div>
       )}
-    </div>
+    </Card>
   );
 }

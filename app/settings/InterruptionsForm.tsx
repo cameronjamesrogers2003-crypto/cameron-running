@@ -3,6 +3,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { INTERRUPTION_TYPE_LABEL, parseInterruptionType, type InterruptionType } from "@/lib/interruptions";
 import { FORM_CONTROL_TW } from "@/lib/formControlClasses";
+import { Card } from "@/components/ui/Card";
+import { Button } from "@/components/ui/Button";
 
 interface InterruptionRow {
   id: string;
@@ -119,17 +121,14 @@ export default function InterruptionsForm() {
   const fieldClass = `w-full min-h-10 rounded-md px-2.5 py-1.5 text-[13px] outline-none ${FORM_CONTROL_TW}`;
 
   return (
-    <div
-      className="rounded-[10px] p-5 space-y-5"
-      style={{ background: "#181818", border: "1px solid rgba(255,255,255,0.08)" }}
-    >
+    <Card className="rounded-[10px] p-5 space-y-5">
       <p className="text-xs uppercase tracking-wider font-semibold" style={{ color: "var(--text-muted)" }}>
         Plan Interruptions
       </p>
 
       {/* Add form */}
       <div className="space-y-3">
-        <p className="text-xs font-medium text-white">Log an interruption</p>
+        <p className="text-xs font-medium" style={{ color: "var(--text-primary)" }}>Log an interruption</p>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="flex flex-col gap-1">
@@ -177,7 +176,7 @@ export default function InterruptionsForm() {
           <div className="flex flex-col gap-1">
             <label className="text-xs" style={{ color: "var(--text-muted)" }}>
               Weeks affected
-              <span style={{ color: "rgba(232,230,224,0.3)" }}> (overrides dates)</span>
+              <span style={{ color: "var(--text-label)" }}> (overrides dates)</span>
             </label>
             <input
               type="number"
@@ -226,19 +225,18 @@ export default function InterruptionsForm() {
               {saveMsg}
             </span>
           )}
-          <button
+          <Button
             type="button"
             onClick={handleAdd}
             disabled={saving}
-            className="min-h-11 px-4 py-2 rounded-md text-sm font-medium w-full sm:w-auto"
+            className="rounded-md text-sm font-medium w-full sm:w-auto"
+            variant="secondary"
             style={{
-              background: "rgba(255,255,255,0.06)",
-              border: "1px solid rgba(255,255,255,0.1)",
               color: saving ? "var(--text-muted)" : "var(--accent)",
             }}
           >
             {saving ? "Saving…" : "Add interruption"}
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -249,13 +247,13 @@ export default function InterruptionsForm() {
             className="h-px"
             style={{ background: "rgba(255,255,255,0.06)" }}
           />
-          <p className="text-xs font-medium text-white pt-1">History</p>
+          <p className="text-xs font-medium pt-1" style={{ color: "var(--text-primary)" }}>History</p>
           <div className="space-y-1.5">
             {rows.map(row => (
               <div
                 key={row.id}
                 className="rounded-md px-3 py-2.5 flex items-start justify-between gap-3"
-                style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}
+                style={{ background: "var(--surface-muted)", border: "1px solid var(--border-subtle)" }}
               >
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
@@ -265,7 +263,7 @@ export default function InterruptionsForm() {
                     >
                       {INTERRUPTION_TYPE_LABEL[parseInterruptionType(row.type)]}
                     </span>
-                    <span className="text-xs text-white">{row.reason}</span>
+                    <span className="text-xs" style={{ color: "var(--text-primary)" }}>{row.reason}</span>
                   </div>
                   <p className="text-[11px] mt-1" style={{ color: "var(--text-muted)" }}>
                     {fmtDate(row.startDate)}
@@ -274,7 +272,7 @@ export default function InterruptionsForm() {
                     {row.weeklyKmEstimate != null && ` · ${row.weeklyKmEstimate} km/w`}
                   </p>
                   {row.notes && (
-                    <p className="text-[11px] mt-0.5 italic" style={{ color: "rgba(232,230,224,0.3)" }}>
+                    <p className="text-[11px] mt-0.5 italic" style={{ color: "var(--text-label)" }}>
                       {row.notes}
                     </p>
                   )}
@@ -303,6 +301,6 @@ export default function InterruptionsForm() {
           No interruptions logged. Add one above if you need to take a break from training.
         </p>
       )}
-    </div>
+    </Card>
   );
 }

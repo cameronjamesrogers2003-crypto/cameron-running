@@ -4,6 +4,7 @@ import RunsClient from "./RunsClient";
 import Logo from "@/components/Logo";
 
 export const dynamic = "force-dynamic";
+export const metadata = { title: "Runshift — Runs" };
 
 export default async function RunsPage() {
   const settingsRow = await prisma.userSettings.findUnique({ where: { id: 1 } });

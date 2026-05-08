@@ -1,6 +1,8 @@
 import SettingsForm from "./SettingsForm";
 import Logo from "@/components/Logo";
 
+export const metadata = { title: "Runshift — Settings" };
+
 export default function SettingsPage() {
   return (
     <div className="settings-shell space-y-5">

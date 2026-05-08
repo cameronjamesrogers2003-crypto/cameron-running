@@ -97,6 +97,8 @@ model UserSettings {
   intervalPaceMaxSec    Int       @default(330)
   longPaceMinSec        Int       @default(390)
   longPaceMaxSec        Int       @default(450)
+  firstName             String?
+  nickname              String?
   lastCutbackInsertedWeek Int?
   lastEstimatedVdot     Int?
   lastVdotCheckDate     DateTime?

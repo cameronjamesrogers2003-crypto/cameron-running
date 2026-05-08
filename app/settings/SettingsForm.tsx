@@ -11,6 +11,9 @@ import { getDefaultLongRunDay, getScheduleWarnings } from "@/lib/generatePlan";
 import VdotCalculator, { type VdotPersonalFields } from "@/components/VdotCalculator";
 import PaceZoneOffsetSlider from "@/components/PaceZoneOffsetSlider";
 import { FORM_CONTROL_TW } from "@/lib/formControlClasses";
+import { Card } from "@/components/ui/Card";
+import { SectionHeading } from "@/components/ui/SectionHeading";
+import { Button } from "@/components/ui/Button";
 
 type SaveStatus = "idle" | "saving" | "saved" | "error";
 
@@ -22,36 +25,33 @@ function SaveButton({ status, onClick }: { status: SaveStatus; onClick: () => vo
     : "Save";
   const isSaving = status === "saving";
   return (
-    <button
+    <Button
       type="button"
       onClick={onClick}
       disabled={isSaving}
-      className="px-8 py-3 rounded-xl text-sm font-bold transition-all w-full sm:w-auto hover:bg-[#14b8a6]"
+      className="px-8 py-3 text-sm font-bold w-full sm:w-auto"
+      variant="primary"
       style={{
-        background: "var(--accent)",
-        color: "#0a0b0c",
         opacity: isSaving ? 0.7 : 1,
       }}
     >
       {label}
-    </button>
+    </Button>
   );
 }
 
 function Panel({ number, title, children }: { number: string; title: string; children: React.ReactNode }) {
   return (
-    <div
-      className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-6 mb-4 space-y-4"
-    >
+    <Card className="p-6 mb-4 space-y-4">
       <div className="flex items-center gap-3 mb-6">
-        <span className="text-xs font-bold tracking-widest uppercase" style={{ color: "var(--accent)" }}>
+        <SectionHeading className="font-bold" >
           {number}
-        </span>
-        <h2 className="text-base font-bold text-white">{title}</h2>
-        <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.08)" }} />
+        </SectionHeading>
+        <h2 className="text-base font-bold" style={{ color: "var(--text-primary)" }}>{title}</h2>
+        <div className="flex-1 h-px" style={{ background: "var(--border-subtle)" }} />
       </div>
       {children}
-    </div>
+    </Card>
   );
 }
 
@@ -59,7 +59,7 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
   return (
     <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:gap-4">
       <div className="w-full sm:w-48 shrink-0">
-        <p className="text-sm font-medium text-white mb-2">{label}</p>
+        <p className="text-sm font-medium mb-2" style={{ color: "var(--text-primary)" }}>{label}</p>
         {hint && <p className="text-xs mt-1.5" style={{ color: "var(--text-dim)" }}>{hint}</p>}
       </div>
       <div className="flex-1 w-full min-w-0">{children}</div>
@@ -126,6 +126,8 @@ export default function SettingsForm() {
   const [showTooManyDaysWarning, setShowTooManyDaysWarning] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
+  const [firstName, setFirstName] = useState(settings.firstName ?? "");
+  const [nickname, setNickname] = useState(settings.nickname ?? "");
 
   const [maxHR, setMaxHR] = useState(settings.maxHR);
   const [vdot, setVdot] = useState(settings.currentVdot);
@@ -191,6 +193,8 @@ export default function SettingsForm() {
     setTempoOff(settings.tempoPaceOffsetSec);
     setIntervalOff(settings.intervalPaceOffsetSec);
     setLongOff(settings.longPaceOffsetSec);
+    setFirstName(settings.firstName ?? "");
+    setNickname(settings.nickname ?? "");
   }, [loading, settings]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
@@ -309,6 +313,8 @@ export default function SettingsForm() {
         gender: vdotPersonal.gender || null,
         weightKg,
         runningExperience: vdotPersonal.runningExperience || null,
+        firstName: firstName.trim() || null,
+        nickname: nickname.trim() || null,
         easyPaceOffsetSec: easyOff,
         tempoPaceOffsetSec: tempoOff,
         intervalPaceOffsetSec: intervalOff,
@@ -332,6 +338,8 @@ export default function SettingsForm() {
         gender: vdotPersonal.gender || null,
         weightKg,
         runningExperience: vdotPersonal.runningExperience || null,
+        firstName: firstName.trim() || null,
+        nickname: nickname.trim() || null,
         easyPaceOffsetSec: easyOff,
         tempoPaceOffsetSec: tempoOff,
         intervalPaceOffsetSec: intervalOff,
@@ -384,6 +392,32 @@ export default function SettingsForm() {
 
   return (
     <div className="space-y-5 w-full max-w-2xl min-w-0">
+      <Panel number="0." title="YOUR PROFILE">
+        <Field label="First name">
+          <input
+            type="text"
+            value={firstName}
+            onChange={(e) => setFirstName(e.target.value)}
+            className={`w-full px-4 py-2.5 rounded-xl text-sm outline-none transition-colors ${FORM_CONTROL_TW}`}
+            placeholder="First name"
+          />
+        </Field>
+        <Field label="Nickname" hint="If set, we'll use this instead of your first name throughout the app.">
+          <input
+            type="text"
+            value={nickname}
+            onChange={(e) => setNickname(e.target.value)}
+            className={`w-full px-4 py-2.5 rounded-xl text-sm outline-none transition-colors ${FORM_CONTROL_TW}`}
+            placeholder="Nickname (optional)"
+          />
+        </Field>
+        <p className="text-xs mt-3" style={{ color: "var(--text-dim)" }}>
+          The app will address you as{" "}
+          <span style={{ color: "var(--accent)" }} className="font-semibold">
+            {nickname || firstName || "Runner"}
+          </span>
+        </p>
+      </Panel>
       <Panel number="1." title="Training plan configuration">
         <Field label="Plan start date" hint="First day your program counts (Brisbane calendar)">
           <div className="flex flex-col gap-2">
@@ -392,7 +426,7 @@ export default function SettingsForm() {
               value={planStartDateIsoYmd}
               min={minPlanStartIsoYmd}
               onChange={(e) => setPlanStartDateIsoYmd(e.target.value)}
-              className={`w-full px-4 py-2.5 rounded-xl text-sm bg-white/[0.06] border border-white/[0.10] text-white outline-none focus:border-teal-500/50 transition-colors ${FORM_CONTROL_TW}`}
+              className={`w-full px-4 py-2.5 rounded-xl text-sm outline-none transition-colors ${FORM_CONTROL_TW}`}
             />
             {planStartDateIsoYmd ? (
               <p className="text-xs mt-1.5" style={{ color: "var(--text-dim)" }}>

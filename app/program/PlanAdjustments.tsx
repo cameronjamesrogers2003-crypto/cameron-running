@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Card } from "@/components/ui/Card";
 
 interface Props {
   adjustmentSummary: string[];
@@ -14,13 +15,9 @@ export default function PlanAdjustments({ adjustmentSummary, totalWeeksAdded, ne
   if (!adjustmentSummary.length) return null;
 
   return (
-    <div
-      className="rounded-xl"
-      style={{
-        background: "#181818",
-        border: "1px solid rgba(167,139,250,0.2)",
-        marginBottom: "8px",
-      }}
+    <Card
+      className="rounded-xl mb-2"
+      style={{ border: "1px solid rgba(167,139,250,0.2)" }}
     >
       <button
         type="button"
@@ -34,7 +31,7 @@ export default function PlanAdjustments({ adjustmentSummary, totalWeeksAdded, ne
           >
             Plan adjusted
           </span>
-          <span className="text-xs text-white">
+          <span className="text-xs" style={{ color: "var(--text-primary)" }}>
             +{totalWeeksAdded} {totalWeeksAdded === 1 ? "week" : "weeks"} added · ends {newPlanEndDate}
           </span>
         </div>
@@ -61,17 +58,17 @@ export default function PlanAdjustments({ adjustmentSummary, totalWeeksAdded, ne
           {adjustmentSummary.map((line, i) => (
             <div key={i} className="flex items-start gap-2">
               <span style={{ color: "#a78bfa", marginTop: "1px", flexShrink: 0 }}>·</span>
-              <span className="text-xs" style={{ color: "rgba(232,230,224,0.6)" }}>{line}</span>
+              <span className="text-xs" style={{ color: "var(--text-secondary)" }}>{line}</span>
             </div>
           ))}
           <p
             className="text-[11px] pt-1"
-            style={{ color: "rgba(232,230,224,0.3)", borderTop: "1px solid rgba(255,255,255,0.05)", marginTop: "8px", paddingTop: "8px" }}
+            style={{ color: "var(--text-muted)", borderTop: "1px solid var(--border-subtle)", marginTop: "8px", paddingTop: "8px" }}
           >
             Recovery weeks use reduced volume at easy effort to safely return to training.
           </p>
         </div>
       </div>
-    </div>
+    </Card>
   );
 }

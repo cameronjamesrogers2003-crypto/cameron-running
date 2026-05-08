@@ -9,6 +9,7 @@ import type { CalendarRun, CalendarData, PlannedDayMeta } from "./types";
 import CalendarGrid from "./CalendarGrid";
 
 export const dynamic = "force-dynamic";
+export const metadata = { title: "Runshift — Calendar" };
 
 function calculateInjuryFreeWeeks(
   activities: Array<{ date: Date }>,
