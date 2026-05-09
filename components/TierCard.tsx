@@ -187,8 +187,12 @@ function TierCard({
   const deltaCompact =
     prevRank !== undefined && rank !== prevRank ? (
       <span
-        className="rounded-md border border-white/[0.08] bg-white/[0.06] px-2 py-0.5 text-[11px] font-bold whitespace-nowrap"
-        style={{ color: rank > prevRank ? "#4ade80" : "#f87171" }}
+        className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-bold whitespace-nowrap"
+        style={{
+          background: rank > prevRank ? "rgba(74,222,128,0.1)" : "rgba(248,113,113,0.1)",
+          borderColor: rank > prevRank ? "rgba(74,222,128,0.3)" : "rgba(248,113,113,0.3)",
+          color: rank > prevRank ? "#4ade80" : "#f87171",
+        }}
       >
         {rank > prevRank ? "+" : ""}
         {rank - prevRank} OVR
@@ -197,13 +201,17 @@ function TierCard({
 
   const deltaFull =
     prevRank !== undefined && rank !== prevRank ? (
-      <p
-        className="rounded-lg border border-white/[0.08] bg-white/[0.06] px-2.5 py-1.5 text-sm font-bold inline-block"
-        style={{ color: rank > prevRank ? "#4ade80" : "#f87171" }}
+      <span
+        className="inline-flex items-center rounded-full border px-3 py-1 text-sm font-bold"
+        style={{
+          background: rank > prevRank ? "rgba(74,222,128,0.1)" : "rgba(248,113,113,0.1)",
+          borderColor: rank > prevRank ? "rgba(74,222,128,0.3)" : "rgba(248,113,113,0.3)",
+          color: rank > prevRank ? "#4ade80" : "#f87171",
+        }}
       >
         {rank > prevRank ? "+" : ""}
         {rank - prevRank} since last sync
-      </p>
+      </span>
     ) : null;
 
   const statCell = (s: TierCardStat | undefined) =>
@@ -257,9 +265,14 @@ function TierCard({
           className="relative z-[2] hidden max-h-[320px] min-h-[280px] grid-cols-[minmax(0,1fr)_minmax(148px,36%)] grid-rows-1 gap-x-3 overflow-hidden md:grid"
         >
           <div
-            className="col-start-1 flex min-h-0 min-w-0 flex-col gap-1.5 self-stretch py-3 pl-4 pr-1"
+            className="relative col-start-1 flex min-h-0 min-w-0 flex-col gap-1.5 self-stretch py-3 pl-4 pr-1 overflow-hidden"
             style={{ background: tier.cardBg }}
           >
+            <div
+              aria-hidden
+              className="pointer-events-none absolute inset-y-0 right-0 z-[1] w-10"
+              style={{ background: "linear-gradient(to right, transparent 0%, #000 100%)" }}
+            />
             <div className="flex min-w-0 shrink-0 flex-col gap-1">
               <p className="truncate text-sm font-black tracking-tight text-white">{name}</p>
               {tierBadgeChip}
@@ -299,7 +312,12 @@ function TierCard({
   const fullInner = (
     <div className="relative z-[2] grid min-h-0 grid-cols-1 gap-5 p-5 sm:p-6 md:min-h-[380px] md:grid-cols-[minmax(0,45%)_minmax(0,55%)] md:items-stretch md:gap-6 lg:p-7">
       {/* Left — identity + OVR + XP */}
-      <div className="flex min-h-0 flex-col justify-between gap-6 md:h-full md:min-h-0 md:gap-4" style={{ background: tier.cardBg }}>
+      <div className="relative flex min-h-0 flex-col justify-between gap-6 md:h-full md:min-h-0 md:gap-4 overflow-hidden" style={{ background: tier.cardBg }}>
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-y-0 right-0 z-[1] w-12 hidden md:block"
+          style={{ background: "linear-gradient(to right, transparent 0%, #000 100%)" }}
+        />
         <div className="flex min-w-0 shrink-0 flex-col gap-4">
           <div className="flex items-center gap-2 min-w-0">
             {accentIcon}
@@ -348,12 +366,7 @@ function TierCard({
           )}
         </div>
 
-        <div className="shrink-0 border-t border-white/[0.07] pt-3 md:pt-4">
-          <p className="text-[9px] font-bold tracking-[0.26em] uppercase text-[var(--text-dim)]">Running card</p>
-          <p className="mt-1 truncate text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--text-label)]">
-            {name}
-          </p>
-        </div>
+        <p className="shrink-0 text-xs tracking-widest uppercase text-white/20 select-none">Runshift</p>
       </div>
 
       {/* Right — art upper, stats lower */}
@@ -363,7 +376,7 @@ function TierCard({
       >
         <IllustrationRadialGlow
           tier={tier}
-          className="flex min-h-[45%] flex-1 items-center justify-center px-4 py-4 md:py-6"
+          className="flex min-h-[45%] flex-1 items-center justify-center px-4 pt-2 pb-10 md:pt-4 md:pb-12"
         >
           {artworkFull}
         </IllustrationRadialGlow>

@@ -509,7 +509,7 @@ export default async function Dashboard({
           </div>
         </div>
 
-        <div className="w-full max-w-[680px] mb-6 space-y-4">
+        <div className="w-full mb-6 space-y-4">
           <TodaySessionCard
             planLoaded={planToRender.length > 0}
             todayPlanEntry={

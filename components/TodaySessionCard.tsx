@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Logo from "@/components/Logo";
+import { Moon } from "lucide-react";
 import { RunTypePill } from "@/components/RunTypePill";
 
 export type TodaySessionCardSession = {
@@ -37,16 +38,19 @@ export default function TodaySessionCard({ planLoaded, todayPlanEntry }: TodaySe
   if (!todayPlanEntry) {
     return (
       <div
-        className="relative w-full min-h-[160px] max-h-[180px] overflow-hidden rounded-2xl border px-4 py-4 md:px-5 md:py-5"
+        className="relative w-full overflow-hidden rounded-2xl border px-5 py-5"
         style={{
           borderRadius: "var(--card-radius)",
           background: "#0a0a0a",
-          borderColor: "rgba(156, 163, 175, 0.22)",
+          borderColor: "rgba(255,255,255,0.08)",
         }}
       >
-        <p className="relative z-[1] text-sm font-medium leading-snug md:text-base" style={{ color: "var(--text-muted)" }}>
-          Rest Day — recovery is part of the plan.
-        </p>
+        <div className="flex items-center gap-3">
+          <Moon className="w-4 h-4 shrink-0 text-zinc-500" aria-hidden />
+          <p className="text-base text-zinc-300 font-medium leading-snug">
+            Rest Day — recovery is part of the plan.
+          </p>
+        </div>
       </div>
     );
   }
