@@ -221,36 +221,37 @@ function TierCard({
         </div>
       </div>
 
-        {/* Dashboard grid — md+ */}
+        {/* Dashboard grid — md+ (single left stack: tight header → stats, no dead row gap) */}
         <div
-          className="relative z-[2] hidden max-h-[320px] min-h-[280px] grid-cols-[minmax(0,1fr)_minmax(148px,36%)] grid-rows-[auto,minmax(0,1fr)] gap-x-3 gap-y-2 overflow-hidden px-4 py-3 md:grid"
+          className="relative z-[2] hidden max-h-[320px] min-h-[280px] grid-cols-[minmax(0,1fr)_minmax(148px,36%)] grid-rows-1 gap-x-3 overflow-hidden md:grid"
         >
-          <div className="col-start-1 row-start-1 flex min-h-0 min-w-0 flex-col gap-1.5 self-start pb-1">
-            <p className="truncate text-sm font-black tracking-tight text-white">{name}</p>
-            {tierBadgeChip}
-            <div className="mt-1 flex flex-wrap items-end gap-2">
-              <span
-                className="font-black leading-none tabular-nums tracking-tight"
-                style={{ color: tier.ovrColor, fontSize: "2rem" }}
-              >
-                {showRank}
-              </span>
-              {deltaCompact}
+          <div className="col-start-1 flex min-h-0 min-w-0 flex-col gap-1.5 self-stretch py-3 pl-4 pr-1">
+            <div className="flex min-w-0 shrink-0 flex-col gap-1">
+              <p className="truncate text-sm font-black tracking-tight text-white">{name}</p>
+              {tierBadgeChip}
+              <div className="flex flex-wrap items-end gap-2 pt-0.5">
+                <span
+                  className="font-black leading-none tabular-nums tracking-tight"
+                  style={{ color: tier.ovrColor, fontSize: "2rem" }}
+                >
+                  {showRank}
+                </span>
+                {deltaCompact}
+              </div>
             </div>
-          </div>
-
-          <div className="col-start-1 row-start-2 min-h-0 min-w-0 overflow-auto pr-1">
-            <div className="grid min-h-0 grid-cols-2 content-start gap-x-3">
-              {statCell(s0)}
-              {statCell(s1)}
-              {statCell(s2)}
-              {statCell(s3)}
-              <div className="col-span-2">{statCell(s4)}</div>
+            <div className="flex min-h-0 flex-1 flex-col justify-end overflow-auto pb-0.5">
+              <div className="grid min-h-0 grid-cols-2 gap-x-3">
+                {statCell(s0)}
+                {statCell(s1)}
+                {statCell(s2)}
+                {statCell(s3)}
+                <div className="col-span-2">{statCell(s4)}</div>
+              </div>
             </div>
           </div>
 
           <div
-            className="col-start-2 row-span-2 row-start-1 flex items-center justify-center border-l border-white/[0.06] p-2"
+            className="col-start-2 row-span-1 flex min-h-0 items-center justify-center self-stretch border-l border-white/[0.06] p-2"
             style={accentVars}
           >
             {artworkCompact}
@@ -262,52 +263,61 @@ function TierCard({
   const fullInner = (
     <div className="relative z-[2] grid min-h-0 grid-cols-1 gap-5 p-5 sm:p-6 md:min-h-[380px] md:grid-cols-[minmax(0,45%)_minmax(0,55%)] md:items-stretch md:gap-6 lg:p-7">
       {/* Left — identity + OVR + XP */}
-      <div className="flex min-h-0 flex-col gap-4 md:h-full md:min-h-0">
-        <div className="flex items-center gap-2 min-w-0">
-          {accentIcon}
-          <span className="text-[10px] font-bold tracking-[0.22em] uppercase text-[var(--text-label)] truncate">
-            Running card
-          </span>
-        </div>
-        <p className="text-sm font-black tracking-wide text-white break-words sm:text-base">{name}</p>
-
-        <div>
-          <p
-            className="font-black leading-[0.95] font-mono tabular-nums tracking-tight"
-            style={{ color: tier.ovrColor, fontSize: "clamp(2.75rem,8vw,4.25rem)" }}
-          >
-            {showRank}
-          </p>
-          <p className="mt-2 text-[10px] font-bold tracking-[0.2em] text-[var(--text-label)]">RANK · OVR</p>
-        </div>
-
-        {tierBadgeChip}
-
-        {deltaFull}
-
-        {showXp && (
-          <div className="rounded-xl border border-white/[0.1] bg-black px-4 py-3 space-y-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
-            <div className="flex justify-between items-baseline gap-2 text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--text-label)]">
-              <span>XP track</span>
-              <span className="text-white/70 normal-case tracking-normal font-semibold text-right">
-                {pointsToNext} pts to {nextTierName}
-              </span>
-            </div>
-            <div className="tier-card-stat-track overflow-hidden border border-white/[0.08]">
-              <div
-                className="h-full rounded-full transition-[width] duration-700 ease-out"
-                style={{
-                  width: `${bandPct}%`,
-                  background: tier.accentColor,
-                  boxShadow: `0 0 16px ${tier.accentColor}44`,
-                }}
-              />
-            </div>
-            <p className="text-[11px] text-[var(--text-dim)] leading-snug">
-              Progress within {tier.name} band ({tier.min}–{tier.max} OVR)
-            </p>
+      <div className="flex min-h-0 flex-col justify-between gap-6 md:h-full md:min-h-0 md:gap-4">
+        <div className="flex min-w-0 shrink-0 flex-col gap-4">
+          <div className="flex items-center gap-2 min-w-0">
+            {accentIcon}
+            <span className="text-[10px] font-bold tracking-[0.22em] uppercase text-[var(--text-label)] truncate">
+              Running card
+            </span>
           </div>
-        )}
+          <p className="text-sm font-black tracking-wide text-white break-words sm:text-base">{name}</p>
+
+          <div>
+            <p
+              className="font-black leading-[0.95] font-mono tabular-nums tracking-tight"
+              style={{ color: tier.ovrColor, fontSize: "clamp(2.75rem,8vw,4.25rem)" }}
+            >
+              {showRank}
+            </p>
+            <p className="mt-2 text-[10px] font-bold tracking-[0.2em] text-[var(--text-label)]">RANK · OVR</p>
+          </div>
+
+          {tierBadgeChip}
+
+          {deltaFull}
+
+          {showXp && (
+            <div className="rounded-xl border border-white/[0.1] bg-black px-4 py-3 space-y-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+              <div className="flex justify-between items-baseline gap-2 text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--text-label)]">
+                <span>XP track</span>
+                <span className="text-white/70 normal-case tracking-normal font-semibold text-right">
+                  {pointsToNext} pts to {nextTierName}
+                </span>
+              </div>
+              <div className="tier-card-stat-track overflow-hidden border border-white/[0.08]">
+                <div
+                  className="h-full rounded-full transition-[width] duration-700 ease-out"
+                  style={{
+                    width: `${bandPct}%`,
+                    background: tier.accentColor,
+                    boxShadow: `0 0 16px ${tier.accentColor}44`,
+                  }}
+                />
+              </div>
+              <p className="text-[11px] text-[var(--text-dim)] leading-snug">
+                Progress within {tier.name} band ({tier.min}–{tier.max} OVR)
+              </p>
+            </div>
+          )}
+        </div>
+
+        <div className="shrink-0 border-t border-white/[0.07] pt-3 md:pt-4">
+          <p className="text-[9px] font-bold tracking-[0.26em] uppercase text-[var(--text-dim)]">Running card</p>
+          <p className="mt-1 truncate text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--text-label)]">
+            {name}
+          </p>
+        </div>
       </div>
 
       {/* Right — art upper, stats lower */}
