@@ -65,7 +65,7 @@ function ratingBand(score: number): string {
   return "Off Day";
 }
 
-function chipStyle(type: RunType, selectedTypes: RunType[]): React.CSSProperties {
+function chipStyle(type: RunType, selectedTypes: RunType[]): CSSProperties {
   const isActive = selectedTypes.includes(type);
   if (!isActive) {
     return {
@@ -256,28 +256,6 @@ export default function RunsClient({
   }
 
   const filterControlBase = `px-3 py-2 rounded-xl text-sm bg-white/[0.06] border border-white/[0.10] text-white outline-none focus:border-teal-500/50 transition-colors ${FORM_CONTROL_TW}`;
-  const chipStyle = (type: RunType): CSSProperties => {
-    const isActive = types.includes(type);
-    if (!isActive) {
-      return {
-        background: "rgba(255,255,255,0.06)",
-        border: "1px solid rgba(255,255,255,0.10)",
-        color: "rgba(255,255,255,0.50)",
-      };
-    }
-    const colors: Record<RunType, { bg: string; border: string; text: string }> = {
-      easy: { bg: "rgba(125,211,252,0.15)", border: "rgba(125,211,252,0.35)", text: "#7dd3fc" },
-      tempo: { bg: "rgba(45,212,191,0.15)", border: "rgba(45,212,191,0.35)", text: "#2dd4bf" },
-      interval: { bg: "rgba(249,115,22,0.15)", border: "rgba(249,115,22,0.35)", text: "#f97316" },
-      long: { bg: "rgba(167,139,250,0.15)", border: "rgba(167,139,250,0.35)", text: "#a78bfa" },
-    };
-    const c = colors[type];
-    return {
-      background: c.bg,
-      border: `1px solid ${c.border}`,
-      color: c.text,
-    };
-  };
 
   return (
     <div className="space-y-3.5">
