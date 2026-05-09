@@ -4,8 +4,8 @@ import Image from "next/image";
 import type { CSSProperties, ReactNode } from "react";
 import { memo, useCallback, useMemo, useState } from "react";
 import { Trophy } from "lucide-react";
-import type { TierConfig } from "@/lib/playerCardTiers";
-import { getTierGlowHex, tierShellBoxShadow } from "@/lib/playerCardTiers";
+import type { TierConfig, TierGlowHex } from "@/lib/playerCardTiers";
+import { getTierGlowHex, hexAlpha, tierShellBoxShadow } from "@/lib/playerCardTiers";
 
 export type TierCardStat = {
   key: string;
@@ -34,14 +34,38 @@ function tierBandProgress(rank: number, tier: TierConfig): number {
   return Math.min(100, Math.max(0, ((rank - tier.min) / span) * 100));
 }
 
-const INNER_BASE = "relative rounded-[calc(1.5rem-1px)] bg-black overflow-hidden";
+const INNER_BASE = "relative rounded-[calc(1.5rem-1px)] overflow-hidden";
 const ART_PANEL =
-  "relative flex shrink-0 flex-col bg-black overflow-hidden border-t border-white/[0.06] md:border-t-0 md:border-l md:border-white/[0.06]";
+  "relative flex shrink-0 flex-col overflow-hidden border-t border-white/[0.06] md:border-t-0 md:border-l md:border-white/[0.06]";
 const STATS_ORDER = ["SPD", "END", "CON", "EFF", "TGH"] as const;
 
 function orderedStats(stats: readonly TierCardStat[]): TierCardStat[] {
   const byKey = Object.fromEntries(stats.map((s) => [s.key, s]));
   return STATS_ORDER.map((k) => byKey[k]).filter(Boolean) as TierCardStat[];
+}
+
+function IllustrationRadialGlow({
+  tier,
+  className,
+  children,
+}: {
+  tier: TierConfig;
+  className?: string;
+  children: ReactNode;
+}) {
+  const accentHex = tier.accentColor as TierGlowHex;
+  return (
+    <div className={`relative min-h-0 w-full ${className ?? ""}`}>
+      <div
+        aria-hidden
+        className="pointer-events-none absolute left-1/2 top-1/2 z-0 w-[65%] aspect-square max-h-full -translate-x-1/2 -translate-y-1/2"
+        style={{
+          background: `radial-gradient(circle, ${hexAlpha(accentHex, 0.175)} 0%, transparent 70%)`,
+        }}
+      />
+      <div className="relative z-[1] flex size-full items-center justify-center">{children}</div>
+    </div>
+  );
 }
 
 function TierCard({
@@ -216,8 +240,10 @@ function TierCard({
           {statCell(s3)}
           <div className="col-span-2">{statCell(s4)}</div>
         </div>
-        <div className={`${ART_PANEL} flex min-h-[140px] flex-1 items-center justify-center border-t p-3`} style={accentVars}>
-          {artworkCompact}
+        <div className={`${ART_PANEL} flex min-h-[140px] flex-1 border-t p-3`} style={accentVars}>
+          <IllustrationRadialGlow tier={tier} className="min-h-0 flex-1">
+            {artworkCompact}
+          </IllustrationRadialGlow>
         </div>
       </div>
 
@@ -251,10 +277,12 @@ function TierCard({
           </div>
 
           <div
-            className="col-start-2 row-span-1 flex min-h-0 items-center justify-center self-stretch border-l border-white/[0.06] p-2"
+            className="col-start-2 row-span-1 flex min-h-0 min-w-0 flex-col self-stretch border-l border-white/[0.06] p-2"
             style={accentVars}
           >
-            {artworkCompact}
+            <IllustrationRadialGlow tier={tier} className="min-h-0 flex-1">
+              {artworkCompact}
+            </IllustrationRadialGlow>
           </div>
         </div>
     </div>
@@ -322,9 +350,12 @@ function TierCard({
 
       {/* Right — art upper, stats lower */}
       <div className={`${ART_PANEL} flex min-h-[320px] flex-col rounded-none md:h-full md:min-h-0`} style={accentVars}>
-        <div className="flex min-h-[45%] flex-1 items-center justify-center px-4 py-4 md:py-6">
+        <IllustrationRadialGlow
+          tier={tier}
+          className="flex min-h-[45%] flex-1 items-center justify-center px-4 py-4 md:py-6"
+        >
           {artworkFull}
-        </div>
+        </IllustrationRadialGlow>
         <div className="flex shrink-0 flex-col border-t border-white/[0.08] px-4 py-3 md:px-5 md:pb-5">
           {rowStats.map((attr) => (
             <div
@@ -350,7 +381,10 @@ function TierCard({
       onMouseEnter={onShellEnter}
       onMouseLeave={onShellLeave}
     >
-      <div className={INNER_BASE} style={{ boxShadow: `inset 0 1px 0 ${tier.rimLight}` }}>
+      <div
+        className={INNER_BASE}
+        style={{ boxShadow: `inset 0 1px 0 ${tier.rimLight}`, background: tier.cardBg }}
+      >
         {shimmerLayer}
         {isCompact ? compactInner : fullInner}
       </div>
