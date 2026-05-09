@@ -3,7 +3,10 @@ import type { RunType, TrainingWeek } from "@/data/trainingPlan";
 import { sameDayAEST } from "@/lib/dateUtils";
 import { getPlanWeekForDate, getSessionDate } from "@/lib/planUtils";
 import { classifyRunByPaceZones } from "@/lib/rating";
+import { getDynamicLongRunThresholdKm } from "@/lib/longRunThreshold";
 import type { UserSettings } from "@/lib/settings";
+
+export { getDynamicLongRunThresholdKm };
 
 interface SplitMetric {
   distance: number;
@@ -123,8 +126,19 @@ export function enhancedClassifyRun(
   settings: UserSettings,
   planContext: PlanContext = EMPTY_PLAN_CONTEXT,
 ): ClassificationResult {
-  if (activity.distanceKm >= 15) {
-    return { runType: "long", method: "Distance rule (>= 15 km)" };
+  if (planContext.isPlannedLongDay) {
+    return {
+      runType: "long",
+      method: "Plan context (scheduled long run day)",
+    };
+  }
+
+  const longThresholdKm = getDynamicLongRunThresholdKm(settings);
+  if (activity.distanceKm >= longThresholdKm) {
+    return {
+      runType: "long",
+      method: `Distance rule (>= ${longThresholdKm} km · ${settings.experienceLevel ?? "runner"} · VDOT ${settings.currentVdot ?? 33})`,
+    };
   }
 
   const variance = analyzePaceVariance(activity.splitsJson, settings.intervalPaceMaxSec);
@@ -157,6 +171,7 @@ export function enhancedClassifyRun(
     activity.distanceKm,
     settings.intervalPaceMaxSec,
     settings.tempoPaceMaxSec,
+    longThresholdKm,
   );
 
   if (planContext.isPlannedIntervalDay && cv != null && cv > 8 && baseType === "tempo") {
