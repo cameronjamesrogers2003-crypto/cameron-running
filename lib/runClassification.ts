@@ -3,10 +3,15 @@ import type { RunType, TrainingWeek } from "@/data/trainingPlan";
 import { sameDayAEST } from "@/lib/dateUtils";
 import { getPlanWeekForDate, getSessionDate } from "@/lib/planUtils";
 import { classifyRunByPaceZones } from "@/lib/rating";
-import { getDynamicLongRunThresholdKm } from "@/lib/longRunThreshold";
+import {
+  getVdotFallbackLongRunThresholdKm,
+} from "@/lib/longRunThreshold";
 import type { UserSettings } from "@/lib/settings";
 
-export { getDynamicLongRunThresholdKm };
+export {
+  getDynamicLongRunThresholdKm,
+  getVdotFallbackLongRunThresholdKm,
+} from "@/lib/longRunThreshold";
 
 interface SplitMetric {
   distance: number;
@@ -125,6 +130,8 @@ export function enhancedClassifyRun(
   activity: Pick<Activity, "distanceKm" | "avgPaceSecKm" | "splitsJson">,
   settings: UserSettings,
   planContext: PlanContext = EMPTY_PLAN_CONTEXT,
+  longRunThresholdKm?: number,
+  longRunDistanceMethod?: string,
 ): ClassificationResult {
   if (planContext.isPlannedLongDay) {
     return {
@@ -133,11 +140,16 @@ export function enhancedClassifyRun(
     };
   }
 
-  const longThresholdKm = getDynamicLongRunThresholdKm(settings);
+  const longThresholdKm =
+    longRunThresholdKm ?? getVdotFallbackLongRunThresholdKm(settings);
+  const distanceLongMethod =
+    longRunDistanceMethod
+    ?? `Distance rule (>= ${round1(longThresholdKm)}km · VDOT ${settings.currentVdot ?? 33} fallback · insufficient history)`;
+
   if (activity.distanceKm >= longThresholdKm) {
     return {
       runType: "long",
-      method: `Distance rule (>= ${longThresholdKm} km · ${settings.experienceLevel ?? "runner"} · VDOT ${settings.currentVdot ?? 33})`,
+      method: distanceLongMethod,
     };
   }
 

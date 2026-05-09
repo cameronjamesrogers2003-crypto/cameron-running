@@ -6,7 +6,7 @@ import {
   isActivityOnOrAfterPlanStart,
 } from "@/lib/planUtils";
 import { sameDayAEST } from "@/lib/dateUtils";
-import { getDynamicLongRunThresholdKm } from "@/lib/longRunThreshold";
+import { getVdotFallbackLongRunThresholdKm } from "@/lib/longRunThreshold";
 import { DEFAULT_SETTINGS, formatPace, type UserSettings } from "@/lib/settings";
 
 export type { RunType };
@@ -181,7 +181,7 @@ function resolveRatingRunType(
     activity.distanceKm,
     intervalPaceMaxSec,
     tempoPaceMaxSec,
-    getDynamicLongRunThresholdKm(settings),
+    getVdotFallbackLongRunThresholdKm(settings),
   );
 }
 
@@ -192,7 +192,7 @@ export function calculateRunRating(
   recentActivities: StatActivity[],
 ): RunRatingResult {
   const s = settings;
-  const longRunThresholdKm = getDynamicLongRunThresholdKm(s);
+  const longRunThresholdKm = getVdotFallbackLongRunThresholdKm(s);
   const runType = resolveRatingRunType(
     activity,
     s.intervalPaceMaxSec,
@@ -402,7 +402,7 @@ export function inferRunType(run: StatActivity, settings: UserSettings = DEFAULT
     run.distanceKm,
     settings.intervalPaceMaxSec,
     settings.tempoPaceMaxSec,
-    getDynamicLongRunThresholdKm(settings),
+    getVdotFallbackLongRunThresholdKm(settings),
   );
 }
 

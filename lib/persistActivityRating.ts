@@ -6,7 +6,11 @@ import {
 import { dbSettingsToUserSettings, DEFAULT_SETTINGS, type UserSettings } from "@/lib/settings";
 import { loadGeneratedPlan } from "@/lib/planStorage";
 import { getEffectivePlanStart } from "@/lib/planUtils";
-import { enhancedClassifyRun, getPlanContextForDate } from "@/lib/runClassification";
+import {
+  enhancedClassifyRun,
+  getPlanContextForDate,
+} from "@/lib/runClassification";
+import { getDynamicLongRunThresholdKm } from "@/lib/longRunThreshold";
 
 function toStat(a: {
   id: string;
@@ -34,7 +38,12 @@ function toStat(a: {
   };
 }
 
-function effectiveType(a: StatActivity, settings: UserSettings): string {
+function effectiveType(
+  a: StatActivity,
+  settings: UserSettings,
+  longRunThresholdKm?: number,
+  longRunDistanceMethod?: string,
+): string {
   return a.classifiedRunType
     ?? enhancedClassifyRun(
       {
@@ -43,6 +52,9 @@ function effectiveType(a: StatActivity, settings: UserSettings): string {
         splitsJson: a.splitsJson ?? null,
       },
       settings,
+      undefined,
+      longRunThresholdKm,
+      longRunDistanceMethod,
     ).runType;
 }
 
@@ -53,6 +65,8 @@ function effectiveType(a: StatActivity, settings: UserSettings): string {
 export async function persistActivityRating(
   prisma: PrismaClient,
   activityId: string,
+  longRunThresholdKm?: number,
+  longRunDistanceMethod?: string,
 ): Promise<void> {
   const [settingsRow, act, generatedPlan] = await Promise.all([
     prisma.userSettings.findUnique({ where: { id: 1 } }),
@@ -63,6 +77,18 @@ export async function persistActivityRating(
   if (!act || !["running", "trail_running"].includes(act.activityType)) return;
 
   const settings = settingsRow ? dbSettingsToUserSettings(settingsRow) : DEFAULT_SETTINGS;
+
+  let thresholdKm = longRunThresholdKm;
+  let distanceMethod = longRunDistanceMethod;
+  if (thresholdKm === undefined) {
+    const res = await getDynamicLongRunThresholdKm(settings, prisma);
+    thresholdKm = res.thresholdKm;
+    distanceMethod = res.distanceLongMethod;
+  } else if (distanceMethod === undefined) {
+    distanceMethod =
+      `Distance rule (>= ${Math.round(thresholdKm * 10) / 10}km · VDOT ${settings.currentVdot ?? 33} fallback · insufficient history)`;
+  }
+
   const planStart = getEffectivePlanStart(settings.planStartDate);
   const planContext = generatedPlan
     ? getPlanContextForDate(act.date, generatedPlan.plan, planStart)
@@ -75,6 +101,8 @@ export async function persistActivityRating(
     },
     settings,
     planContext,
+    thresholdKm,
+    distanceMethod,
   );
   const classified = classification.runType;
 
@@ -103,7 +131,7 @@ export async function persistActivityRating(
   const recentSameType: StatActivity[] = [];
   for (const r of prior) {
     const st = toStat(r);
-    const t = effectiveType(st, settings);
+    const t = effectiveType(st, settings, thresholdKm, distanceMethod);
     if (t === classified) {
       recentSameType.push({ ...st, classifiedRunType: t });
       if (recentSameType.length >= 10) break;
