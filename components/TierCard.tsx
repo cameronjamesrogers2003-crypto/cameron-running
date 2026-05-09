@@ -35,8 +35,6 @@ function tierBandProgress(rank: number, tier: TierConfig): number {
 }
 
 const INNER_BASE = "relative rounded-[calc(1.5rem-1px)] overflow-hidden bg-black";
-const ART_PANEL =
-  "relative flex shrink-0 flex-col overflow-hidden border-t border-white/[0.06] md:border-t-0 md:border-l md:border-white/[0.06]";
 const STATS_ORDER = ["SPD", "END", "CON", "EFF", "TGH"] as const;
 
 function orderedStats(stats: readonly TierCardStat[]): TierCardStat[] {
@@ -56,11 +54,20 @@ function IllustrationRadialGlow({
   const accentHex = tier.accentColor as TierGlowHex;
   return (
     <div className={`relative min-h-0 w-full ${className ?? ""}`}>
+      {/* Primary ambient glow */}
       <div
         aria-hidden
-        className="pointer-events-none absolute left-1/2 top-1/2 z-0 w-[65%] aspect-square max-h-full -translate-x-1/2 -translate-y-1/2"
+        className="pointer-events-none absolute left-1/2 top-1/2 z-0 w-[90%] aspect-square max-h-full -translate-x-1/2 -translate-y-1/2"
         style={{
-          background: `radial-gradient(circle, ${hexAlpha(accentHex, 0.175)} 0%, transparent 70%)`,
+          background: `radial-gradient(ellipse at 50% 55%, ${hexAlpha(accentHex, 0.30)} 0%, transparent 68%)`,
+        }}
+      />
+      {/* Secondary wide haze for atmospheric integration */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 z-0"
+        style={{
+          background: `radial-gradient(ellipse 70% 50% at 50% 70%, ${hexAlpha(accentHex, 0.12)} 0%, transparent 100%)`,
         }}
       />
       <div className="relative z-[1] flex size-full items-center justify-center">{children}</div>
@@ -134,15 +141,15 @@ function TierCard({
 
   const imageClassCompactWidget = [
     "pointer-events-none select-none mix-blend-screen",
-    "h-auto w-auto max-h-[200px] max-w-[min(100%,200px)]",
-    "md:max-h-[min(260px,calc(100%-1rem))] md:max-w-[min(100%,220px)]",
+    "h-auto w-auto max-h-[200px] max-w-[min(100%,210px)]",
+    "md:max-h-[min(290px,100%)] md:max-w-[min(100%,270px)]",
     "object-contain object-center",
   ].join(" ");
 
   const imageClassFullHero = [
     "pointer-events-none select-none mix-blend-screen",
-    "h-auto w-auto max-h-[min(340px,calc(50vh-80px))] max-w-[min(100%,360px)]",
-    "sm:max-h-[380px] sm:max-w-[380px]",
+    "h-auto w-auto max-h-[min(380px,calc(55vh-60px))] max-w-[min(100%,400px)]",
+    "sm:max-h-[440px] sm:max-w-[440px]",
     "object-contain object-center",
   ].join(" ");
 
@@ -153,7 +160,7 @@ function TierCard({
       height={560}
       alt=""
       loading="lazy"
-      sizes="(max-width: 768px) 220px, 260px"
+      sizes="(max-width: 768px) 220px, 270px"
       className={imageClassCompactWidget}
     />
   );
@@ -165,13 +172,12 @@ function TierCard({
       height={560}
       alt=""
       priority={variant === "full"}
-      sizes="(max-width: 768px) 300px, 400px"
+      sizes="(max-width: 768px) 360px, 440px"
       className={imageClassFullHero}
     />
   );
 
   const rowStats = orderedStats(stats);
-  const [s0, s1, s2, s3, s4] = rowStats;
 
   const tierBadgeChip = (
     <div
@@ -214,45 +220,34 @@ function TierCard({
       </span>
     ) : null;
 
-  const statCell = (s: TierCardStat | undefined) =>
-    s ? (
-      <div className={`flex min-w-0 items-center justify-between gap-2 border-b border-white/[0.07] py-1.5 last:border-b-0`}>
-        <span className="truncate text-sm text-white/85">{s.fullName}</span>
-        <span className="shrink-0 text-base font-bold tabular-nums font-mono" style={{ color: s.color }}>
-          {s.value}
-        </span>
-      </div>
-    ) : null;
+  // ── Compact variant ────────────────────────────────────────────────────────
 
   const compactInner = (
     <div className="relative z-[2]">
-      {/* Mobile stack */}
-      <div className="flex max-h-[min(520px,calc(100vh-240px))] flex-col gap-3 md:hidden">
-        <div className="flex flex-col gap-3 rounded-xl p-3.5 sm:p-4" style={{ background: tier.cardBg }}>
-          <div className="min-w-0">
-            <p className="truncate text-sm font-black tracking-tight text-white">{name}</p>
-            <div className="mt-1.5">{tierBadgeChip}</div>
-            <div className="mt-2 flex flex-wrap items-end gap-2">
-              <span
-                className="font-black leading-none tabular-nums tracking-tight"
-                style={{ color: tier.ovrColor, fontSize: "2rem" }}
-              >
-                {showRank}
-              </span>
-              {deltaCompact}
-            </div>
-          </div>
-          <div className="grid shrink-0 grid-cols-2 gap-x-3 gap-y-0">
-            {statCell(s0)}
-            {statCell(s1)}
-            {statCell(s2)}
-            {statCell(s3)}
-            <div className="col-span-2">{statCell(s4)}</div>
+
+      {/* Mobile: clean identity stack above artwork — no stats */}
+      <div className="flex flex-col gap-0 md:hidden">
+        <div className="flex flex-col gap-2 p-4" style={{ background: tier.cardBg }}>
+          <p className="truncate text-sm font-black tracking-tight text-white">{name}</p>
+          {tierBadgeChip}
+          <div className="flex flex-wrap items-end gap-2 pt-1">
+            <span
+              className="font-black leading-none tabular-nums tracking-tight"
+              style={{ color: tier.ovrColor, fontSize: "3rem" }}
+            >
+              {showRank}
+            </span>
+            {deltaCompact}
           </div>
         </div>
+        {/* Art panel — no border, inset shadow blends with content above */}
         <div
-          className={`${ART_PANEL} flex min-h-[140px] flex-1 border-t p-3`}
-          style={{ ...accentVars, background: "#000" }}
+          className="relative flex min-h-[160px] flex-1 flex-col overflow-hidden"
+          style={{
+            ...accentVars,
+            background: "#000",
+            boxShadow: "inset 0 16px 28px rgba(0,0,0,0.8)",
+          }}
         >
           <IllustrationRadialGlow tier={tier} className="min-h-0 flex-1">
             {artworkCompact}
@@ -260,73 +255,83 @@ function TierCard({
         </div>
       </div>
 
-        {/* Dashboard grid — md+ (single left stack: tight header → stats, no dead row gap) */}
+      {/* md+: identity left, full-height artwork right — no stats, clean hero layout */}
+      <div
+        className="hidden min-h-[260px] max-h-[300px] grid-cols-[minmax(0,1fr)_minmax(175px,48%)] grid-rows-1 overflow-hidden md:grid"
+      >
+        {/* Left — name, tier, OVR */}
         <div
-          className="relative z-[2] hidden max-h-[320px] min-h-[280px] grid-cols-[minmax(0,1fr)_minmax(148px,36%)] grid-rows-1 gap-x-3 overflow-hidden md:grid"
+          className="relative col-start-1 flex min-h-0 min-w-0 flex-col justify-center gap-3 self-stretch overflow-hidden py-5 pl-5 pr-2"
+          style={{ background: tier.cardBg }}
         >
+          {/* Soft right-edge fade into art panel */}
           <div
-            className="relative col-start-1 flex min-h-0 min-w-0 flex-col gap-1.5 self-stretch py-3 pl-4 pr-1 overflow-hidden"
-            style={{ background: tier.cardBg }}
-          >
-            <div
-              aria-hidden
-              className="pointer-events-none absolute inset-y-0 right-0 z-[1] w-10"
-              style={{ background: "linear-gradient(to right, transparent 0%, #000 100%)" }}
-            />
-            <div className="flex min-w-0 shrink-0 flex-col gap-1">
-              <p className="truncate text-sm font-black tracking-tight text-white">{name}</p>
-              {tierBadgeChip}
-              <div className="flex flex-wrap items-end gap-2 pt-0.5">
-                <span
-                  className="font-black leading-none tabular-nums tracking-tight"
-                  style={{ color: tier.ovrColor, fontSize: "2rem" }}
-                >
-                  {showRank}
-                </span>
-                {deltaCompact}
-              </div>
+            aria-hidden
+            className="pointer-events-none absolute inset-y-0 right-0 z-[1] w-20"
+            style={{ background: "linear-gradient(to right, transparent 0%, #000 100%)" }}
+          />
+          <div className="relative z-[2] flex min-w-0 flex-col gap-2">
+            <p className="truncate text-sm font-black tracking-tight text-white">{name}</p>
+            {tierBadgeChip}
+            <div className="mt-1 flex flex-wrap items-end gap-2">
+              <span
+                className="font-black leading-none tabular-nums tracking-tight"
+                style={{ color: tier.ovrColor, fontSize: "3rem" }}
+              >
+                {showRank}
+              </span>
+              {deltaCompact}
             </div>
-            <div className="flex min-h-0 flex-1 flex-col justify-end overflow-auto pb-0.5">
-              <div className="grid min-h-0 grid-cols-2 gap-x-3">
-                {statCell(s0)}
-                {statCell(s1)}
-                {statCell(s2)}
-                {statCell(s3)}
-                <div className="col-span-2">{statCell(s4)}</div>
-              </div>
-            </div>
-          </div>
-
-          <div
-            className="col-start-2 row-span-1 flex min-h-0 min-w-0 flex-col self-stretch border-l border-white/[0.06] p-2"
-            style={{ ...accentVars, background: "#000" }}
-          >
-            <IllustrationRadialGlow tier={tier} className="min-h-0 flex-1">
-              {artworkCompact}
-            </IllustrationRadialGlow>
           </div>
         </div>
+
+        {/* Right — artwork, edge-to-edge, blended left */}
+        <div
+          className="col-start-2 row-span-1 relative flex min-h-0 min-w-0 flex-col self-stretch overflow-hidden p-1.5"
+          style={{
+            ...accentVars,
+            background: "#000",
+            boxShadow: "inset 22px 0 32px rgba(0,0,0,0.95)",
+          }}
+        >
+          <IllustrationRadialGlow tier={tier} className="min-h-0 flex-1">
+            {artworkCompact}
+          </IllustrationRadialGlow>
+        </div>
+      </div>
     </div>
   );
 
+  // ── Full variant ───────────────────────────────────────────────────────────
+
   const fullInner = (
-    <div className="relative z-[2] grid min-h-0 grid-cols-1 gap-5 p-5 sm:p-6 md:min-h-[380px] md:grid-cols-[minmax(0,45%)_minmax(0,55%)] md:items-stretch md:gap-6 lg:p-7">
-      {/* Left — identity + OVR + XP */}
-      <div className="relative flex min-h-0 flex-col justify-between gap-6 md:h-full md:min-h-0 md:gap-4 overflow-hidden" style={{ background: tier.cardBg }}>
+    <div className="relative z-[2] flex min-h-0 flex-col md:flex-row md:items-stretch">
+
+      {/* Left — identity + stats + XP — padding inside, no outer gap */}
+      <div
+        className="relative flex min-h-0 flex-col overflow-hidden p-5 sm:p-6 md:w-[43%] md:flex-shrink-0"
+        style={{ background: tier.cardBg }}
+      >
+        {/* Soft right-edge fade that melts into the art panel */}
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-y-0 right-0 z-[1] w-12 hidden md:block"
+          className="pointer-events-none absolute inset-y-0 right-0 z-[1] w-20 hidden md:block"
           style={{ background: "linear-gradient(to right, transparent 0%, #000 100%)" }}
         />
-        <div className="flex min-w-0 shrink-0 flex-col gap-4">
+
+        <div className="relative z-[2] flex min-h-0 flex-1 flex-col gap-3">
+          {/* Header */}
           <div className="flex items-center gap-2 min-w-0">
             {accentIcon}
             <span className="text-[10px] font-bold tracking-[0.22em] uppercase text-[var(--text-label)] truncate">
               Running card
             </span>
           </div>
+
+          {/* Name */}
           <p className="text-sm font-black tracking-wide text-white break-words sm:text-base">{name}</p>
 
+          {/* OVR */}
           <div>
             <p
               className="font-black leading-[0.95] font-mono tabular-nums tracking-tight"
@@ -334,65 +339,75 @@ function TierCard({
             >
               {showRank}
             </p>
-            <p className="mt-2 text-[10px] font-bold tracking-[0.2em] text-[var(--text-label)]">RANK · OVR</p>
+            <p className="mt-1.5 text-[10px] font-bold tracking-[0.2em] text-[var(--text-label)]">RANK · OVR</p>
           </div>
 
           {tierBadgeChip}
-
           {deltaFull}
 
-          {showXp && (
-            <div className="rounded-xl border border-white/[0.1] bg-black px-4 py-3 space-y-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
-              <div className="flex justify-between items-baseline gap-2 text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--text-label)]">
-                <span>XP track</span>
-                <span className="text-white/70 normal-case tracking-normal font-semibold text-right">
-                  {pointsToNext} pts to {nextTierName}
+          {/* Attributes — larger values, clear hierarchy */}
+          <div className="mt-1 border-t border-white/[0.06] pt-2.5">
+            {rowStats.map((attr) => (
+              <div
+                key={attr.key}
+                className="flex items-center justify-between gap-3 border-b border-white/[0.05] py-2 last:border-b-0"
+              >
+                <span className="min-w-0 flex-1 text-xs font-medium tracking-wide text-white/55 uppercase">
+                  {attr.fullName}
+                </span>
+                <span
+                  className="shrink-0 text-xl font-black tabular-nums font-mono leading-none"
+                  style={{ color: attr.color }}
+                >
+                  {attr.value}
                 </span>
               </div>
-              <div className="tier-card-stat-track overflow-hidden border border-white/[0.08]">
+            ))}
+          </div>
+
+          {/* XP — compact */}
+          {showXp && (
+            <div className="rounded-lg border border-white/[0.08] bg-black/50 px-3 py-2.5 space-y-2">
+              <div className="flex justify-between items-baseline gap-2 text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--text-label)]">
+                <span>XP</span>
+                <span className="text-white/60 normal-case tracking-normal font-semibold text-right text-[10px]">
+                  {pointsToNext} pts → {nextTierName}
+                </span>
+              </div>
+              <div className="tier-card-stat-track overflow-hidden border border-white/[0.07]">
                 <div
                   className="h-full rounded-full transition-[width] duration-700 ease-out"
                   style={{
                     width: `${bandPct}%`,
                     background: tier.accentColor,
-                    boxShadow: `0 0 16px ${tier.accentColor}44`,
+                    boxShadow: `0 0 12px ${tier.accentColor}44`,
                   }}
                 />
               </div>
-              <p className="text-[11px] text-[var(--text-dim)] leading-snug">
-                Progress within {tier.name} band ({tier.min}–{tier.max} OVR)
-              </p>
             </div>
           )}
         </div>
 
-        <p className="shrink-0 text-xs tracking-widest uppercase text-white/20 select-none">Runshift</p>
+        <p className="relative z-[2] mt-4 shrink-0 text-[10px] tracking-widest uppercase text-white/15 select-none">
+          Runshift
+        </p>
       </div>
 
-      {/* Right — art upper, stats lower */}
+      {/* Right — full-bleed artwork, bleeds to card edges */}
       <div
-        className={`${ART_PANEL} flex min-h-[320px] flex-col rounded-none md:h-full md:min-h-0`}
-        style={{ ...accentVars, background: "#000" }}
+        className="relative flex min-h-[260px] flex-1 flex-col md:min-h-0"
+        style={{
+          ...accentVars,
+          background: "#000",
+          boxShadow: "inset 24px 0 44px rgba(0,0,0,0.95)",
+        }}
       >
         <IllustrationRadialGlow
           tier={tier}
-          className="flex min-h-[45%] flex-1 items-center justify-center px-4 pt-2 pb-10 md:pt-4 md:pb-12"
+          className="flex flex-1 items-center justify-center px-4 py-6 md:py-10"
         >
           {artworkFull}
         </IllustrationRadialGlow>
-        <div className="flex shrink-0 flex-col border-t border-white/[0.08] px-4 py-3 md:px-5 md:pb-5">
-          {rowStats.map((attr) => (
-            <div
-              key={attr.key}
-              className="flex items-center justify-between gap-4 border-b border-white/[0.08] py-3 last:border-b-0 first:pt-0"
-            >
-              <span className="min-w-0 flex-1 text-base font-semibold text-white/90">{attr.fullName}</span>
-              <span className="shrink-0 text-lg font-black tabular-nums font-mono" style={{ color: attr.color }}>
-                {attr.value}
-              </span>
-            </div>
-          ))}
-        </div>
       </div>
     </div>
   );
