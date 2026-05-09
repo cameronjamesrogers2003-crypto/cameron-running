@@ -34,7 +34,7 @@ function tierBandProgress(rank: number, tier: TierConfig): number {
   return Math.min(100, Math.max(0, ((rank - tier.min) / span) * 100));
 }
 
-const INNER_BASE = "relative rounded-[calc(1.5rem-1px)] overflow-hidden";
+const INNER_BASE = "relative rounded-[calc(1.5rem-1px)] overflow-hidden bg-black";
 const ART_PANEL =
   "relative flex shrink-0 flex-col overflow-hidden border-t border-white/[0.06] md:border-t-0 md:border-l md:border-white/[0.06]";
 const STATS_ORDER = ["SPD", "END", "CON", "EFF", "TGH"] as const;
@@ -219,28 +219,33 @@ function TierCard({
   const compactInner = (
     <div className="relative z-[2]">
       {/* Mobile stack */}
-      <div className="flex max-h-[min(520px,calc(100vh-240px))] flex-col gap-3 p-3.5 sm:p-4 md:hidden">
-        <div className="min-w-0">
-          <p className="truncate text-sm font-black tracking-tight text-white">{name}</p>
-          <div className="mt-1.5">{tierBadgeChip}</div>
-          <div className="mt-2 flex flex-wrap items-end gap-2">
-            <span
-              className="font-black leading-none tabular-nums tracking-tight"
-              style={{ color: tier.ovrColor, fontSize: "2rem" }}
-            >
-              {showRank}
-            </span>
-            {deltaCompact}
+      <div className="flex max-h-[min(520px,calc(100vh-240px))] flex-col gap-3 md:hidden">
+        <div className="flex flex-col gap-3 rounded-xl p-3.5 sm:p-4" style={{ background: tier.cardBg }}>
+          <div className="min-w-0">
+            <p className="truncate text-sm font-black tracking-tight text-white">{name}</p>
+            <div className="mt-1.5">{tierBadgeChip}</div>
+            <div className="mt-2 flex flex-wrap items-end gap-2">
+              <span
+                className="font-black leading-none tabular-nums tracking-tight"
+                style={{ color: tier.ovrColor, fontSize: "2rem" }}
+              >
+                {showRank}
+              </span>
+              {deltaCompact}
+            </div>
+          </div>
+          <div className="grid shrink-0 grid-cols-2 gap-x-3 gap-y-0">
+            {statCell(s0)}
+            {statCell(s1)}
+            {statCell(s2)}
+            {statCell(s3)}
+            <div className="col-span-2">{statCell(s4)}</div>
           </div>
         </div>
-        <div className="grid shrink-0 grid-cols-2 gap-x-3 gap-y-0">
-          {statCell(s0)}
-          {statCell(s1)}
-          {statCell(s2)}
-          {statCell(s3)}
-          <div className="col-span-2">{statCell(s4)}</div>
-        </div>
-        <div className={`${ART_PANEL} flex min-h-[140px] flex-1 border-t p-3`} style={accentVars}>
+        <div
+          className={`${ART_PANEL} flex min-h-[140px] flex-1 border-t p-3`}
+          style={{ ...accentVars, background: "#000" }}
+        >
           <IllustrationRadialGlow tier={tier} className="min-h-0 flex-1">
             {artworkCompact}
           </IllustrationRadialGlow>
@@ -251,7 +256,10 @@ function TierCard({
         <div
           className="relative z-[2] hidden max-h-[320px] min-h-[280px] grid-cols-[minmax(0,1fr)_minmax(148px,36%)] grid-rows-1 gap-x-3 overflow-hidden md:grid"
         >
-          <div className="col-start-1 flex min-h-0 min-w-0 flex-col gap-1.5 self-stretch py-3 pl-4 pr-1">
+          <div
+            className="col-start-1 flex min-h-0 min-w-0 flex-col gap-1.5 self-stretch py-3 pl-4 pr-1"
+            style={{ background: tier.cardBg }}
+          >
             <div className="flex min-w-0 shrink-0 flex-col gap-1">
               <p className="truncate text-sm font-black tracking-tight text-white">{name}</p>
               {tierBadgeChip}
@@ -278,7 +286,7 @@ function TierCard({
 
           <div
             className="col-start-2 row-span-1 flex min-h-0 min-w-0 flex-col self-stretch border-l border-white/[0.06] p-2"
-            style={accentVars}
+            style={{ ...accentVars, background: "#000" }}
           >
             <IllustrationRadialGlow tier={tier} className="min-h-0 flex-1">
               {artworkCompact}
@@ -291,7 +299,7 @@ function TierCard({
   const fullInner = (
     <div className="relative z-[2] grid min-h-0 grid-cols-1 gap-5 p-5 sm:p-6 md:min-h-[380px] md:grid-cols-[minmax(0,45%)_minmax(0,55%)] md:items-stretch md:gap-6 lg:p-7">
       {/* Left — identity + OVR + XP */}
-      <div className="flex min-h-0 flex-col justify-between gap-6 md:h-full md:min-h-0 md:gap-4">
+      <div className="flex min-h-0 flex-col justify-between gap-6 md:h-full md:min-h-0 md:gap-4" style={{ background: tier.cardBg }}>
         <div className="flex min-w-0 shrink-0 flex-col gap-4">
           <div className="flex items-center gap-2 min-w-0">
             {accentIcon}
@@ -349,7 +357,10 @@ function TierCard({
       </div>
 
       {/* Right — art upper, stats lower */}
-      <div className={`${ART_PANEL} flex min-h-[320px] flex-col rounded-none md:h-full md:min-h-0`} style={accentVars}>
+      <div
+        className={`${ART_PANEL} flex min-h-[320px] flex-col rounded-none md:h-full md:min-h-0`}
+        style={{ ...accentVars, background: "#000" }}
+      >
         <IllustrationRadialGlow
           tier={tier}
           className="flex min-h-[45%] flex-1 items-center justify-center px-4 py-4 md:py-6"
@@ -381,10 +392,7 @@ function TierCard({
       onMouseEnter={onShellEnter}
       onMouseLeave={onShellLeave}
     >
-      <div
-        className={INNER_BASE}
-        style={{ boxShadow: `inset 0 1px 0 ${tier.rimLight}`, background: tier.cardBg }}
-      >
+      <div className={INNER_BASE} style={{ boxShadow: `inset 0 1px 0 ${tier.rimLight}` }}>
         {shimmerLayer}
         {isCompact ? compactInner : fullInner}
       </div>
