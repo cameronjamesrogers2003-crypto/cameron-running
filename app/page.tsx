@@ -1,6 +1,6 @@
 import prisma from "@/lib/db";
 import { formatPace } from "@/lib/settings";
-import { buildTrainingPlan, type Phase, type Day, type PlanConfig } from "@/data/trainingPlan";
+import { buildTrainingPlan, type Day, type PlanConfig } from "@/data/trainingPlan";
 import {
   getEffectivePlanStart,
   getPlanWeekForDate,
