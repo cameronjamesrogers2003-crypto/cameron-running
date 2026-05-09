@@ -236,6 +236,13 @@ export async function syncActivities(): Promise<{ synced: number; errors: number
       const id = String(act.id);
       const existing = await prisma.activity.findUnique({ where: { id } });
       if (existing) {
+        const gain = act.total_elevation_gain;
+        if (gain != null && gain !== existing.elevationGainM) {
+          await prisma.activity.update({
+            where: { id },
+            data: { elevationGainM: gain },
+          });
+        }
         await persistActivityRating(prisma, id).catch(() => {});
         await refreshPlayerRating(id, existing.activityType);
         continue;
@@ -279,10 +286,12 @@ export async function syncActivities(): Promise<{ synced: number; errors: number
       try {
         const detailed = await fetchFullActivity(id);
         const splits = Array.isArray(detailed?.splits_metric) ? detailed.splits_metric : null;
+        const detailElev = detailed?.total_elevation_gain;
         await prisma.activity.update({
           where: { id },
           data: {
             splitsJson: splits ? JSON.stringify(splits) : null,
+            ...(detailElev != null ? { elevationGainM: detailElev } : {}),
           },
         });
       } catch (splitErr) {

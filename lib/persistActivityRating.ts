@@ -17,6 +17,7 @@ function toStat(a: {
   maxHeartRate: number | null;
   temperatureC: number | null;
   humidityPct: number | null;
+  elevationGainM: number | null;
   classifiedRunType: string | null;
   splitsJson: string | null;
 }): StatActivity {
@@ -29,6 +30,7 @@ function toStat(a: {
     maxHeartRate: a.maxHeartRate,
     temperatureC: a.temperatureC,
     humidityPct: a.humidityPct,
+    elevationGainM: a.elevationGainM,
     classifiedRunType: a.classifiedRunType,
     splitsJson: a.splitsJson,
   };
@@ -95,6 +97,7 @@ export async function persistActivityRating(
       maxHeartRate: true,
       temperatureC: true,
       humidityPct: true,
+      elevationGainM: true,
       classifiedRunType: true,
       splitsJson: true,
     },

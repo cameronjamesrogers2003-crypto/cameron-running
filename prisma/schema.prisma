@@ -35,7 +35,7 @@ model Activity {
   humidityPct        Float?
   // 0–10 run quality score (calculateRunRating + sync/backfill only)
   rating             Float?
-  // JSON: RunRatingResult (components + reasons); null before backfill
+  // JSON: RunRatingResult (pace, effort, distance, elevation, conditions); null before backfill
   ratingBreakdown    String?
   // Pace-zone type from classifyRunByPaceZones; kept in sync with rating
   classifiedRunType  String?
