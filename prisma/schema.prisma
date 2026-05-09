@@ -33,6 +33,7 @@ model Activity {
   splits             Json?
   temperatureC       Float?
   humidityPct        Float?
+  weatherFetchedAt   DateTime?
   // 0–10 run quality score (calculateRunRating + sync/backfill only)
   rating             Float?
   // JSON: RunRatingResult (components + reasons); null before backfill

@@ -2,6 +2,7 @@ import prisma from "./db";
 import { persistActivityRating } from "./persistActivityRating";
 import { updatePlayerRating } from "./playerRating";
 import { checkAndAdaptPlan } from "./planAdaptation";
+import { toBrisbaneYmd } from "./dateUtils";
 import { fetchHistoricalWeather, BRISBANE_LAT, BRISBANE_LON } from "./weather";
 
 const STRAVA_AUTH_URL = "https://www.strava.com/oauth/authorize";
@@ -231,11 +232,61 @@ export async function syncActivities(): Promise<{ synced: number; errors: number
     }
   }
 
+  const fiveDaysAgoMs = Date.now() - 5 * 24 * 60 * 60 * 1000;
+
   for (const act of activities) {
     try {
       const id = String(act.id);
-      const existing = await prisma.activity.findUnique({ where: { id } });
+      const existing = await prisma.activity.findUnique({
+        where: { id },
+        select: {
+          id: true,
+          temperatureC: true,
+          date: true,
+          startLat: true,
+          startLon: true,
+          activityType: true,
+          weatherFetchedAt: true,
+        },
+      });
       if (existing) {
+        const shouldRetryWeather =
+          existing.temperatureC == null
+          && (existing.weatherFetchedAt == null
+            || existing.weatherFetchedAt.getTime() < fiveDaysAgoMs);
+
+        if (shouldRetryWeather) {
+          try {
+            const weather = await fetchHistoricalWeather(
+              existing.startLat ?? BRISBANE_LAT,
+              existing.startLon ?? BRISBANE_LON,
+              existing.date,
+            );
+            if (weather) {
+              await prisma.activity.update({
+                where: { id: existing.id },
+                data: {
+                  temperatureC: weather.temperatureC,
+                  humidityPct: weather.humidityPct,
+                  weatherFetchedAt: new Date(),
+                },
+              });
+              console.log(
+                `[weather] filled missing weather for existing activity ${existing.id}`,
+              );
+            } else {
+              console.warn(
+                `[weather] no weather data returned for existing activity ${existing.id} on ${toBrisbaneYmd(existing.date)}`,
+              );
+            }
+          } catch (err) {
+            console.warn(
+              `[weather] failed to fill weather for existing activity ${existing.id}:`,
+              err,
+            );
+          }
+        }
+
         await persistActivityRating(prisma, id).catch(() => {});
         await refreshPlayerRating(id, existing.activityType);
         continue;
@@ -298,8 +349,19 @@ export async function syncActivities(): Promise<{ synced: number; errors: number
       if (weather) {
         await prisma.activity.update({
           where: { id },
-          data:  { temperatureC: weather.temperatureC, humidityPct: weather.humidityPct },
+          data: {
+            temperatureC: weather.temperatureC,
+            humidityPct: weather.humidityPct,
+            weatherFetchedAt: new Date(),
+          },
         });
+        console.log(
+          `[weather] fetched weather for new activity ${id}: ${weather.temperatureC}°C, ${weather.humidityPct}% humidity`,
+        );
+      } else {
+        console.warn(
+          `[weather] no weather data for new activity ${id} on ${toBrisbaneYmd(actDate)} at lat=${startLat ?? BRISBANE_LAT} lon=${startLon ?? BRISBANE_LON}`,
+        );
       }
 
       await persistActivityRating(prisma, id).catch(() => {});
