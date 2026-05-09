@@ -31,6 +31,8 @@ export default function TrainingLoadChart({ data }: { data: LoadData[] }) {
   const compact = useMediaQuery("(max-width: 767px)");
   const tickSize = compact ? 9 : 11;
   const tipSize = compact ? 11 : 12;
+  const gridColor = "rgba(255,255,255,0.06)";
+  const textColor = "rgba(255,255,255,0.40)";
 
   return (
     <div className="w-full min-w-0 -mx-1 sm:mx-0">
@@ -41,17 +43,17 @@ export default function TrainingLoadChart({ data }: { data: LoadData[] }) {
         >
         <CartesianGrid
           strokeDasharray="3 3"
-          stroke="rgba(255,255,255,0.06)"
+          stroke={gridColor}
           vertical={false}
         />
         <XAxis
           dataKey="week"
-          tick={{ fill: "#9ca3af", fontSize: tickSize }}
+          tick={{ fill: textColor, fontSize: tickSize }}
           axisLine={false}
           tickLine={false}
         />
         <YAxis
-          tick={{ fill: "#9ca3af", fontSize: tickSize }}
+          tick={{ fill: textColor, fontSize: tickSize }}
           axisLine={false}
           tickLine={false}
           width={compact ? 36 : 44}
@@ -60,23 +62,23 @@ export default function TrainingLoadChart({ data }: { data: LoadData[] }) {
         <Tooltip
           contentStyle={{ ...TOOLTIP_STYLE, fontSize: tipSize }}
           labelStyle={{ color: "#fff", marginBottom: 4, fontSize: tipSize }}
-          itemStyle={{ color: "#9ca3af", fontSize: tipSize }}
+          itemStyle={{ color: textColor, fontSize: tipSize }}
           cursor={{ fill: "rgba(255,255,255,0.04)" }}
           formatter={(value, name) => [`${value} km`, name]}
         />
         <Legend
           wrapperStyle={{
             fontSize: compact ? 9 : 11,
-            color: "#9ca3af",
+            color: textColor,
             paddingTop: 6,
           }}
           iconSize={compact ? 6 : 8}
           iconType="circle"
         />
-        <Bar dataKey="easy"     stackId="a" fill="#7c3aed" name="Easy"     />
-        <Bar dataKey="tempo"    stackId="a" fill="#0d9488" name="Tempo"    />
-        <Bar dataKey="interval" stackId="a" fill="#f97316" name="Interval" />
-        <Bar dataKey="long"     stackId="a" fill="#d97706" name="Long"
+        <Bar dataKey="easy"     stackId="a" fill="var(--c-easy)" name="Easy"     />
+        <Bar dataKey="tempo"    stackId="a" fill="var(--c-tempo)" name="Tempo"    />
+        <Bar dataKey="interval" stackId="a" fill="var(--c-interval)" name="Interval" />
+        <Bar dataKey="long"     stackId="a" fill="var(--c-long)" name="Long"
           radius={[4, 4, 0, 0]}
         />
       </BarChart>

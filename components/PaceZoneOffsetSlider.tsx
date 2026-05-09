@@ -46,12 +46,12 @@ export default function PaceZoneOffsetSlider({
   return (
     <div className="space-y-2">
       <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
-        <p className="text-sm font-medium text-white">{label}</p>
-        <p className="text-sm tabular-nums" style={{ color: "#99f6e4" }}>
+        <p className="text-base font-semibold text-white">{label}</p>
+        <p className="text-base font-mono font-semibold tabular-nums" style={{ color: "var(--accent)" }}>
           {formatPace(finalSec)}/km
         </p>
       </div>
-      <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+      <p className="text-xs mt-0.5" style={{ color: "var(--text-dim)" }}>
         {offsetSec === 0
           ? "Aligned with VDOT recommendation"
           : offsetSec > 0
@@ -117,7 +117,13 @@ export default function PaceZoneOffsetSlider({
         <button
           type="button"
           onClick={() => onOffsetChange(0)}
-          className="text-xs px-2 py-1 rounded border border-white/15 bg-white/5 text-white/85 hover:bg-white/10"
+          className="text-xs px-3 py-1.5 rounded-lg transition-colors disabled:opacity-30"
+          style={{
+            background: "rgba(255,255,255,0.06)",
+            border: "1px solid rgba(255,255,255,0.10)",
+            color: "rgba(255,255,255,0.50)",
+          }}
+          disabled={offsetSec === 0}
         >
           ↺ Reset to VDOT
         </button>

@@ -87,7 +87,10 @@ export default function OnboardingPage() {
   const router = useRouter();
   const { settings, updateSettings } = useSettings();
 
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState(0);
+  const [firstName, setFirstName] = useState(settings.firstName ?? "");
+  const [nickname, setNickname] = useState(settings.nickname ?? "");
+  const [nameError, setNameError] = useState<string | null>(null);
   const [goalRace, setGoalRace] = useState<GoalRace | null>((settings.goalRace as GoalRace | null) ?? null);
   const [level, setLevel] = useState<Level | null>((settings.experienceLevel as Level | null) ?? null);
   const [planLengthWeeks, setPlanLengthWeeks] = useState<12 | 16 | 20>((settings.planLengthWeeks as 12 | 16 | 20 | null) ?? 16);
@@ -152,6 +155,7 @@ export default function OnboardingPage() {
   );
 
   const canNext = (() => {
+    if (step === 0) return firstName.trim().length > 0;
     if (step === 1) return goalRace != null;
     if (step === 2) return level != null;
     if (step === 3) return [12, 16, 20].includes(planLengthWeeks);
@@ -206,6 +210,8 @@ export default function OnboardingPage() {
     };
     try {
       await updateSettings({
+        firstName: firstName.trim(),
+        nickname: nickname.trim() || null,
         goalRace,
         experienceLevel: level,
         planLengthWeeks,
@@ -254,8 +260,37 @@ export default function OnboardingPage() {
   return (
     <div className="max-w-3xl mx-auto space-y-4">
       <p className="text-[11px] sm:text-xs uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>
-        Step {Math.min(step, 7)} of 7
+        Step {Math.min(step + 1, 8)} of 8
       </p>
+      {step === 0 && (
+        <section className="space-y-4">
+          <h1 className="text-2xl font-bold text-white">Welcome to Runshift</h1>
+          <p className="text-sm" style={{ color: "var(--text-muted)" }}>Let&apos;s personalise your experience.</p>
+          <div className="space-y-3 max-w-md mx-auto">
+            <input
+              type="text"
+              value={firstName}
+              onChange={(e) => {
+                setFirstName(e.target.value);
+                if (e.target.value.trim()) setNameError(null);
+              }}
+              placeholder="First name"
+              className={`w-full px-4 py-3 rounded-xl text-lg bg-white/[0.06] border border-white/[0.10] text-white placeholder-white/30 outline-none focus:border-teal-500/50 transition-colors text-center font-medium ${FORM_CONTROL_TW}`}
+            />
+            <input
+              type="text"
+              value={nickname}
+              onChange={(e) => setNickname(e.target.value)}
+              placeholder="Nickname (optional)"
+              className={`w-full px-4 py-3 rounded-xl text-lg bg-white/[0.06] border border-white/[0.10] text-white placeholder-white/30 outline-none focus:border-teal-500/50 transition-colors text-center font-medium ${FORM_CONTROL_TW}`}
+            />
+            <p className="text-xs text-center mt-2" style={{ color: "var(--text-dim)" }}>
+              This is how we&apos;ll address you in the app.
+            </p>
+            {nameError && <p className="text-xs text-center text-red-300">{nameError}</p>}
+          </div>
+        </section>
+      )}
       {step === 1 && (
         <section className="space-y-3">
           <h1 className="text-2xl font-bold text-white">What are you training for?</h1>
@@ -444,6 +479,7 @@ export default function OnboardingPage() {
             <p><span style={{ color: "var(--text-muted)" }}>Training days:</span> {sortedTrainingDays.map((d) => DAY_LABEL[d]).join(", ")}</p>
             <p><span style={{ color: "var(--text-muted)" }}>Long run day:</span> {effectiveLongRunDay ? DAY_LABEL[effectiveLongRunDay] : "Not set"}</p>
             <p><span style={{ color: "var(--text-muted)" }}>Start date:</span> {settings.planStartDate ? toBrisbaneYmd(new Date(settings.planStartDate)) : "Not set"}</p>
+            <p><span style={{ color: "var(--text-muted)" }}>Name:</span> {nickname.trim() || firstName.trim()}</p>
           </div>
           <button
             type="button"
@@ -459,16 +495,22 @@ export default function OnboardingPage() {
       <div className="flex flex-col sm:flex-row justify-between gap-2 pt-3">
         <button
           type="button"
-          onClick={() => setStep((s) => Math.max(1, s - 1))}
-          disabled={step === 1}
+          onClick={() => setStep((s) => Math.max(0, s - 1))}
+          disabled={step === 0}
           className="rounded-md min-h-11 px-4 py-2 border border-white/15 text-sm disabled:opacity-50 w-full sm:w-auto"
         >
           Back
         </button>
         <button
           type="button"
-          onClick={() => setStep((s) => Math.min(8, s + 1))}
-          disabled={!canNext || step > 7}
+          onClick={() => {
+            if (step === 0 && !firstName.trim()) {
+              setNameError("First name is required.");
+              return;
+            }
+            setStep((s) => Math.min(8, s + 1));
+          }}
+          disabled={(step === 0 ? false : !canNext) || step > 7}
           className="rounded-md min-h-11 px-4 py-2 bg-white/10 text-sm disabled:opacity-50 w-full sm:w-auto"
         >
           Next

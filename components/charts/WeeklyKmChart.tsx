@@ -29,6 +29,9 @@ export default function WeeklyKmChart({ data }: { data: WeeklyKmData[] }) {
   const compact = useMediaQuery("(max-width: 767px)");
   const tickSize = compact ? 9 : 11;
   const tipSize = compact ? 11 : 12;
+  const gridColor = "rgba(255,255,255,0.06)";
+  const textColor = "rgba(255,255,255,0.40)";
+  const barColor = "var(--accent)";
 
   return (
     <div className="w-full min-w-0 -mx-1 sm:mx-0">
@@ -39,17 +42,17 @@ export default function WeeklyKmChart({ data }: { data: WeeklyKmData[] }) {
         >
         <CartesianGrid
           strokeDasharray="3 3"
-          stroke="rgba(255,255,255,0.06)"
+          stroke={gridColor}
           vertical={false}
         />
         <XAxis
           dataKey="week"
-          tick={{ fill: "rgba(255,255,255,0.50)", fontSize: tickSize }}
+          tick={{ fill: textColor, fontSize: tickSize }}
           axisLine={false}
           tickLine={false}
         />
         <YAxis
-          tick={{ fill: "rgba(255,255,255,0.28)", fontSize: tickSize, fontFamily: "var(--font-mono, monospace)" }}
+          tick={{ fill: textColor, fontSize: tickSize, fontFamily: "var(--font-mono, monospace)" }}
           axisLine={false}
           tickLine={false}
           width={compact ? 36 : 44}
@@ -58,12 +61,12 @@ export default function WeeklyKmChart({ data }: { data: WeeklyKmData[] }) {
         <Tooltip
           contentStyle={{ ...TOOLTIP_STYLE, fontSize: tipSize }}
           labelStyle={{ color: "#fff", marginBottom: 4, fontSize: tipSize }}
-          itemStyle={{ color: "#9ca3af", fontSize: tipSize }}
+          itemStyle={{ color: textColor, fontSize: tipSize }}
           cursor={{ fill: "rgba(255,255,255,0.04)" }}
         />
         <Bar
           dataKey="actual"
-          fill="var(--accent)"
+          fill={barColor}
           radius={[4, 4, 0, 0]}
           name="Actual km"
           maxBarSize={40}
@@ -72,7 +75,7 @@ export default function WeeklyKmChart({ data }: { data: WeeklyKmData[] }) {
             const { x = 0, y = 0, width = 0, height = 0, index = 0, payload } = props;
             const isCurrent = index === data.length - 1;
             const isFuture = (payload?.actual ?? 0) <= 0 && (payload?.target ?? 0) > 0;
-            const fill = isFuture ? "rgba(45,212,191,0.3)" : isCurrent ? "#5eead4" : "var(--accent)";
+            const fill = isFuture ? "rgba(45,212,191,0.3)" : isCurrent ? "#5eead4" : barColor;
             return (
               <g>
                 {isCurrent && (

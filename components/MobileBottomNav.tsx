@@ -5,19 +5,21 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   ClipboardList,
-  Calendar,
   Activity,
+  Calendar,
   CircleHelp,
   Settings,
+  Trophy,
 } from "lucide-react";
 
 const items = [
   { href: "/", label: "Dashboard", Icon: LayoutDashboard },
   { href: "/program", label: "Program", Icon: ClipboardList },
-  { href: "/calendar", label: "Calendar", Icon: Calendar },
   { href: "/runs", label: "Runs", Icon: Activity },
-  { href: "/help", label: "Help", Icon: CircleHelp },
+  { href: "/calendar", label: "Calendar", Icon: Calendar },
+  { href: "/rating", label: "Rating", Icon: Trophy },
   { href: "/settings", label: "Settings", Icon: Settings },
+  { href: "/help", label: "Help", Icon: CircleHelp },
 ] as const;
 
 export default function MobileBottomNav() {
@@ -25,7 +27,7 @@ export default function MobileBottomNav() {
 
   return (
     <nav
-      className="lg:hidden fixed bottom-0 left-0 right-0 bg-black/90 backdrop-blur-xl border-t border-white/[0.08] z-50"
+      className="bottomnav lg:hidden fixed bottom-0 left-0 right-0 bg-black/90 backdrop-blur-xl border-t border-white/[0.08] z-50"
       style={{
         paddingBottom: "max(env(safe-area-inset-bottom), 0.25rem)",
       }}

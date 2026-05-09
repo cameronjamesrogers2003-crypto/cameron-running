@@ -33,6 +33,7 @@ model Activity {
   splits             Json?
   temperatureC       Float?
   humidityPct        Float?
+  weatherFetchedAt   DateTime?
   // 0–10 run quality score (calculateRunRating + sync/backfill only)
   rating             Float?
   // JSON: RunRatingResult (pace, effort, distance, elevation, conditions); null before backfill
@@ -97,6 +98,8 @@ model UserSettings {
   intervalPaceMaxSec    Int       @default(330)
   longPaceMinSec        Int       @default(390)
   longPaceMaxSec        Int       @default(450)
+  firstName             String?
+  nickname              String?
   lastCutbackInsertedWeek Int?
   lastEstimatedVdot     Int?
   lastVdotCheckDate     DateTime?

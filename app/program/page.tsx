@@ -22,8 +22,11 @@ import PlanUpdatedBanner from "./PlanUpdatedBanner";
 import Logo from "@/components/Logo";
 import { RunTypePill } from "@/components/RunTypePill";
 import { runTypeColor } from "@/lib/runTypeStyles";
+import { EmptyState } from "@/components/EmptyState";
+import { Calendar } from "lucide-react";
 
 export const dynamic = "force-dynamic";
+export const metadata = { title: "Runshift — Program" };
 
 // ── Static lookup tables ──────────────────────────────────────────────────────
 
@@ -96,11 +99,11 @@ function fmtTargetPace(minPerKm: number): string {
 }
 
 function ratingBadgeStyle(score: number): { background: string; color: string } {
-  if (score >= 9)   return { background: "#2e1065", color: "#c4b5fd" };
-  if (score >= 7.5) return { background: "#052e16", color: "#4ade80" };
-  if (score >= 6)   return { background: "#0c1a2e", color: "#60a5fa" };
-  if (score >= 4)   return { background: "#431407", color: "#fb923c" };
-  return               { background: "#450a0a", color: "#f87171" };
+  if (score >= 9.0) return { background: "rgba(167,139,250,0.25)", color: "#a78bfa" };
+  if (score >= 7.0) return { background: "rgba(74,222,128,0.25)", color: "#4ade80" };
+  if (score >= 5.5) return { background: "rgba(45,212,191,0.25)", color: "var(--accent)" };
+  if (score >= 4.0) return { background: "rgba(245,180,84,0.25)", color: "#f5b454" };
+  return { background: "rgba(248,113,113,0.25)", color: "#f87171" };
 }
 
 function phaseChipStyle(phase: Phase): { background: string; color: string } {
@@ -188,6 +191,21 @@ export default async function ProgramPage({
   const rawWeek    = getPlanWeekForDate(today, planStart);
   const maxHR       = settings.maxHR;
 
+  if (!storedPlan?.plan?.length && !settings.experienceLevel) {
+    return (
+      <div className="program-shell w-full pt-2 pb-24 lg:pb-8">
+        <div className="rounded-2xl border bg-white/[0.04] border-white/[0.08]">
+          <EmptyState
+            icon={<Calendar className="w-7 h-7" style={{ color: "var(--accent)" }} />}
+            title="No training plan yet"
+            body="Complete your onboarding to generate a personalised training plan."
+            action={{ label: "Get started", href: "/onboarding" }}
+          />
+        </div>
+      </div>
+    );
+  }
+
   let planToRender: TrainingWeek[];
   let totalWeeksAdded = 0;
   let adjustmentSummary: string[] = [];
@@ -252,17 +270,17 @@ export default async function ProgramPage({
     : 0;
 
   return (
-    <div className="flex flex-col lg:flex-row items-start gap-0 w-full min-w-0">
+    <div className="program-shell flex flex-col lg:flex-row items-start gap-0 lg:gap-3 w-full min-w-0">
 
       {/* ── Main content ─────────────────────────────────────────────── */}
-      <div className="flex-1 min-w-0 w-full space-y-6 sm:space-y-8 lg:pr-6">
+      <div className="flex-1 min-w-0 w-full space-y-5 sm:space-y-6 lg:pr-4">
 
         {/* Page header */}
-        <div className="flex items-start justify-between mb-6 pt-2 gap-3">
+        <div className="flex items-start justify-between mb-5 pt-1.5 gap-3.5">
           <Logo size="sm" showWordmark={false} />
           <div className="flex-1 min-w-0">
             <h1 className="text-2xl font-bold tracking-tight text-white">Training Program</h1>
-            <div className="flex items-center gap-2 mt-2 flex-wrap">
+            <div className="flex items-center gap-2 mt-1.5 flex-wrap">
               <span
                 className="text-xs font-semibold px-2.5 py-1 rounded-full"
                 style={phaseChipStyle(currentPlanEntry?.phase ?? "Base")}
@@ -318,7 +336,7 @@ export default async function ProgramPage({
               {/* Phase header */}
               {section.isRecovery ? (
                 // Simplified recovery header
-                <div className="rounded-2xl border bg-white/[0.04] border-white/[0.08] backdrop-blur-sm px-3 py-3 sm:px-4">
+                <div className="rounded-2xl border bg-white/[0.04] border-white/[0.08] backdrop-blur-sm px-3 py-2.5 sm:px-4">
                   <div className="flex items-center gap-2 sm:gap-3 flex-wrap text-xs sm:text-sm">
                     <span className="text-xs font-semibold px-2.5 py-1 rounded-full" style={chip}>
                       Return to Training
@@ -333,8 +351,8 @@ export default async function ProgramPage({
                 </div>
               ) : (
                 // Full phase header
-                <div className="rounded-2xl border bg-white/[0.04] border-white/[0.08] backdrop-blur-sm px-3 py-3 sm:px-4">
-                  <div className="flex items-center justify-between gap-3 sm:gap-4 mb-2 flex-wrap">
+                <div className="rounded-2xl border bg-white/[0.04] border-white/[0.08] backdrop-blur-sm px-3 py-2.5 sm:px-4">
+                  <div className="flex items-center justify-between gap-3 sm:gap-4 mb-1.5 flex-wrap">
                     <div className="flex items-center gap-2 sm:gap-3 flex-wrap min-w-0">
                       <span className="text-xs font-semibold px-2.5 py-1 rounded-full" style={chip}>
                         {section.phase}
@@ -386,7 +404,7 @@ export default async function ProgramPage({
                 return (
                   <div
                     key={planWeek.week}
-                    className="rounded-xl px-3 py-2.5 mb-6"
+                    className="rounded-xl px-3 py-2.5 mb-4.5"
                     style={{
                       background: isCurrentWeek
                         ? "rgba(20,184,166,0.03)"
@@ -417,7 +435,7 @@ export default async function ProgramPage({
                       </p>
                     )}
 
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:gap-3">
+                    <div className="flex flex-col gap-2.5 sm:flex-row sm:items-start sm:gap-3">
                       {/* Week label */}
                       <div className="w-full sm:w-[84px] shrink-0 pt-0 sm:pt-1 flex sm:block items-center justify-between sm:justify-start gap-2">
                         <p className="text-xs font-bold text-white leading-tight">
@@ -488,9 +506,9 @@ export default async function ProgramPage({
                       </div>
 
                       {/* Session cards + extra runs */}
-                      <div className="flex-1 min-w-0 w-full space-y-2">
+                      <div className="flex-1 min-w-0 w-full space-y-1.5">
                         <div
-                          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 overflow-x-auto min-w-0 w-full"
+                          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 overflow-x-auto min-w-0 w-full"
                           style={{ gridTemplateColumns: `repeat(${planWeek.sessions.length}, minmax(160px, 1fr))` }}
                         >
                         {planWeek.sessions.map((session) => {
@@ -555,9 +573,9 @@ export default async function ProgramPage({
                                   flexShrink: 0,
                                 }}
                               />
-                              <div className="p-4">
+                              <div className="p-3.5">
                               {/* Day + rating + zone badges */}
-                              <div className="flex items-start justify-between gap-1 mb-2">
+                              <div className="flex items-start justify-between gap-1 mb-1.5">
                                 <span
                                   className="text-[10px] font-semibold uppercase tracking-wider"
                                   style={{ color: "var(--text-muted)" }}
@@ -605,20 +623,20 @@ export default async function ProgramPage({
 
                               {/* Effort label */}
                               <p
-                                className="text-[11px] mt-0.5 mb-2"
+                                className="text-[11px] mt-0.5 mb-1.5"
                                 style={{ color: "rgba(232,230,224,0.35)" }}
                               >
                                 {EFFORT_LABEL[session.type]}
                               </p>
 
                               {/* Description */}
-                              <p className="text-xs font-medium text-white mb-1 leading-snug">
+                              <p className="text-xs font-medium text-white mb-0.5 leading-snug">
                                 {session.description}
                               </p>
 
                               {/* Warm-up / cool-down */}
                               <p
-                                className="hidden sm:block text-[11px] mb-1.5 leading-snug"
+                                className="hidden sm:block text-[11px] mb-1 leading-snug"
                                 style={{ color: "rgba(232,230,224,0.25)" }}
                               >
                                 {WARMUP_COOLDOWN[session.type]}
@@ -667,7 +685,7 @@ export default async function ProgramPage({
                       </div>
 
                       {/* Total km + volume change */}
-                      <div className="w-full sm:w-16 shrink-0 text-right ml-4 pt-0 sm:pt-1 flex sm:block items-center justify-between sm:justify-end gap-2">
+                      <div className="w-full sm:w-16 shrink-0 text-right ml-3 pt-0 sm:pt-1 flex sm:block items-center justify-between sm:justify-end gap-2">
                         <p className="text-sm font-bold text-white font-mono">{weekTotalKm.toFixed(1)}</p>
                         <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>km</p>
                         {volumeChange !== null && (
@@ -687,7 +705,7 @@ export default async function ProgramPage({
                     </div>
                     {planWeek.adaptationNote && (
                       <div
-                        className="flex items-start gap-2 mt-3 px-3 py-2 rounded-lg text-xs"
+                        className="flex items-start gap-2 mt-2.5 px-3 py-1.5 rounded-lg text-xs"
                         style={{
                           background: "rgba(245,180,84,0.08)",
                           border: "1px solid rgba(245,180,84,0.20)",
@@ -704,13 +722,13 @@ export default async function ProgramPage({
             </section>
           );
         })}
-        <details className="rounded-2xl border bg-white/[0.04] border-white/[0.08] backdrop-blur-sm px-4 py-3">
+        <details className="rounded-2xl border bg-white/[0.04] border-white/[0.08] backdrop-blur-sm px-4 py-2.5">
           <summary className="text-xs font-semibold tracking-widest uppercase mb-3 cursor-pointer" style={{ color: "var(--text-label)" }}>
             Plan History
           </summary>
-          <div className="mt-3 space-y-2">
+          <div className="mt-2.5 space-y-1.5">
             {adaptationHistory.map((item) => (
-              <div key={item.id} className="flex items-start gap-3 py-3 border-b border-white/[0.06] last:border-0">
+              <div key={item.id} className="flex items-start gap-3 py-2.5 border-b border-white/[0.06] last:border-0">
                 <p className="text-xs font-mono shrink-0 w-20" style={{ color: "var(--text-dim)" }}>
                   {new Date(item.createdAt).toLocaleDateString("en-AU")}
                 </p>

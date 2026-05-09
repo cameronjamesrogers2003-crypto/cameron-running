@@ -133,12 +133,12 @@ function Section({
 export default function ProgramSidePanel({ maxHR }: Props) {
   return (
     <aside
-      className="w-[260px] shrink-0 sticky overflow-y-auto"
+      className="w-[252px] shrink-0 sticky overflow-y-auto"
       style={{
         top: 70,
         maxHeight: "calc(100vh - 70px)",
         borderLeft: "0.5px solid rgba(255,255,255,0.08)",
-        padding: "16px",
+        padding: "14px",
       }}
     >
       <div className="space-y-1 divide-y" style={{ borderColor: "rgba(255,255,255,0.06)" }}>

@@ -43,6 +43,10 @@ export interface UserSettings {
   intervalPaceMaxSec: number;
   longPaceMinSec: number;
   longPaceMaxSec: number;
+  /** Optional km threshold for pace-only long classification (not persisted in DB yet). */
+  longRunThresholdKm?: number | null;
+  firstName: string | null;
+  nickname: string | null;
   lastCutbackInsertedWeek: number | null;
   lastEstimatedVdot: number | null;
   lastVdotCheckDate: string | null;
@@ -89,6 +93,8 @@ export const DEFAULT_SETTINGS: UserSettings = {
   intervalPaceMaxSec: 330,
   longPaceMinSec: 390,
   longPaceMaxSec: 450,
+  firstName: null,
+  nickname: null,
   lastCutbackInsertedWeek: null,
   lastEstimatedVdot: null,
   lastVdotCheckDate: null,
@@ -136,11 +142,17 @@ export function dbSettingsToUserSettings(row: PrismaUserSettings): UserSettings 
     intervalPaceMaxSec:   row.intervalPaceMaxSec    ?? DEFAULT_SETTINGS.intervalPaceMaxSec,
     longPaceMinSec:       row.longPaceMinSec        ?? DEFAULT_SETTINGS.longPaceMinSec,
     longPaceMaxSec:       row.longPaceMaxSec        ?? DEFAULT_SETTINGS.longPaceMaxSec,
+    firstName: row.firstName ?? null,
+    nickname: row.nickname ?? null,
     lastCutbackInsertedWeek: row.lastCutbackInsertedWeek ?? null,
     lastEstimatedVdot: row.lastEstimatedVdot ?? null,
     lastVdotCheckDate: row.lastVdotCheckDate ? new Date(row.lastVdotCheckDate).toISOString() : null,
     lastAdaptationDate: row.lastAdaptationDate ? new Date(row.lastAdaptationDate).toISOString() : null,
   };
+}
+
+export function getDisplayName(settings: UserSettings): string {
+  return settings.nickname ?? settings.firstName ?? "Runner";
 }
 
 export function formatPace(secPerKm: number): string {

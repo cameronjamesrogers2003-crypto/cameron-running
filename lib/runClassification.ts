@@ -3,7 +3,15 @@ import type { RunType, TrainingWeek } from "@/data/trainingPlan";
 import { sameDayAEST } from "@/lib/dateUtils";
 import { getPlanWeekForDate, getSessionDate } from "@/lib/planUtils";
 import { classifyRunByPaceZones } from "@/lib/rating";
+import {
+  getVdotFallbackLongRunThresholdKm,
+} from "@/lib/longRunThreshold";
 import type { UserSettings } from "@/lib/settings";
+
+export {
+  getDynamicLongRunThresholdKm,
+  getVdotFallbackLongRunThresholdKm,
+} from "@/lib/longRunThreshold";
 
 interface SplitMetric {
   distance: number;
@@ -122,9 +130,27 @@ export function enhancedClassifyRun(
   activity: Pick<Activity, "distanceKm" | "avgPaceSecKm" | "splitsJson">,
   settings: UserSettings,
   planContext: PlanContext = EMPTY_PLAN_CONTEXT,
+  longRunThresholdKm?: number,
+  longRunDistanceMethod?: string,
 ): ClassificationResult {
-  if (activity.distanceKm >= 15) {
-    return { runType: "long", method: "Distance rule (>= 15 km)" };
+  if (planContext.isPlannedLongDay) {
+    return {
+      runType: "long",
+      method: "Plan context (scheduled long run day)",
+    };
+  }
+
+  const longThresholdKm =
+    longRunThresholdKm ?? getVdotFallbackLongRunThresholdKm(settings);
+  const distanceLongMethod =
+    longRunDistanceMethod
+    ?? `Distance rule (>= ${round1(longThresholdKm)}km · VDOT ${settings.currentVdot ?? 33} fallback · insufficient history)`;
+
+  if (activity.distanceKm >= longThresholdKm) {
+    return {
+      runType: "long",
+      method: distanceLongMethod,
+    };
   }
 
   const variance = analyzePaceVariance(activity.splitsJson, settings.intervalPaceMaxSec);
@@ -157,6 +183,7 @@ export function enhancedClassifyRun(
     activity.distanceKm,
     settings.intervalPaceMaxSec,
     settings.tempoPaceMaxSec,
+    longThresholdKm,
   );
 
   if (planContext.isPlannedIntervalDay && cv != null && cv > 8 && baseType === "tempo") {

@@ -4,12 +4,13 @@ import "./globals.css";
 import Nav from "@/components/Nav";
 import MobileBottomNav from "@/components/MobileBottomNav";
 import { SettingsProvider } from "@/context/SettingsContext";
+import { PageTransition } from "@/components/PageTransition";
 
 const geist = Geist({ subsets: ["latin"], variable: "--font-geist-sans" });
 
 export const metadata: Metadata = {
-  title: "Cameron's Running",
-  description: "Personal marathon training tracker for Cameron",
+  title: "Runshift",
+  description: "Your personalised marathon training platform",
   icons: { icon: "/favicon.svg" },
 };
 
@@ -19,17 +20,19 @@ export const viewport: Viewport = {
   themeColor: "#0f0f0f",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${geist.variable} h-full overflow-x-hidden`}>
+    <html lang="en" className={`${geist.variable} h-full overflow-x-hidden dark`}>
       <body
-        className="min-h-screen flex flex-col overflow-x-hidden"
+        className="dark min-h-screen flex flex-col overflow-x-hidden"
         style={{ background: "var(--background)", color: "var(--text)" }}
       >
         <SettingsProvider>
           <Nav />
-          <main className="flex-1 w-full min-w-0 px-4 pb-24 pt-2 lg:px-6 lg:pb-8 lg:pt-4 lg:pl-64">
-            <div className="max-w-[1100px] mx-auto w-full">{children}</div>
+          <main className="flex-1 w-full min-w-0 px-4 pb-24 pt-2.5 lg:px-6 lg:pb-8 lg:pt-4.5 lg:pl-64">
+            <div className="max-w-[1120px] mx-auto w-full">
+              <PageTransition>{children}</PageTransition>
+            </div>
           </main>
           <MobileBottomNav />
         </SettingsProvider>

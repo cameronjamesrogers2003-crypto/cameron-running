@@ -16,8 +16,18 @@ export interface CalendarRun {
   activityType: string;
   /** Stored 0–10 from Activity.rating */
   rating: number | null;
+  ratingBreakdown?: string | null;
+  classificationMethod?: string | null;
   runType: RunType;
   isPlanned: boolean;
 }
 
 export type CalendarData = Record<string, CalendarRun[]>;
+
+export type PlannedDayMeta = Record<
+  string,
+  {
+    kind: "planned" | "missed";
+    runType: RunType;
+  }
+>;

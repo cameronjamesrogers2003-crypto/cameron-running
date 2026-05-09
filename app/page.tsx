@@ -10,14 +10,12 @@ import {
 } from "@/lib/planUtils";
 import { formatAEST, formatDistanceToNowAEST, sameDayAEST, startOfDayAEST, toBrisbaneYmd } from "@/lib/dateUtils";
 import { inferRunType } from "@/lib/rating";
-import { dbSettingsToUserSettings, DEFAULT_SETTINGS } from "@/lib/settings";
+import { dbSettingsToUserSettings, DEFAULT_SETTINGS, getDisplayName } from "@/lib/settings";
 import { parseInterruptionType, reconfigurePlan, type PlanInterruption } from "@/lib/interruptions";
 import { loadGeneratedPlan, saveGeneratedPlan } from "@/lib/planStorage";
 import { finalizePlanDisplayCopy, generatePlan } from "@/lib/generatePlan";
 import {
   buildPlayerRatingSummaryRows,
-  PLAYER_RATING_ATTRIBUTES,
-  type PlayerRatingLike,
 } from "@/lib/playerRating";
 import WeeklyKmChart from "@/components/charts/WeeklyKmChart";
 import AvgPaceTrendChart from "@/components/charts/AvgPaceTrendChart";
@@ -26,11 +24,13 @@ import SyncButton from "@/components/SyncButton";
 import Logo from "@/components/Logo";
 import PlayerRatingDeltaPanel from "@/components/PlayerRatingDeltaPanel";
 import PlanAdaptationCards from "@/components/PlanAdaptationCards";
+import PlayerCard from "@/components/PlayerCard";
 import { RunTypePill } from "@/components/RunTypePill";
 import { runTypeColor } from "@/lib/runTypeStyles";
 import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
+export const metadata = { title: "Runshift — Dashboard" };
 
 function parseSettingsDays(trainingDaysJson: string | null): Day[] {
   if (!trainingDaysJson) return [];
@@ -48,14 +48,15 @@ function parseSettingsDays(trainingDaysJson: string | null): Day[] {
 // ── Style helpers ─────────────────────────────────────────────────────────────
 
 function ratingBadgeStyle(score: number): { background: string; color: string } {
-  if (score >= 9)   return { background: "#2e1065", color: "#c4b5fd" };
-  if (score >= 7.5) return { background: "#052e16", color: "#4ade80" };
-  if (score >= 6)   return { background: "#0c1a2e", color: "#60a5fa" };
-  if (score >= 4)   return { background: "#431407", color: "#fb923c" };
-  return               { background: "#450a0a", color: "#f87171" };
+  if (score >= 9.0) return { background: "rgba(167,139,250,0.25)", color: "#a78bfa" };
+  if (score >= 7.0) return { background: "rgba(74,222,128,0.25)", color: "#4ade80" };
+  if (score >= 5.5) return { background: "rgba(45,212,191,0.25)", color: "var(--accent)" };
+  if (score >= 4.0) return { background: "rgba(245,180,84,0.25)", color: "#f5b454" };
+  return { background: "rgba(248,113,113,0.25)", color: "#f87171" };
 }
 
 function ratingStatColor(score: number): string {
+  if (score >= 9.0) return "#a78bfa";
   if (score >= 7.0) return "#4ade80";
   if (score >= 5.5) return "var(--accent)";
   if (score >= 4.0) return "#f5b454";
@@ -87,113 +88,23 @@ function formatTargetPace(minPerKm: number): string {
   return `${mins}:${secs.toString().padStart(2, "0")} /km`;
 }
 
-function playerAttributeColor(label: string): string {
-  if (label === "SPD") return "var(--c-interval)";
-  if (label === "END") return "var(--c-long)";
-  if (label === "CON") return "var(--c-tempo)";
-  if (label === "EFF") return "var(--c-easy)";
-  if (label === "TGH") return "#f5b454";
-  return "var(--accent)";
-}
-
-function PlayerCard({ rating }: { rating: PlayerRatingLike | null }) {
-  if (!rating) {
-    return (
-      <Card className="p-5">
-        <SectionLabel>Player Card</SectionLabel>
-        <div className="mt-4 rounded-2xl p-5 text-center" style={{ background: "#0b1020" }}>
-          <p className="text-5xl font-black text-white tabular-nums">--</p>
-          <p className="text-xs uppercase tracking-[0.3em] font-bold" style={{ color: "var(--text-muted)" }}>
-            OVR
-          </p>
-          <p className="text-sm mt-4" style={{ color: "var(--text-muted)" }}>
-            Visit /api/player-rating/initialize after deployment to seed your first rating.
-          </p>
-        </div>
-      </Card>
-    );
-  }
-
-  const overall = Math.round(rating.overall);
-
-  return (
-    <Card className="p-4 sm:p-5 overflow-hidden">
-      <div
-        className="relative rounded-3xl p-5 sm:p-6"
-        style={{
-          background:
-            "linear-gradient(135deg, rgba(45,212,191,0.08) 0%, rgba(10,11,12,0.8) 50%, rgba(167,139,250,0.06) 100%)",
-          border: "1px solid rgba(250,204,21,0.32)",
-          boxShadow: "inset 0 0 60px rgba(250,204,21,0.05)",
-        }}
-      >
-        <div
-          className="absolute inset-x-7 top-0 h-px"
-          style={{ background: "linear-gradient(90deg, transparent, rgba(250,204,21,0.8), transparent)" }}
-        />
-        <div className="relative flex flex-col gap-5 md:flex-row md:items-center">
-          <div className="flex items-center gap-4 md:w-48 md:flex-col md:items-start">
-            <div>
-              <p className="text-6xl font-black tabular-nums leading-none" style={{ color: "var(--accent)" }}>
-                {overall}
-              </p>
-              <p className="text-xs uppercase tracking-[0.35em] font-extrabold text-white">OVR</p>
-            </div>
-            <div className="min-w-0">
-              <p className="text-lg font-black tracking-wider uppercase text-white">Cameron</p>
-              <p className="text-xs tracking-widest uppercase" style={{ color: "var(--text-muted)" }}>
-                Running Card
-              </p>
-            </div>
-          </div>
-
-          <div className="grid flex-1 gap-3">
-            {PLAYER_RATING_ATTRIBUTES.map((attr) => {
-              const value = Math.round(rating[attr.key]);
-              const width = Math.min(100, Math.max(0, (value / 99) * 100));
-              const barColor = playerAttributeColor(attr.label);
-              return (
-                <div key={attr.key} className="grid grid-cols-[42px_1fr_34px] items-center gap-3">
-                  <div>
-                    <p className="text-xs font-bold tracking-widest" style={{ color: "var(--text-muted)" }}>{attr.label}</p>
-                    <p className="text-[10px] hidden sm:block" style={{ color: "rgba(255,255,255,0.45)" }}>
-                      {attr.name}
-                    </p>
-                  </div>
-                  <div className="h-2.5 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.10)" }}>
-                    <div
-                      className="h-full rounded-full"
-                      style={{
-                        width: `${width}%`,
-                        background: barColor,
-                      }}
-                    />
-                  </div>
-                  <p className="text-sm font-mono font-semibold tabular-nums text-white text-right">{value}</p>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-    </Card>
-  );
-}
-
 // ── Card wrapper ─────────────────────────────────────────────────────────────
 
 function Card({
   children,
   className = "",
+  style,
 }: {
   children: React.ReactNode;
   className?: string;
+  style?: React.CSSProperties;
 }) {
   return (
     <div
       className={`rounded-2xl border bg-white/[0.04] border-white/[0.08] backdrop-blur-sm ${className}`}
       style={{
         borderRadius: "var(--card-radius)",
+        ...style,
       }}
     >
       {children}
@@ -243,6 +154,9 @@ export default async function Dashboard({
   ]);
 
   const settings = userSettingsRow ? dbSettingsToUserSettings(userSettingsRow) : DEFAULT_SETTINGS;
+  const displayName = getDisplayName(settings);
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
   if ((settings.experienceLevel == null) && Boolean(profile?.stravaConnected)) {
     redirect("/onboarding");
   }
@@ -562,9 +476,9 @@ export default async function Dashboard({
 
   // ─────────────────────────────────────────────────────────────────────────
   return (
-    <div className="flex flex-col lg:flex-row gap-5 lg:gap-5 items-start">
+    <div className="dashboard-shell flex flex-col lg:flex-row gap-3.5 lg:gap-4 items-start">
       {/* ── Main column ──────────────────────────────────────────────────── */}
-      <div className="flex-1 min-w-0 space-y-4">
+      <div className="flex-1 min-w-0 space-y-3.5">
 
         {/* OAuth error */}
         {oauthError && (
@@ -589,7 +503,7 @@ export default async function Dashboard({
         )}
 
         {/* Logo icon + phase header */}
-        <Logo size="md" showWordmark={false} />
+        <Logo size="lg" showWordmark={false} className="scale-[0.56] sm:scale-[0.66] origin-left" />
 
         {playerRating && showPlayerRatingSummary && (
           <PlayerRatingDeltaPanel
@@ -598,14 +512,14 @@ export default async function Dashboard({
           />
         )}
 
-        <div className="flex items-start justify-between mb-6 pt-2 gap-3">
+        <div className="flex items-start justify-between mb-5 pt-1 gap-3">
           <div>
-            <p className="text-sm font-medium mb-1" style={{ color: "var(--text-muted)" }}>
-              Hey, Cameron.
+            <p className="text-sm font-medium mb-1.5" style={{ color: "var(--text-muted)" }}>
+              {greeting}, {displayName}.
             </p>
-            <h1 className="text-2xl font-bold tracking-tight text-white">Dashboard</h1>
+            <h1 className="text-[1.9rem] sm:text-[2.15rem] font-black tracking-[-0.03em] leading-none text-white">Dashboard</h1>
             <span
-              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold mt-2"
+              className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-semibold mt-2"
               style={{
                 background: "var(--accent-dim)",
                 color: "var(--accent)",
@@ -615,19 +529,26 @@ export default async function Dashboard({
               Week {currentWeek} · {currentPhase}
             </span>
           </div>
-          <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-            {formatAEST(today, "EEEE, d MMMM yyyy")}
-          </p>
         </div>
 
-        <PlayerCard rating={playerRating} />
+        <PlayerCard
+          ovr={playerRating?.overall ?? 1}
+          name={getDisplayName(settings).toUpperCase()}
+          spd={playerRating?.speed ?? 1}
+          end={playerRating?.endurance ?? 1}
+          con={playerRating?.consistency ?? 1}
+          eff={playerRating?.hrEfficiency ?? 1}
+          tgh={playerRating?.toughness ?? 1}
+          prevOvr={playerRating?.prevOverall}
+          mode="dashboard"
+        />
 
         {/* Today's plan — full width on small screens (sidebar is lg+) */}
         <div className="lg:hidden w-full">
-          <Card className="p-4">
+          <Card className="p-3.5" style={{ animation: "fadeInUp 300ms ease-out forwards", animationDelay: "0ms", opacity: 0 }}>
             <SectionLabel>Today&apos;s workout</SectionLabel>
             {todayPlanEntry ? (
-              <div className="mt-3 space-y-1">
+              <div className="mt-2.5 space-y-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-white font-semibold text-sm">
                     {todayPlanEntry.dayLabel} {formatAEST(todayPlanEntry.date, "d MMM")}
@@ -654,9 +575,9 @@ export default async function Dashboard({
         </div>
 
         {/* ── Stat tiles ─────────────────────────────────────────────────── */}
-        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-2.5">
           {/* Weekly distance */}
-          <Card className="p-4">
+          <Card className="p-3.5" style={{ animation: "fadeInUp 300ms ease-out forwards", animationDelay: "60ms", opacity: 0 }}>
             <SectionLabel>Weekly Distance</SectionLabel>
             <p className="text-4xl font-black font-mono tabular-nums text-white mt-2">
               {weekActualKm.toFixed(1)}
@@ -675,7 +596,7 @@ export default async function Dashboard({
           </Card>
 
           {/* Runs completed */}
-          <Card className="p-4">
+          <Card className="p-3.5" style={{ animation: "fadeInUp 300ms ease-out forwards", animationDelay: "120ms", opacity: 0 }}>
             <SectionLabel>Runs Completed</SectionLabel>
             <p className="text-4xl font-black font-mono tabular-nums text-white mt-2">
               {weekDone}
@@ -698,7 +619,7 @@ export default async function Dashboard({
           </Card>
 
           {/* Avg rating */}
-          <Card className="p-4">
+          <Card className="p-3.5">
             <SectionLabel>Avg Run Rating</SectionLabel>
             {avgWeekRating !== null ? (
               <>
@@ -727,25 +648,25 @@ export default async function Dashboard({
         </div>
 
         {/* ── Weekly km chart ─────────────────────────────────────────────── */}
-        <Card className="p-4">
+        <Card className="p-3.5">
           <SectionLabel>Weekly Distance (km)</SectionLabel>
-          <div className="mt-4">
+          <div className="mt-3.5">
             <WeeklyKmChart data={weeklyKmData} />
           </div>
         </Card>
 
         {/* ── Pace + Load charts side by side ─────────────────────────────── */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <Card className="p-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+          <Card className="p-3.5">
             <SectionLabel>Avg Easy Pace</SectionLabel>
-            <p className="text-xs mt-0.5 mb-3" style={{ color: "rgba(156,163,175,0.6)" }}>
+            <p className="text-xs mt-0.5 mb-2.5" style={{ color: "rgba(156,163,175,0.6)" }}>
               easy runs only · lower = faster
             </p>
             <AvgPaceTrendChart data={paceData} />
           </Card>
-          <Card className="p-4">
+          <Card className="p-3.5">
             <SectionLabel>Training Load</SectionLabel>
-            <p className="text-xs mt-0.5 mb-3" style={{ color: "rgba(156,163,175,0.6)" }}>
+            <p className="text-xs mt-0.5 mb-2.5" style={{ color: "rgba(156,163,175,0.6)" }}>
               km by run type
             </p>
             <TrainingLoadChart data={loadData} />
@@ -753,9 +674,9 @@ export default async function Dashboard({
         </div>
 
         {/* ── Recent runs | Upcoming sessions (side by side on md+) ─────────── */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
           <Card>
-            <div className="px-4 pt-4 pb-2">
+            <div className="px-3.5 pt-3.5 pb-1.5">
               <SectionLabel>Recent Runs</SectionLabel>
             </div>
             {recentRunsRows.length === 0 ? (
@@ -771,7 +692,7 @@ export default async function Dashboard({
                 return (
                   <div
                     key={run.id}
-                    className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center"
+                  className="flex flex-col gap-2.5 px-3.5 py-2.5 sm:flex-row sm:items-center"
                     style={{ borderTop: idx === 0 ? undefined : "1px solid rgba(255,255,255,0.06)" }}
                   >
                     <div className="flex items-start gap-3 min-w-0">
@@ -793,7 +714,7 @@ export default async function Dashboard({
                         </p>
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-3 text-xs sm:flex sm:flex-wrap sm:gap-4 sm:justify-end sm:ml-auto sm:text-right">
+                    <div className="grid grid-cols-2 gap-2.5 text-xs sm:flex sm:flex-wrap sm:gap-3.5 sm:justify-end sm:ml-auto sm:text-right">
                       <div className="min-w-0">
                         <p className="text-white font-medium tabular-nums">{run.distanceKm.toFixed(2)} km</p>
                         <p style={{ color: "var(--text-muted)" }}>dist</p>
@@ -812,7 +733,7 @@ export default async function Dashboard({
           </Card>
 
           <Card>
-            <div className="px-4 pt-4 pb-2">
+            <div className="px-3.5 pt-3.5 pb-1.5">
               <SectionLabel>Upcoming Sessions</SectionLabel>
             </div>
             {upcomingSessions.length === 0 ? (
@@ -822,30 +743,38 @@ export default async function Dashboard({
                 </p>
               </div>
             ) : (
-              upcomingSessions.map((row) => {
+              upcomingSessions.map((row, idx) => {
                 const s = row.session;
                 const dayNumber = formatAEST(row.date, "d");
                 return (
                   <div
                     key={`upcoming-${row.week}-${s.day}`}
-                    className="flex items-center gap-3 py-3 border-b border-white/[0.06] last:border-0"
+                    className="flex items-center gap-2.5 px-3.5 py-2"
+                    style={{ borderTop: idx === 0 ? undefined : "1px solid rgba(255,255,255,0.06)" }}
                   >
                     <div
-                      className="flex flex-col items-center justify-center w-10 h-10 rounded-xl text-center shrink-0"
-                      style={{ background: "rgba(255,255,255,0.06)" }}
+                      className="flex flex-col items-center justify-start w-9 h-9 rounded-lg text-center shrink-0 pt-0.5"
+                      style={{ background: "rgba(255,255,255,0.05)" }}
                     >
-                      <p className="text-xs font-bold uppercase" style={{ color: "var(--text-muted)" }}>
+                      <p className="text-[10px] font-bold uppercase leading-none" style={{ color: "var(--text-muted)" }}>
                         {row.dayLabel}
                       </p>
-                      <p className="text-sm font-mono font-semibold text-white">{dayNumber}</p>
+                      <p className="text-[13px] font-mono font-semibold leading-tight text-white mt-0.5">{dayNumber}</p>
                     </div>
-                    <div className="flex-1 min-w-0 space-y-1">
-                      <RunTypePill type={s.type} size="sm" />
-                      <p className="text-sm font-mono text-white">
-                        {s.targetDistanceKm} km
-                      </p>
-                      <p className="text-xs font-mono" style={{ color: "var(--text-muted)" }}>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="text-sm font-mono font-semibold text-white leading-tight">
+                          {s.targetDistanceKm} km
+                        </p>
+                        <RunTypePill type={s.type} size="sm" />
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0 pl-1">
+                      <p className="text-xs font-mono tabular-nums leading-tight text-white">
                         {formatTargetPace(s.targetPaceMinPerKm)}
+                      </p>
+                      <p className="text-[10px] leading-tight" style={{ color: "var(--text-muted)" }}>
+                        pace
                       </p>
                     </div>
                   </div>
@@ -856,7 +785,7 @@ export default async function Dashboard({
         </div>
 
         {/* ── Strava sync indicator ────────────────────────────────────────── */}
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:flex-wrap px-1 pb-2">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:flex-wrap px-1 pb-1">
           <div
             className="flex flex-col gap-0.5 text-xs sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-1"
             style={{ color: "var(--text-muted)" }}
@@ -880,7 +809,7 @@ export default async function Dashboard({
       </div>
 
       {/* ── Sidebar ──────────────────────────────────────────────────────── */}
-      <aside className="w-[220px] min-w-[220px] shrink-0 space-y-3 hidden lg:block">
+      <aside className="w-[220px] min-w-[220px] shrink-0 space-y-2.5 hidden lg:block mt-[220px]">
         <PlanAdaptationCards initialItems={planAdaptations.map((item) => ({
           id: item.id,
           weekNumber: item.weekNumber,
@@ -889,125 +818,132 @@ export default async function Dashboard({
           changes: item.changes,
         }))} />
 
-        {/* This week panel */}
-        <Card className="p-4">
-          <SectionLabel>This Week</SectionLabel>
-          <p className="text-sm font-semibold text-white mt-2 mb-1">
-            Week {currentWeek} · {currentPhase}
+        <div className="px-4 py-4">
+          <p className="text-xs text-zinc-400 mb-3 px-1 pt-4">
+            {formatAEST(today, "EEEE, d MMMM yyyy")}
           </p>
-
-          {/* Progress bar */}
-          <div className="flex justify-between text-xs mb-1">
-            <span style={{ color: "var(--text-muted)" }}>{weekActualKm.toFixed(1)} km</span>
-            <span style={{ color: "var(--text-muted)" }}>{weekTargetKm.toFixed(1)} km</span>
-          </div>
-          <div
-            className="h-1.5 rounded-full overflow-hidden mb-4"
-            style={{ background: "rgba(255,255,255,0.08)" }}
-          >
-            <div
-              className="h-full rounded-full"
-              style={{
-                width: `${Math.min(100, weekTargetKm > 0 ? (weekActualKm / weekTargetKm) * 100 : 0)}%`,
-                background: "var(--accent)",
-              }}
-            />
-          </div>
-
-          {/* Session checklist */}
-          <div className="space-y-2.5">
-            {lastWeekMisses > 0 && (
-              <p className="text-xs font-medium" style={{ color: "#fbbf24" }}>
-                You missed {lastWeekMisses} session{lastWeekMisses === 1 ? "" : "s"} last week
+          <div className="flex flex-col gap-4">
+            {/* This week panel */}
+            <Card className="px-4 py-3.5">
+              <SectionLabel>This Week</SectionLabel>
+              <p className="text-sm font-semibold text-white mt-1.5 mb-1">
+                Week {currentWeek} · {currentPhase}
               </p>
-            )}
-            {sessionChecklist.map(({ session, date, completed, future, missed, active, dayLabel }) => {
-              const prePlan = !active;
-              const baseColor = runTypeColor(session.type);
-              const leftBorderColor = completed
-                ? baseColor
-                : missed
-                  ? "rgba(249,115,22,0.6)"
-                  : future
-                    ? `${baseColor}80`
-                    : "rgba(255,255,255,0.15)";
-              const rowOpacity = completed ? 1 : missed ? 0.6 : future ? 0.7 : 0.35;
-              return (
+
+              {/* Progress bar */}
+              <div className="flex justify-between text-xs mb-1">
+                <span style={{ color: "var(--text-muted)" }}>{weekActualKm.toFixed(1)} km</span>
+                <span style={{ color: "var(--text-muted)" }}>{weekTargetKm.toFixed(1)} km</span>
+              </div>
+              <div
+                className="h-1.5 rounded-full overflow-hidden mb-3"
+                style={{ background: "rgba(255,255,255,0.08)" }}
+              >
                 <div
-                  key={session.day}
-                  className={`flex items-center gap-2 flex-nowrap overflow-hidden ${completed ? "opacity-100" : missed ? "opacity-60" : future ? "opacity-70" : ""}`}
-                  style={{ borderLeft: `3px solid ${leftBorderColor}`, paddingLeft: "12px", marginLeft: "4px", opacity: rowOpacity }}
-                >
-                  <div
-                    className="w-4 h-4 rounded-full mt-0.5 flex items-center justify-center text-xs flex-shrink-0"
-                    style={{
-                      border: completed
-                        ? "1px solid var(--accent)"
-                        : missed
-                          ? "1px solid rgba(249,115,22,0.6)"
-                          : prePlan
-                            ? "1px solid rgba(255,255,255,0.15)"
-                            : "1px solid rgba(255,255,255,0.25)",
-                      background: completed ? "var(--accent)" : "transparent",
-                      color: completed ? "#fff" : missed ? "#f5b454" : "var(--text-dim)",
-                    }}
-                  >
-                    {completed ? "✓" : missed ? "×" : prePlan ? "—" : ""}
-                  </div>
-                  <div className="flex-1 min-w-0 flex items-center gap-2 flex-nowrap overflow-hidden">
-                    <p className="text-sm font-semibold text-white">{dayLabel}</p>
-                    <p className="text-sm truncate flex-1 min-w-0 font-mono text-white capitalize">
-                      {session.type} {session.targetDistanceKm} km
-                    </p>
-                    <p className="text-xs shrink-0 ml-auto" style={{ color: "var(--text-dim)" }}>
-                      {formatAEST(date, "d MMM")}
-                    </p>
-                  </div>
-                </div>
-              );
-            })}
-            {sessionChecklist.length === 0 && (
-              <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-                No sessions this week
+                  className="h-full rounded-full"
+                  style={{
+                    width: `${Math.min(100, weekTargetKm > 0 ? (weekActualKm / weekTargetKm) * 100 : 0)}%`,
+                    background: "var(--accent)",
+                  }}
+                />
+              </div>
+
+              {/* Session checklist */}
+              <div className="space-y-2">
+                {lastWeekMisses > 0 && (
+                  <p className="text-xs font-medium" style={{ color: "#fbbf24" }}>
+                    You missed {lastWeekMisses} session{lastWeekMisses === 1 ? "" : "s"} last week
+                  </p>
+                )}
+                {sessionChecklist.map(({ session, date, completed, future, missed, active, dayLabel }) => {
+                  const prePlan = !active;
+                  const baseColor = runTypeColor(session.type);
+                  const leftBorderColor = completed
+                    ? baseColor
+                    : missed
+                      ? "rgba(249,115,22,0.6)"
+                      : future
+                        ? `${baseColor}80`
+                        : "rgba(255,255,255,0.15)";
+                  const rowOpacity = completed ? 1 : missed ? 0.6 : future ? 0.7 : 0.35;
+                  return (
+                    <div
+                      key={session.day}
+                      className={`flex items-center gap-1.5 flex-nowrap overflow-hidden ${completed ? "opacity-100" : missed ? "opacity-60" : future ? "opacity-70" : ""}`}
+                      style={{ borderLeft: `3px solid ${leftBorderColor}`, paddingLeft: "12px", marginLeft: "4px", opacity: rowOpacity }}
+                    >
+                      <div
+                        className="w-4 h-4 rounded-full mt-0.5 flex items-center justify-center text-xs flex-shrink-0"
+                        style={{
+                          border: completed
+                            ? "1px solid var(--accent)"
+                            : missed
+                              ? "1px solid rgba(249,115,22,0.6)"
+                              : prePlan
+                                ? "1px solid rgba(255,255,255,0.15)"
+                                : "1px solid rgba(255,255,255,0.25)",
+                          background: completed ? "var(--accent)" : "transparent",
+                          color: completed ? "#fff" : missed ? "#f5b454" : "var(--text-dim)",
+                        }}
+                      >
+                        {completed ? "✓" : missed ? "×" : prePlan ? "—" : ""}
+                      </div>
+                      <div className="flex-1 min-w-0 flex items-center gap-1.5 flex-nowrap overflow-hidden">
+                        <p className="text-xs font-semibold text-white">{dayLabel}</p>
+                        <p className="text-xs truncate flex-1 min-w-0 font-mono text-white capitalize">
+                          {session.type} {session.targetDistanceKm} km
+                        </p>
+                        <p className="text-xs shrink-0 ml-auto" style={{ color: "var(--text-dim)" }}>
+                          {formatAEST(date, "d MMM")}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+                {sessionChecklist.length === 0 && (
+                  <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+                    No sessions this week
+                  </p>
+                )}
+              </div>
+            </Card>
+
+            <div className="border-t border-zinc-600 my-3" />
+
+            {/* Phase progress */}
+            <Card className="px-4 py-3.5">
+              <SectionLabel>Phase Progress</SectionLabel>
+              <p className="text-sm font-semibold text-white mt-2">{currentPhase}</p>
+              <p className="text-xs mt-0.5 mb-2" style={{ color: "var(--text-muted)" }}>
+                Week {currentWeek} of {totalWeeks}
               </p>
-            )}
+              <div
+                className="h-1.5 rounded-full overflow-hidden mb-3"
+                style={{ background: "rgba(255,255,255,0.08)" }}
+              >
+                <div
+                  className="h-full rounded-full"
+                  style={{
+                    width: `${phaseProgress}%`,
+                    background: phaseStyle(currentPhase).color,
+                  }}
+                />
+              </div>
+              {raceSpecificWeek != null ? (
+                <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+                  Race Specific starts Week {raceSpecificWeek}
+                </p>
+              ) : (
+                <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+                  Race week is here 🏁
+                </p>
+              )}
+              <p className="text-xs mt-1" style={{ color: "rgba(156,163,175,0.4)" }}>
+                Plan starts {formatAEST(toBrisbaneYmd(planStart), "d MMM yyyy")}
+              </p>
+            </Card>
           </div>
-        </Card>
-
-        {/* Phase progress */}
-        <Card className="p-4">
-          <SectionLabel>Phase Progress</SectionLabel>
-          <p className="text-sm font-semibold text-white mt-2">{currentPhase}</p>
-          <p className="text-xs mt-0.5 mb-2" style={{ color: "var(--text-muted)" }}>
-            Week {currentWeek} of {totalWeeks}
-          </p>
-          <div
-            className="h-1.5 rounded-full overflow-hidden mb-3"
-            style={{ background: "rgba(255,255,255,0.08)" }}
-          >
-            <div
-              className="h-full rounded-full"
-              style={{
-                width: `${phaseProgress}%`,
-                background: phaseStyle(currentPhase).color,
-              }}
-            />
-          </div>
-          {raceSpecificWeek != null ? (
-            <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-              Race Specific starts Week {raceSpecificWeek}
-            </p>
-          ) : (
-            <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-              Race week is here 🏁
-            </p>
-          )}
-        </Card>
-
-        {/* Plan start reference */}
-        <p className="text-xs px-1" style={{ color: "rgba(156,163,175,0.4)" }}>
-          Plan starts {formatAEST(toBrisbaneYmd(planStart), "d MMM yyyy")}
-        </p>
+        </div>
 
       </aside>
     </div>

@@ -2,14 +2,16 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Activity, Calendar, CircleHelp, ClipboardList, LayoutDashboard, RefreshCw, Settings } from "lucide-react";
+import { Activity, Calendar, CircleHelp, ClipboardList, LayoutDashboard, RefreshCw, Settings, Trophy } from "lucide-react";
 import Logo from "@/components/Logo";
+import { SidebarSubtitle } from "@/components/SidebarSubtitle";
 
 const mainLinks = [
   { href: "/", label: "Dashboard", Icon: LayoutDashboard },
   { href: "/program", label: "Program", Icon: ClipboardList },
-  { href: "/calendar", label: "Calendar", Icon: Calendar },
   { href: "/runs", label: "Runs", Icon: Activity },
+  { href: "/calendar", label: "Calendar", Icon: Calendar },
+  { href: "/rating", label: "Rating", Icon: Trophy },
   { href: "/settings", label: "Settings", Icon: Settings },
   { href: "/help", label: "Help", Icon: CircleHelp },
 ] as const;
@@ -21,30 +23,32 @@ export default function Nav() {
     <>
       {/* Mobile top bar */}
       <header className="lg:hidden sticky top-0 z-40 flex items-center justify-between px-4 h-14 bg-black/80 backdrop-blur-xl border-b border-white/[0.06]">
-        <Link href="/" className="inline-flex items-center gap-2 transition-opacity hover:opacity-80" aria-label="Home">
+        <Link href="/" className="flex items-center gap-1 transition-opacity hover:opacity-80" aria-label="Home">
           <Logo size="sm" showWordmark={false} />
-          <span className="font-semibold text-sm text-white">Cameron Running</span>
+          <span className="text-xl font-black tracking-tight text-white">Runshift</span>
         </Link>
-        <button
-          type="button"
-          className="flex items-center justify-center w-9 h-9 rounded-full bg-white/[0.08] border border-white/[0.10] transition-colors duration-150"
-          style={{ color: "var(--accent)" }}
-          aria-label="Sync"
-        >
-          <RefreshCw className="w-4 h-4" />
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            className="flex items-center justify-center w-9 h-9 rounded-full bg-white/[0.08] border border-white/[0.10] transition-colors duration-150"
+            style={{ color: "var(--accent)" }}
+            aria-label="Sync"
+          >
+            <RefreshCw className="w-4 h-4" />
+          </button>
+        </div>
       </header>
 
       {/* Desktop sidebar */}
-      <aside className="hidden lg:flex flex-col fixed left-0 top-0 bottom-0 w-56 bg-black/60 backdrop-blur-xl border-r border-white/[0.08] z-40">
-        <div className="px-4 pt-5 pb-4 border-b border-white/[0.08]">
-          <Link href="/" className="inline-flex items-center gap-2 transition-opacity hover:opacity-80">
-            <Logo size="sm" showWordmark={false} />
-            <span className="font-bold text-base text-white">Cameron Running</span>
+      <aside className="rs-sidebar hidden lg:flex flex-col fixed left-0 top-0 bottom-0 w-56 bg-black/60 backdrop-blur-xl border-r border-white/[0.08] z-40">
+        <div className="px-4 pt-4.5 pb-3.5 border-b border-white/[0.08]">
+          <Link href="/" className="flex items-center gap-1 transition-opacity hover:opacity-80">
+            <Logo size="md" showWordmark={false} className="scale-[0.72] origin-left" />
+            <span className="text-xl font-black tracking-tight text-white">Runshift</span>
           </Link>
-          <p className="text-xs mt-2" style={{ color: "var(--text-muted)" }}>
-            Week X · Phase
-          </p>
+          <div className="mt-2.5">
+            <SidebarSubtitle />
+          </div>
         </div>
 
         <nav className="flex-1 pt-3" aria-label="Sidebar">
@@ -55,12 +59,12 @@ export default function Nav() {
               <Link
                 key={link.href}
                 href={link.href}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl mx-2 text-sm font-medium transition-colors duration-150 cursor-pointer ${
-                  active ? "bg-teal-500/10 text-teal-400" : "text-white/50 hover:text-white/80 hover:bg-white/[0.05]"
+                className={`flex items-center gap-2.5 px-3 py-2 rounded-xl mx-2 mb-0.5 text-sm font-medium transition-colors duration-150 cursor-pointer ${
+                  active ? "bg-teal-500/10 text-teal-400" : "text-white/45 hover:text-white/75 hover:bg-white/[0.04]"
                 }`}
                 style={active ? { borderLeft: "2px solid var(--accent)" } : undefined}
               >
-                <Icon className="w-[18px] h-[18px]" strokeWidth={2} />
+                <Icon className="w-4 h-4" strokeWidth={2} />
                 <span>{link.label}</span>
               </Link>
             );
@@ -68,13 +72,15 @@ export default function Nav() {
         </nav>
 
         <div className="mt-auto">
-          <button
-            type="button"
-            className="mx-4 mb-1 flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium bg-white/[0.05] border border-white/[0.08] hover:bg-white/[0.08] transition-colors duration-150 w-[calc(100%-2rem)]"
-          >
-            <RefreshCw className="w-4 h-4" style={{ color: "var(--accent)" }} />
-            <span className="text-white/80">Sync Strava</span>
-          </button>
+          <div className="flex items-center gap-2 px-4 pb-2">
+            <button
+              type="button"
+              className="flex-1 flex items-center justify-center gap-2 px-3 py-1.5 rounded-xl text-xs font-medium bg-white/[0.04] border border-white/[0.08] hover:bg-white/[0.07] transition-colors duration-150"
+            >
+              <RefreshCw className="w-4 h-4" style={{ color: "var(--accent)" }} />
+              <span className="text-white/75">Sync Strava</span>
+            </button>
+          </div>
           <p className="mx-4 mb-4 text-xs" style={{ color: "var(--text-dim)" }}>
             Last sync: —
           </p>

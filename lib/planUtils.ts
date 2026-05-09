@@ -42,9 +42,6 @@ export function getSessionDate(weekNumber: number, day: Day, planStart: Date): D
   // Whole-day offsets from week anchor (Brisbane week; no DST) — do not use setDate/getDate
   // (those use the host timezone and shift session dates on UTC servers).
   const result = new Date(weekStart.getTime() + offsets[day] * MS_PER_DAY);
-  if (process.env.NODE_ENV === "development") {
-    console.log(`[getSessionDate] ${day} week ${weekNumber}: ${toBrisbaneYmd(result)}`);
-  }
   return result;
 }
 

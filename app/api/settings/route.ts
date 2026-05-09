@@ -43,6 +43,8 @@ type SettingsUpdate = {
   intervalPaceMaxSec?: number;
   longPaceMinSec?: number;
   longPaceMaxSec?: number;
+  firstName?: string | null;
+  nickname?: string | null;
   lastEstimatedVdot?: number | null;
   lastVdotCheckDate?: Date | null;
   lastAdaptationDate?: Date | null;
@@ -100,6 +102,7 @@ const ALLOWED_FIELDS = new Set([
   "tempoPaceMinSec", "tempoPaceMaxSec",
   "intervalPaceMinSec", "intervalPaceMaxSec",
   "longPaceMinSec", "longPaceMaxSec",
+  "firstName", "nickname",
   "lastEstimatedVdot", "lastVdotCheckDate", "lastAdaptationDate",
 ]);
 
@@ -151,6 +154,12 @@ function applySetting(update: SettingsUpdate, key: string, value: unknown): void
       return;
     case "raceName":
       if (typeof value === "string" || value === null) update.raceName = value;
+      return;
+    case "firstName":
+      if (typeof value === "string" || value === null) update.firstName = value;
+      return;
+    case "nickname":
+      if (typeof value === "string" || value === null) update.nickname = value;
       return;
     case "currentWeekOverride":
       if (typeof value === "number" || value === null) update.currentWeekOverride = value;

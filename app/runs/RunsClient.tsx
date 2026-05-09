@@ -1,12 +1,15 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import type { CSSProperties } from "react";
 import { parseRatingBreakdown } from "@/lib/rating";
 import type { RunType } from "@/data/trainingPlan";
 import { formatPace, formatDuration } from "@/lib/settings";
 import { FORM_CONTROL_TW } from "@/lib/formControlClasses";
 import { RunTypePill } from "@/components/RunTypePill";
 import { runTypeColor } from "@/lib/runTypeStyles";
+import { EmptyState } from "@/components/EmptyState";
+import { Activity } from "lucide-react";
 
 interface Run {
   id: string;
@@ -240,6 +243,10 @@ export default function RunsClient({
     });
   }
 
+  const handleSync = useCallback(() => {
+    window.location.href = "/api/strava/sync";
+  }, []);
+
   function formatDateAest(iso: string): string {
     const d = new Date(iso);
     return d.toLocaleDateString("en-AU", {
@@ -249,11 +256,33 @@ export default function RunsClient({
   }
 
   const filterControlBase = `px-3 py-2 rounded-xl text-sm bg-white/[0.06] border border-white/[0.10] text-white outline-none focus:border-teal-500/50 transition-colors ${FORM_CONTROL_TW}`;
+  const chipStyle = (type: RunType): CSSProperties => {
+    const isActive = types.includes(type);
+    if (!isActive) {
+      return {
+        background: "rgba(255,255,255,0.06)",
+        border: "1px solid rgba(255,255,255,0.10)",
+        color: "rgba(255,255,255,0.50)",
+      };
+    }
+    const colors: Record<RunType, { bg: string; border: string; text: string }> = {
+      easy: { bg: "rgba(125,211,252,0.15)", border: "rgba(125,211,252,0.35)", text: "#7dd3fc" },
+      tempo: { bg: "rgba(45,212,191,0.15)", border: "rgba(45,212,191,0.35)", text: "#2dd4bf" },
+      interval: { bg: "rgba(249,115,22,0.15)", border: "rgba(249,115,22,0.35)", text: "#f97316" },
+      long: { bg: "rgba(167,139,250,0.15)", border: "rgba(167,139,250,0.35)", text: "#a78bfa" },
+    };
+    const c = colors[type];
+    return {
+      background: c.bg,
+      border: `1px solid ${c.border}`,
+      color: c.text,
+    };
+  };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3.5">
       {/* ── Filter panel ───────────────────────────────────────────────── */}
-      <div className="rounded-2xl border bg-white/[0.04] border-white/[0.08] backdrop-blur-sm p-4 space-y-3">
+      <div className="rounded-2xl border bg-white/[0.04] border-white/[0.08] backdrop-blur-sm p-3.5 space-y-2.5">
         {/* Search */}
         <input
           type="text"
@@ -263,7 +292,7 @@ export default function RunsClient({
           className={`w-full px-4 py-2.5 rounded-xl text-sm bg-white/[0.06] border border-white/[0.10] text-white placeholder-white/30 outline-none focus:border-teal-500/50 focus:bg-white/[0.08] transition-colors ${FORM_CONTROL_TW}`}
         />
 
-        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+        <div className="flex flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-center">
           {/* Type pills */}
           <div className="flex flex-wrap gap-1.5">
             {RUN_TYPES.map(t => (
@@ -351,7 +380,7 @@ export default function RunsClient({
       {/* ── Desktop table ─────────────────────────────────────────────── */}
       <div className="hidden md:block rounded-2xl border bg-white/[0.04] border-white/[0.08] backdrop-blur-sm w-full overflow-hidden">
         {/* Header */}
-        <div className="flex items-center w-full border-b border-white/[0.10]">
+        <div className="flex items-center gap-2 px-4 py-2 border-b border-white/[0.10] w-full">
           {[
             { label: "Run",      field: "name"        },
             { label: "Type",     field: ""            },
@@ -370,13 +399,15 @@ export default function RunsClient({
                   ? "flex-1 min-w-0"
                   : label === "Type"
                     ? "w-24 shrink-0"
-                    : label === "Distance" || label === "Pace"
+                    : label === "Distance"
                       ? "w-24 shrink-0"
-                      : label === "Time"
-                        ? "w-20 shrink-0"
-                        : label === "Date"
-                          ? "w-28 shrink-0"
-                          : "w-16 shrink-0 text-right"
+                      : label === "Pace"
+                        ? "w-24 shrink-0"
+                        : label === "Time"
+                          ? "w-20 shrink-0 hidden md:block"
+                          : label === "Date"
+                            ? "w-28 shrink-0 hidden md:block"
+                            : "w-16 shrink-0 text-right min-w-[60px]"
               }`}
               style={{ cursor: field ? "pointer" : "default", color: sortBy === field && field ? "var(--accent)" : "var(--text-label)" }}
             >
@@ -388,9 +419,12 @@ export default function RunsClient({
 
         {/* Rows */}
         {!loading && runs.length === 0 && (
-          <div className="px-4 py-8 text-center text-sm" style={{ color: "var(--text-muted)" }}>
-            No runs match the current filters.
-          </div>
+          <EmptyState
+            icon={<Activity className="w-7 h-7" style={{ color: "var(--accent)" }} />}
+            title="No runs yet"
+            body="Connect Strava and your runs will appear here automatically after each sync."
+            action={{ label: "Sync Strava", onClick: handleSync }}
+          />
         )}
 
         {runs.map((run, i) => {
@@ -399,15 +433,20 @@ export default function RunsClient({
           return (
             <div
               key={run.id}
+              className="group relative"
               style={{
                 borderTop: i > 0 ? "1px solid rgba(255,255,255,0.04)" : undefined,
                 borderLeft: isOpen ? `3px solid ${runTypeColor(run.runType)}` : undefined,
               }}
             >
               <div
+                className="absolute left-0 top-0 bottom-0 w-0.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                style={{ background: runTypeColor(run.runType) }}
+              />
+              <div
                 role="button"
                 tabIndex={0}
-                className="flex items-center gap-2 px-4 py-3 border-b border-white/[0.06] last:border-0 hover:bg-white/[0.03] transition-colors cursor-pointer text-left w-full outline-none focus-visible:ring-1 focus-visible:ring-white/20"
+                className="flex items-center gap-2 px-4 py-2.5 border-b border-white/[0.06] hover:bg-white/[0.03] transition-all duration-150 hover:brightness-105 active:scale-[0.998] cursor-pointer w-full outline-none focus-visible:ring-1 focus-visible:ring-white/20 text-left"
                 onClick={() => toggleExpand(run.id)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" || e.key === " ") {
@@ -426,7 +465,7 @@ export default function RunsClient({
                 <span className="text-xs font-mono w-28 shrink-0 hidden md:block" style={{ color: "var(--text-muted)" }}>{formatDateAest(run.dateIso)}</span>
                 <button
                   type="button"
-                  className="text-base font-black font-mono tabular-nums w-16 shrink-0 text-right rounded px-0.5 -mx-0.5 hover:underline underline-offset-2 disabled:opacity-50 disabled:no-underline"
+                  className="text-base font-black font-mono tabular-nums w-16 shrink-0 min-w-[60px] text-right rounded px-0.5 -mx-0.5 hover:underline underline-offset-2 disabled:opacity-50 disabled:no-underline transition-colors duration-150"
                   style={{ color: run.rating != null ? ratingColor(run.rating) : "var(--text-muted)" }}
                   disabled={run.rating == null}
                   aria-expanded={ratingOpen}
@@ -436,13 +475,23 @@ export default function RunsClient({
                     if (run.rating != null) toggleRatingBreakdown(run.id);
                   }}
                 >
-                  {run.rating != null ? run.rating.toFixed(1) : "—"}
+                  {run.rating != null ? (
+                    <div className="relative group cursor-default inline-block">
+                      {run.rating.toFixed(1)}
+                      <div
+                        className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 rounded-lg text-xs font-semibold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10"
+                        style={{ background: "#1a1a1a", color: ratingColor(run.rating) }}
+                      >
+                        {ratingBand(run.rating)}
+                      </div>
+                    </div>
+                  ) : "—"}
                 </button>
               </div>
 
               {ratingOpen && run.rating != null && (
                 <div
-                  className="px-4 pt-2 pb-4 border-b border-white/[0.06] bg-white/[0.02]"
+                  className="px-4 pt-2 pb-3.5 border-b border-white/[0.06] bg-white/[0.02]"
                   style={{
                     borderTop: "1px solid rgba(255,255,255,0.04)",
                   }}
@@ -454,7 +503,7 @@ export default function RunsClient({
               {/* Expanded detail */}
               {isOpen && (
                 <div
-                  className="px-4 pb-4 pt-1 grid grid-cols-2 gap-x-8 gap-y-2 text-xs"
+                  className="px-4 pb-3.5 pt-1 grid grid-cols-2 gap-x-8 gap-y-2 text-xs"
                   style={{
                     borderTop: "1px solid rgba(255,255,255,0.04)",
                     background: "rgba(255,255,255,0.02)",
@@ -502,13 +551,15 @@ export default function RunsClient({
       </div>
 
       {/* ── Mobile cards ─────────────────────────────────────────────── */}
-      <div className="md:hidden space-y-3">
+      <div className="md:hidden space-y-2.5">
         {!loading && runs.length === 0 && (
-          <div
-            className="rounded-2xl border bg-white/[0.04] border-white/[0.08] backdrop-blur-sm px-4 py-8 text-center text-sm"
-            style={{ color: "var(--text-muted)" }}
-          >
-            No runs match the current filters.
+          <div className="rounded-2xl border bg-white/[0.04] border-white/[0.08] backdrop-blur-sm">
+            <EmptyState
+              icon={<Activity className="w-7 h-7" style={{ color: "var(--accent)" }} />}
+              title="No runs yet"
+              body="Connect Strava and your runs will appear here automatically after each sync."
+              action={{ label: "Sync Strava", onClick: handleSync }}
+            />
           </div>
         )}
         {runs.map((run) => {
@@ -517,9 +568,9 @@ export default function RunsClient({
           return (
             <div
               key={run.id}
-              className="rounded-2xl border bg-white/[0.04] border-white/[0.08] backdrop-blur-sm overflow-hidden"
+              className="rounded-2xl border bg-white/[0.04] border-white/[0.08] backdrop-blur-sm overflow-hidden transition-all duration-150 hover:brightness-105 hover:scale-[1.005] active:scale-[0.998]"
             >
-              <div className="p-4">
+              <div className="p-3.5">
                 <div className="flex items-start justify-between gap-2">
                   <button
                     type="button"
@@ -550,7 +601,7 @@ export default function RunsClient({
                 </div>
                 <button
                   type="button"
-                  className="w-full text-left grid grid-cols-3 gap-2 mt-3 text-xs min-h-11"
+                  className="w-full text-left grid grid-cols-3 gap-2 mt-2.5 text-xs min-h-11"
                   onClick={() => toggleExpand(run.id)}
                 >
                   <div>

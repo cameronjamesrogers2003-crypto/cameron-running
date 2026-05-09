@@ -3,8 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { formatDuration, formatPace } from "@/lib/settings";
-import type { CalendarRun, CalendarData } from "./types";
-import { useMediaQuery } from "@/lib/useMediaQuery";
+import type { CalendarRun, CalendarData, PlannedDayMeta } from "./types";
 import { formatAEST } from "@/lib/dateUtils";
 import { RunTypePill } from "@/components/RunTypePill";
 
@@ -12,6 +11,7 @@ interface Props {
   year: number;
   todayKey: string;
   calendarData: CalendarData;
+  plannedDayMeta: PlannedDayMeta;
 }
 
 // ── style helpers ──────────────────────────────────────────────────────────
@@ -32,368 +32,351 @@ function fmtPaceMin(secPerKm: number): string {
   return secPerKm > 0 ? `${formatPace(secPerKm)} /km` : "—";
 }
 
-// ── MonthCard ────────────────────────────────────────────────────────────────
-
 const MONTH_NAMES = [
   "January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December",
 ];
-
-interface MonthCardProps {
-  year: number;
-  month: number; // 1-based
-  todayKey: string;
-  calendarData: CalendarData;
-  selectedKey: string | null;
-  onSelect: (key: string | null) => void;
+function ratingTextColor(score: number): string {
+  if (score >= 9.0) return "#a78bfa";
+  if (score >= 7.0) return "#4ade80";
+  if (score >= 5.5) return "var(--accent)";
+  if (score >= 4.0) return "#f5b454";
+  return "#f87171";
 }
 
-function MonthCard({ year, month, todayKey, calendarData, selectedKey, onSelect }: MonthCardProps) {
-  // First AEST calendar day of month: AEST midnight on the 1st
-  // AEST midnight = UTC 14:00 of previous day
-  const firstDayUTC = new Date(Date.UTC(year, month - 1, 1) - 10 * 60 * 60 * 1000);
-  const firstDayAEST = new Date(firstDayUTC.getTime() + 10 * 60 * 60 * 1000);
-  // Monday-first day-of-week: 0=Mon … 6=Sun
-  const startDow = (firstDayAEST.getUTCDay() + 6) % 7;
+function ratingBadgeStyle(score: number): { bg: string; color: string } {
+  if (score >= 9.0) return { bg: "rgba(167,139,250,0.25)", color: "#a78bfa" };
+  if (score >= 7.0) return { bg: "rgba(74,222,128,0.25)", color: "#4ade80" };
+  if (score >= 5.5) return { bg: "rgba(45,212,191,0.25)", color: "var(--accent)" };
+  if (score >= 4.0) return { bg: "rgba(245,180,84,0.25)", color: "#f5b454" };
+  return { bg: "rgba(248,113,113,0.25)", color: "#f87171" };
+}
 
-  // Days in month (using AEST context)
-  const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
+function ratingCellTint(score: number): string {
+  if (score >= 7.0) return "rgba(74,222,128,0.05)";
+  if (score >= 5.5) return "rgba(45,212,191,0.05)";
+  if (score >= 4.0) return "rgba(245,180,84,0.04)";
+  return "rgba(248,113,113,0.04)";
+}
 
-  // Is this month entirely in the future?
-  const [todayYear, todayMonth] = todayKey.split("-").map(Number);
-  const isFuture = year > todayYear || (year === todayYear && month > todayMonth);
+function ratingBand(score: number): string {
+  if (score >= 9.0) return "Elite";
+  if (score >= 7.0) return "Strong";
+  if (score >= 5.5) return "Solid";
+  if (score >= 4.0) return "Rough";
+  return "Off Day";
+}
 
-  // Build grid cells
-  const cells: Array<string | null> = [];
-  for (let i = 0; i < startDow; i++) cells.push(null); // leading empty
-  for (let d = 1; d <= daysInMonth; d++) {
-    const key = `${year}-${String(month).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
-    cells.push(key);
+function breakdownRows(json: string | null | undefined): Array<{ label: string; score: number; max: number; color: string }> {
+  if (!json) return [];
+  try {
+    const parsed = JSON.parse(json) as {
+      components?: {
+        pace?: { score: number; max: number };
+        effort?: { score: number; max: number };
+        distance?: { score: number; max: number };
+        conditions?: { score: number; max: number };
+      };
+    };
+    const c = parsed.components;
+    if (!c?.pace || !c.effort || !c.distance || !c.conditions) return [];
+    return [
+      { label: "Pace", score: c.pace.score, max: c.pace.max, color: "var(--c-interval)" },
+      { label: "Effort", score: c.effort.score, max: c.effort.max, color: "var(--c-easy)" },
+      { label: "Distance", score: c.distance.score, max: c.distance.max, color: "var(--c-long)" },
+      { label: "Conditions", score: c.conditions.score, max: c.conditions.max, color: "#f5b454" },
+    ];
+  } catch {
+    return [];
   }
-  // Pad trailing to complete last row
-  while (cells.length % 7 !== 0) cells.push(null);
+}
+
+export default function CalendarGrid({ year, todayKey, calendarData, plannedDayMeta }: Props) {
+  const router = useRouter();
+  const [viewMonth, setViewMonth] = useState(Number(todayKey.split("-")[1]));
+  const [modalRun, setModalRun] = useState<CalendarRun | null>(null);
+  const todayMonth = Number(todayKey.split("-")[1]);
+  const todayYear = Number(todayKey.split("-")[0]);
+  const isCurrentYear = year === todayYear;
+  const ctrlBg = "rgba(255,255,255,0.06)";
+  const ctrlBorder = "rgba(255,255,255,0.08)";
+  const cellBase = "rgba(255,255,255,0.02)";
+  const modalBg = "#111214";
+  const modalBorder = "1px solid rgba(255,255,255,0.10)";
+
+  const firstOfMonth = new Date(Date.UTC(year, viewMonth - 1, 1) - 10 * 60 * 60 * 1000);
+  const firstDow = (new Date(firstOfMonth.getTime() + 10 * 60 * 60 * 1000).getUTCDay() + 6) % 7;
+  const daysInMonth = new Date(Date.UTC(year, viewMonth, 0)).getUTCDate();
+  const prevMonthDays = new Date(Date.UTC(year, viewMonth - 1, 0)).getUTCDate();
+
+  const cells: Array<{ key: string; day: number; inMonth: boolean }> = [];
+  for (let i = firstDow - 1; i >= 0; i--) {
+    const day = prevMonthDays - i;
+    const month = viewMonth - 1;
+    const y = month < 1 ? year - 1 : year;
+    const m = month < 1 ? 12 : month;
+    cells.push({ key: `${y}-${String(m).padStart(2, "0")}-${String(day).padStart(2, "0")}`, day, inMonth: false });
+  }
+  for (let day = 1; day <= daysInMonth; day++) {
+    cells.push({ key: `${year}-${String(viewMonth).padStart(2, "0")}-${String(day).padStart(2, "0")}`, day, inMonth: true });
+  }
+  while (cells.length % 7 !== 0) {
+    const nextDay = cells.length - (firstDow + daysInMonth) + 1;
+    const month = viewMonth + 1;
+    const y = month > 12 ? year + 1 : year;
+    const m = month > 12 ? 1 : month;
+    cells.push({ key: `${y}-${String(m).padStart(2, "0")}-${String(nextDay).padStart(2, "0")}`, day: nextDay, inMonth: false });
+  }
+  const monthHasRuns = cells.some((cell) => cell.inMonth && (calendarData[cell.key]?.length ?? 0) > 0);
 
   return (
-    <div
-      className="rounded-lg p-2.5"
-      style={{
-        background: "#111111",
-        border: "0.5px solid rgba(255,255,255,0.06)",
-        opacity: isFuture ? 0.3 : 1,
-      }}
-    >
-      <p className="text-xs font-semibold text-white mb-2 px-0.5">
-        {MONTH_NAMES[month - 1]}
-      </p>
-      {/* Weekday headers */}
-      <div className="grid grid-cols-7 mb-1">
-        {["M", "T", "W", "T", "F", "S", "S"].map((d, i) => (
-          <div
-            key={i}
-            className="text-center text-[9px] font-medium"
-            style={{ color: "rgba(156,163,175,0.4)" }}
+    <div className="w-full">
+      <div className="flex items-center justify-between mb-1.5">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            className="w-6 h-6 rounded-lg transition-colors"
+            style={{ background: ctrlBg, border: `1px solid ${ctrlBorder}` }}
+            onClick={() => router.push(`/calendar?year=${year - 1}`)}
           >
+            ←
+          </button>
+          <p className="text-sm font-semibold text-white">{year}</p>
+          <button
+            type="button"
+            className="w-6 h-6 rounded-lg transition-colors"
+            style={{ background: ctrlBg, border: `1px solid ${ctrlBorder}` }}
+            onClick={() => router.push(`/calendar?year=${year + 1}`)}
+          >
+            →
+          </button>
+        </div>
+        <button
+          type="button"
+          className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors"
+          style={{ background: "rgba(45,212,191,0.10)", border: "1px solid rgba(45,212,191,0.25)", color: "var(--accent)" }}
+          onClick={() => {
+            if (!isCurrentYear) router.push(`/calendar?year=${todayYear}`);
+            setViewMonth(todayMonth);
+          }}
+        >
+          Today
+        </button>
+      </div>
+
+      <div className="flex gap-1 mb-3 overflow-x-auto pb-1">
+        {["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"].map((label, i) => {
+          const monthNum = i + 1;
+          const active = monthNum === viewMonth;
+          const isTodayMonth = isCurrentYear && monthNum === todayMonth && !active;
+          return (
+            <button
+              key={label}
+              type="button"
+              onClick={() => setViewMonth(monthNum)}
+              className="px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-all shrink-0 whitespace-nowrap"
+              style={
+                active
+                  ? { background: "rgba(45,212,191,0.15)", border: "1px solid rgba(45,212,191,0.30)", color: "var(--accent)" }
+                  : isTodayMonth
+                    ? { background: "rgba(255,255,255,0.08)", color: "white" }
+                    : { background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.40)" }
+              }
+            >
+              {label}
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="flex items-center justify-between mb-3">
+        <button
+          type="button"
+          className="flex items-center justify-center w-9 h-9 rounded-xl transition-colors bg-white/[0.06] border border-white/[0.08] hover:bg-white/[0.10] cursor-pointer"
+          style={{ background: ctrlBg, border: `1px solid ${ctrlBorder}` }}
+          onClick={() => setViewMonth((m) => (m === 1 ? 12 : m - 1))}
+        >
+          ‹
+        </button>
+        <h2 className="text-xl font-bold text-white">{MONTH_NAMES[viewMonth - 1]} {year}</h2>
+        <button
+          type="button"
+          className="flex items-center justify-center w-9 h-9 rounded-xl transition-colors bg-white/[0.06] border border-white/[0.08] hover:bg-white/[0.10] cursor-pointer"
+          style={{ background: ctrlBg, border: `1px solid ${ctrlBorder}` }}
+          onClick={() => setViewMonth((m) => (m === 12 ? 1 : m + 1))}
+        >
+          ›
+        </button>
+      </div>
+
+      <div className="grid grid-cols-7 mb-1.5">
+        {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
+          <div key={d} className="text-xs font-semibold text-center uppercase tracking-widest py-2" style={{ color: "var(--text-label)" }}>
             {d}
           </div>
         ))}
       </div>
-      {/* Day cells grid */}
-      <div className="grid grid-cols-7 gap-y-0.5">
-        {cells.map((key, i) => {
-          if (!key) {
-            return <div key={i} style={{ minHeight: 22 }} />;
-          }
 
-          const runs   = isFuture ? [] : (calendarData[key] ?? []);
-          const isToday = key === todayKey;
-          const isSelected = key === selectedKey;
-
-          if (!runs.length) {
-            // Empty day
-            const [, , dayStr] = key.split("-");
-            return (
-              <div
-                key={key}
-                className="flex items-center justify-center cursor-default"
-                style={{ minHeight: 22, borderRadius: 3 }}
-              >
-                <span
-                  className="text-[8px]"
-                  style={{
-                    color: "rgba(156,163,175,0.2)",
-                    ...(isToday ? { outline: "0.5px solid rgba(255,255,255,0.35)", borderRadius: 3 } : {}),
-                  }}
-                >
-                  {parseInt(dayStr)}
-                </span>
-              </div>
-            );
-          }
-
-          // Day with runs — use highest rating
-          const bestRun   = runs.reduce((b, r) => (r.rating ?? 0) > (b.rating ?? 0) ? r : b, runs[0]);
-          const hasRating = bestRun.rating != null;
-          const colors    = hasRating ? cellColors(bestRun.rating!) : { bg: "#181818", text: "rgba(232,230,224,0.3)" };
-          const [, , dayStr] = key.split("-");
-
+      <div className="grid grid-cols-7 gap-1.5">
+        {cells.map((cell) => {
+          const runs = calendarData[cell.key] ?? [];
+          const planMeta = plannedDayMeta[cell.key];
+          const isToday = cell.key === todayKey;
+          const bestRun = runs.length > 0 ? runs.reduce((b, r) => (r.rating ?? -1) > (b.rating ?? -1) ? r : b, runs[0]) : null;
+          const bestRating = bestRun?.rating ?? null;
+          const badge = bestRating != null ? ratingBadgeStyle(bestRating) : null;
+          const canOpen = Boolean(bestRun);
           return (
             <div
-              key={key}
-              className="relative flex flex-col items-center justify-center cursor-pointer select-none"
+              key={cell.key}
+              className={`relative rounded-xl p-2 flex flex-col transition-all duration-150 ${canOpen ? "cursor-pointer hover:brightness-105 hover:scale-[1.005] active:scale-[0.998]" : "cursor-default"}`}
               style={{
-                minHeight: 22,
-                borderRadius: 3,
-                background: colors.bg,
-                ...(isToday ? { outline: "0.5px solid rgba(255,255,255,0.35)" } : {}),
-                ...(isSelected ? { outline: "1px solid rgba(255,255,255,0.4)" } : {}),
+                background: bestRating != null
+                  ? ratingCellTint(bestRating)
+                  : planMeta?.kind === "missed"
+                    ? "rgba(245,180,84,0.03)"
+                    : cellBase,
+                border: isToday
+                  ? "1px solid rgba(45,212,191,0.25)"
+                  : planMeta?.kind === "planned"
+                    ? "1px solid rgba(45,212,191,0.15)"
+                    : planMeta?.kind === "missed"
+                      ? "1px solid rgba(245,180,84,0.12)"
+                      : undefined,
+                minHeight: cell.inMonth ? 84 : 56,
+                opacity: cell.inMonth ? 1 : 0.2,
               }}
-              onClick={() => onSelect(isSelected ? null : key)}
+              onClick={() => {
+                if (bestRun) setModalRun(bestRun);
+              }}
             >
-              <span className="text-[9px] font-semibold leading-none" style={{ color: colors.text }}>
-                {hasRating ? bestRun.rating!.toFixed(1) : "—"}
+              <span className="text-xs font-mono font-semibold self-start" style={{ color: isToday ? "var(--accent)" : "var(--text-muted)" }}>
+                {cell.day}
               </span>
-              <span className="text-[8px] leading-none mt-0.5" style={{ color: "rgba(156,163,175,0.4)" }}>
-                {parseInt(dayStr)}
-              </span>
-              {runs.length > 1 && (
-                <div
-                  className="absolute bottom-0.5"
-                  style={{ width: 3, height: 3, borderRadius: "50%", background: colors.text, opacity: 0.7 }}
-                />
+              {bestRun && (
+                <>
+                  <p className="text-xs font-mono font-semibold text-white mt-auto leading-tight">{bestRun.distanceKm.toFixed(2)} km</p>
+                  {badge && (
+                    <span className="inline-flex px-1.5 py-0.5 rounded-md text-xs font-black font-mono tabular-nums mt-0.5" style={{ background: badge.bg, color: badge.color }}>
+                      {bestRun.rating?.toFixed(1)}
+                    </span>
+                  )}
+                </>
+              )}
+              {!bestRun && planMeta?.kind === "planned" && (
+                <>
+                  <div className="mt-auto mx-auto w-1.5 h-1.5 rounded-full mb-0.5" style={{ background: "var(--accent)", opacity: 0.6 }} />
+                  <p className="text-center" style={{ fontSize: "0.55rem", color: "var(--accent)", opacity: 0.7 }}>
+                    {planMeta.runType}
+                  </p>
+                </>
+              )}
+              {!bestRun && planMeta?.kind === "missed" && (
+                <div className="mt-auto mx-auto w-1.5 h-1.5 rounded-full mb-0.5" style={{ background: "#f5b454", opacity: 0.6 }} />
               )}
             </div>
           );
         })}
       </div>
-    </div>
-  );
-}
+      {!monthHasRuns && (
+        <p className="text-center py-8 text-sm" style={{ color: "var(--text-dim)" }}>
+          No runs recorded this month.
+        </p>
+      )}
 
-// ── DetailPanel ───────────────────────────────────────────────────────────────
-
-function DetailPanel({
-  runs,
-  onClose,
-}: {
-  runs: CalendarRun[];
-  onClose: () => void;
-}) {
-  const [tabIdx, setTabIdx] = useState(0);
-  const run = runs[tabIdx] ?? runs[0];
-  const fullScreen = useMediaQuery("(max-width: 767px)");
-
-  return (
-    <div
-      className={
-        fullScreen
-          ? "fixed inset-0 z-[70] flex flex-col overflow-y-auto overscroll-contain p-4 pb-28"
-          : "rounded-xl mt-3 p-4"
-      }
-      style={{
-        background: "#181818",
-        borderTop: fullScreen ? undefined : "0.5px solid rgba(255,255,255,0.08)",
-        border: fullScreen ? undefined : "1px solid rgba(255,255,255,0.08)",
-      }}
-    >
-      {/* Header row */}
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-3 flex-wrap">
-          {runs.length > 1 && (
-            <div className="flex gap-1">
-              {runs.map((_, i) => (
-                <button
-                  key={i}
-                  type="button"
-                  onClick={() => setTabIdx(i)}
-                  className="text-xs min-h-11 px-2 py-1 rounded-md sm:min-h-0 sm:py-0.5"
-                  style={{
-                    background: i === tabIdx ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.04)",
-                    color: i === tabIdx ? "white" : "var(--text-muted)",
-                  }}
-                >
-                  Run {i + 1}
-                </button>
-              ))}
-            </div>
-          )}
-          <span className="text-xs" style={{ color: "var(--text-muted)" }}>
-            {fmtDate(run.dateIso)}
-          </span>
-        </div>
-        <button
-          type="button"
-          onClick={onClose}
-          className="text-xs min-h-11 px-3 py-2 rounded-md"
-          style={{ color: "var(--text-muted)", background: "rgba(255,255,255,0.06)" }}
-        >
-          Close
-        </button>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-6 items-start">
-        {/* Left: type + rating */}
-        <div className="space-y-3">
-          {/* Run type pill */}
-          <div className="flex items-center gap-2 flex-wrap">
-            <RunTypePill type={run.runType} size="sm" />
-            {!run.isPlanned && (
-              <span className="text-xs" style={{ color: "rgba(156,163,175,0.5)" }}>
-                (unplanned)
-              </span>
-            )}
+      <div className="flex items-center gap-3 mt-3.5 flex-wrap">
+        <div className="flex items-center gap-1.5 text-xs" style={{ color: "var(--text-muted)" }}><span className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--accent)" }} /> Planned</div>
+        <div className="flex items-center gap-1.5 text-xs" style={{ color: "var(--text-muted)" }}><span className="w-1.5 h-1.5 rounded-full" style={{ background: "#f5b454" }} /> Missed</div>
+        {[
+          { label: "Strong 7+", bg: "rgba(74,222,128,0.25)", color: "#4ade80" },
+          { label: "Solid 5.5-7", bg: "rgba(45,212,191,0.25)", color: "var(--accent)" },
+          { label: "Rough 4-5.5", bg: "rgba(245,180,84,0.25)", color: "#f5b454" },
+          { label: "Off day <4", bg: "rgba(248,113,113,0.25)", color: "#f87171" },
+        ].map((x) => (
+          <div key={x.label} className="flex items-center gap-1.5 text-xs" style={{ color: "var(--text-muted)" }}>
+            <span className="inline-flex px-1.5 py-0.5 rounded-md text-[10px] font-black font-mono" style={{ background: x.bg, color: x.color }}>
+              ■
+            </span>
+            {x.label}
           </div>
-
-          {/* Run name */}
-          {run.name && (
-            <p className="text-sm text-white">{run.name}</p>
-          )}
-
-          {/* Stats row */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            {[
-              { label: "Distance",  value: `${run.distanceKm.toFixed(2)} km` },
-              { label: "Pace",      value: fmtPaceMin(run.avgPaceSecKm) },
-              { label: "Duration",  value: formatDuration(run.durationSecs) },
-              { label: "Avg HR",    value: run.avgHeartRate ? `${run.avgHeartRate} bpm` : "—" },
-              { label: "Cadence",   value: "—" },
-              { label: "Temp",      value: run.temperatureC != null ? `${run.temperatureC}°C` : "—" },
-              { label: "Humidity",  value: run.humidityPct  != null ? `${run.humidityPct}%`  : "—" },
-              { label: "Elevation", value: run.elevationGainM != null ? `${run.elevationGainM}m` : "—" },
-            ].map(({ label, value }) => (
-              <div key={label}>
-                <p className="text-[10px]" style={{ color: "var(--text-muted)" }}>{label}</p>
-                <p className="text-xs font-semibold text-white font-mono">{value}</p>
-              </div>
-            ))}
-          </div>
-
-          {/* Notes */}
-          <p className="text-xs" style={{ color: "rgba(156,163,175,0.4)" }}>
-            No notes
-          </p>
-
-          {/* Strava link */}
-          <a
-            href={`https://www.strava.com/activities/${run.id}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-xs inline-flex items-center gap-1"
-            style={{ color: "#fb923c" }}
-          >
-            View on Strava →
-          </a>
-        </div>
-
-        {/* Right: rating badge + components */}
-        {run.rating != null ? (
-          <div className="space-y-3 w-full max-w-full md:w-44 md:max-w-none">
-            {(() => {
-              const score = run.rating;
-              const c = score >= 9   ? { bg: "#2e1065", text: "#c4b5fd" }
-                      : score >= 7.5 ? { bg: "#052e16", text: "#4ade80" }
-                      : score >= 6   ? { bg: "#0c1a2e", text: "#60a5fa" }
-                      : score >= 4   ? { bg: "#431407", text: "#fb923c" }
-                      :                { bg: "#450a0a", text: "#f87171" };
-              return (
-                <div
-                  className="flex items-center justify-center rounded-xl"
-                  style={{ background: c.bg, height: 56 }}
-                >
-                  <span className="text-3xl font-bold" style={{ color: c.text }}>
-                    {score.toFixed(1)}
-                  </span>
-                </div>
-              );
-            })()}
-            <p className="text-[10px] text-center" style={{ color: "var(--text-muted)" }}>
-              Stored run rating
-            </p>
-          </div>
-        ) : (
-          <div
-            className="flex items-center justify-center rounded-xl w-full md:w-44"
-            style={{ background: "#181818", height: 56 }}
-          >
-            <span className="text-sm" style={{ color: "var(--text-muted)" }}>Unrated</span>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ── CalendarGrid (main export) ────────────────────────────────────────────────
-
-export default function CalendarGrid({ year, todayKey, calendarData }: Props) {
-  const router       = useRouter();
-  const [selectedKey, setSelectedKey] = useState<string | null>(null);
-
-  const selectedRuns = selectedKey ? (calendarData[selectedKey] ?? []) : [];
-
-  function handleSelect(key: string | null) {
-    setSelectedKey((prev) => (prev === key ? null : key));
-  }
-
-  const MONTHS = Array.from({ length: 12 }, (_, i) => i + 1);
-
-  return (
-    <div>
-      {/* Year navigation */}
-      <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
-        <button
-          type="button"
-          onClick={() => {
-            setSelectedKey(null);
-            router.push(`/calendar?year=${year - 1}`);
-          }}
-          className="text-sm min-h-11 px-3 py-2 rounded-lg"
-          style={{
-            background: "rgba(255,255,255,0.06)",
-            color: "var(--text-muted)",
-            border: "1px solid rgba(255,255,255,0.08)",
-          }}
-        >
-          ← {year - 1}
-        </button>
-        <span className="text-base font-semibold text-white tabular-nums">{year}</span>
-        <button
-          type="button"
-          onClick={() => {
-            setSelectedKey(null);
-            router.push(`/calendar?year=${year + 1}`);
-          }}
-          className="text-sm min-h-11 px-3 py-2 rounded-lg"
-          style={{
-            background: "rgba(255,255,255,0.06)",
-            color: "var(--text-muted)",
-            border: "1px solid rgba(255,255,255,0.08)",
-          }}
-        >
-          {year + 1} →
-        </button>
-      </div>
-
-      {/* Month grid — responsive */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        {MONTHS.map((month) => (
-          <MonthCard
-            key={month}
-            year={year}
-            month={month}
-            todayKey={todayKey}
-            calendarData={calendarData}
-            selectedKey={selectedKey}
-            onSelect={handleSelect}
-          />
         ))}
       </div>
 
-      {/* Detail: dimmed backdrop on mobile when open */}
-      {selectedKey && selectedRuns.length > 0 && (
-        <DetailPanel
-          runs={selectedRuns}
-          onClose={() => setSelectedKey(null)}
-        />
+      {modalRun && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: "rgba(0,0,0,0.75)", backdropFilter: "blur(8px)" }}
+          onClick={() => setModalRun(null)}
+        >
+          <div
+            className="relative w-full max-w-sm rounded-2xl p-5 shadow-2xl"
+            style={{ background: modalBg, border: modalBorder }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              className="absolute top-4 right-4 w-7 h-7 rounded-full flex items-center justify-center hover:bg-white/[0.10] transition-colors cursor-pointer"
+              style={{ color: "var(--text-muted)" }}
+              onClick={() => setModalRun(null)}
+            >
+              ✕
+            </button>
+            <p className="text-xs" style={{ color: "var(--text-muted)" }}>{fmtDate(modalRun.dateIso)}</p>
+            <p className="text-lg font-bold text-white mt-0.5">{modalRun.name ?? "Run"}</p>
+
+            <div className="flex items-center gap-3 mt-3 flex-wrap">
+              <RunTypePill type={modalRun.runType} size="sm" />
+              <span className="text-sm font-mono" style={{ color: "var(--text-muted)" }}>
+                {modalRun.distanceKm.toFixed(2)} km · {fmtPaceMin(modalRun.avgPaceSecKm)} · {formatDuration(modalRun.durationSecs)}
+              </span>
+            </div>
+
+            {modalRun.rating != null && (
+              <>
+                <p className="text-5xl font-black font-mono tabular-nums text-center my-4" style={{ color: ratingTextColor(modalRun.rating) }}>
+                  {modalRun.rating.toFixed(1)}
+                </p>
+                <p className="text-xs text-center -mt-2 mb-3" style={{ color: ratingTextColor(modalRun.rating) }}>
+                  {ratingBand(modalRun.rating)}
+                </p>
+              </>
+            )}
+
+            <p className="text-xs font-semibold tracking-widest uppercase mb-2" style={{ color: "var(--text-label)" }}>
+              Score Breakdown
+            </p>
+            {breakdownRows(modalRun.ratingBreakdown).length === 0 ? (
+              <p className="text-xs" style={{ color: "var(--text-dim)" }}>No breakdown available</p>
+            ) : (
+              breakdownRows(modalRun.ratingBreakdown).map((row) => (
+                <div key={row.label} className="flex items-center gap-2 mb-2">
+                  <p className="w-20 text-xs" style={{ color: "var(--text-muted)" }}>{row.label}</p>
+                  <div className="flex-1 h-1.5 rounded-full bg-white/[0.08] overflow-hidden">
+                    <div className="h-full rounded-full" style={{ width: `${Math.max(0, Math.min(100, (row.score / Math.max(row.max, 0.01)) * 100))}%`, background: row.color }} />
+                  </div>
+                  <p className="w-14 text-right text-xs font-mono" style={{ color: "var(--text-muted)" }}>
+                    {row.score.toFixed(1)} / {row.max.toFixed(1)}
+                  </p>
+                </div>
+              ))
+            )}
+
+            <div className="mt-4 pt-3 border-t border-white/[0.08] flex items-center justify-between">
+              <p className="text-xs" style={{ color: "var(--text-dim)" }}>
+                {modalRun.classificationMethod ?? "Classification unavailable"}
+              </p>
+              <a
+                href={`https://www.strava.com/activities/${modalRun.id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs font-semibold"
+                style={{ color: "#f97316" }}
+              >
+                View on Strava
+              </a>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
