@@ -6,6 +6,12 @@ import { formatDuration, formatPace } from "@/lib/settings";
 import type { CalendarRun, CalendarData, PlannedDayMeta } from "./types";
 import { formatAEST } from "@/lib/dateUtils";
 import { RunTypePill } from "@/components/RunTypePill";
+import {
+  calendarRatingBadgeStyle,
+  calendarRatingBand,
+  calendarRatingCellTint,
+  calendarRatingTextColor,
+} from "@/lib/calendarRunRatingStyle";
 
 interface Props {
   year: number;
@@ -28,37 +34,6 @@ const MONTH_NAMES = [
   "January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December",
 ];
-function ratingTextColor(score: number): string {
-  if (score >= 9.0) return "#a78bfa";
-  if (score >= 7.0) return "#4ade80";
-  if (score >= 5.5) return "var(--accent)";
-  if (score >= 4.0) return "#f5b454";
-  return "#f87171";
-}
-
-function ratingBadgeStyle(score: number): { bg: string; color: string } {
-  if (score >= 9.0) return { bg: "rgba(167,139,250,0.25)", color: "#a78bfa" };
-  if (score >= 7.0) return { bg: "rgba(74,222,128,0.25)", color: "#4ade80" };
-  if (score >= 5.5) return { bg: "rgba(45,212,191,0.25)", color: "var(--accent)" };
-  if (score >= 4.0) return { bg: "rgba(245,180,84,0.25)", color: "#f5b454" };
-  return { bg: "rgba(248,113,113,0.25)", color: "#f87171" };
-}
-
-function ratingCellTint(score: number): string {
-  if (score >= 7.0) return "rgba(74,222,128,0.05)";
-  if (score >= 5.5) return "rgba(45,212,191,0.05)";
-  if (score >= 4.0) return "rgba(245,180,84,0.04)";
-  return "rgba(248,113,113,0.04)";
-}
-
-function ratingBand(score: number): string {
-  if (score >= 9.0) return "Elite";
-  if (score >= 7.0) return "Strong";
-  if (score >= 5.5) return "Solid";
-  if (score >= 4.0) return "Rough";
-  return "Off Day";
-}
-
 function breakdownRows(json: string | null | undefined): Array<{ label: string; score: number; max: number; color: string }> {
   if (!json) return [];
   try {
@@ -172,7 +147,7 @@ export default function CalendarGrid({ year, todayKey, calendarData, plannedDayM
                   ? { background: "rgba(45,212,191,0.15)", border: "1px solid rgba(45,212,191,0.30)", color: "var(--accent)" }
                   : isTodayMonth
                     ? { background: "rgba(255,255,255,0.08)", color: "white" }
-                    : { background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.40)" }
+                    : { background: "var(--card-bg)", color: "rgba(255,255,255,0.40)" }
               }
             >
               {label}
@@ -216,7 +191,7 @@ export default function CalendarGrid({ year, todayKey, calendarData, plannedDayM
           const isToday = cell.key === todayKey;
           const bestRun = runs.length > 0 ? runs.reduce((b, r) => (r.rating ?? -1) > (b.rating ?? -1) ? r : b, runs[0]) : null;
           const bestRating = bestRun?.rating ?? null;
-          const badge = bestRating != null ? ratingBadgeStyle(bestRating) : null;
+          const badge = bestRating != null ? calendarRatingBadgeStyle(bestRating) : null;
           const canOpen = Boolean(bestRun);
           return (
             <div
@@ -224,9 +199,9 @@ export default function CalendarGrid({ year, todayKey, calendarData, plannedDayM
               className={`relative rounded-xl p-2 flex flex-col transition-all duration-150 ${canOpen ? "cursor-pointer hover:brightness-105 hover:scale-[1.005] active:scale-[0.998]" : "cursor-default"}`}
               style={{
                 background: bestRating != null
-                  ? ratingCellTint(bestRating)
+                  ? calendarRatingCellTint(bestRating)
                   : planMeta?.kind === "missed"
-                    ? "rgba(245,180,84,0.03)"
+                    ? "rgba(245,180,84,0.10)"
                     : cellBase,
                 border: isToday
                   ? "1px solid rgba(45,212,191,0.25)"
@@ -257,14 +232,14 @@ export default function CalendarGrid({ year, todayKey, calendarData, plannedDayM
               )}
               {!bestRun && planMeta?.kind === "planned" && (
                 <>
-                  <div className="mt-auto mx-auto w-1.5 h-1.5 rounded-full mb-0.5" style={{ background: "var(--accent)", opacity: 0.6 }} />
-                  <p className="text-center" style={{ fontSize: "0.55rem", color: "var(--accent)", opacity: 0.7 }}>
+                  <div className="mt-auto mx-auto w-1.5 h-1.5 rounded-full mb-0.5" style={{ background: "var(--accent)", opacity: 0.75 }} />
+                  <p className="text-center" style={{ fontSize: "0.55rem", color: "var(--accent)", opacity: 0.75 }}>
                     {planMeta.runType}
                   </p>
                 </>
               )}
               {!bestRun && planMeta?.kind === "missed" && (
-                <div className="mt-auto mx-auto w-1.5 h-1.5 rounded-full mb-0.5" style={{ background: "#f5b454", opacity: 0.6 }} />
+                <div className="mt-auto mx-auto w-1.5 h-1.5 rounded-full mb-0.5" style={{ background: "#f5b454", opacity: 0.75 }} />
               )}
             </div>
           );
@@ -280,10 +255,10 @@ export default function CalendarGrid({ year, todayKey, calendarData, plannedDayM
         <div className="flex items-center gap-1.5 text-xs" style={{ color: "var(--text-muted)" }}><span className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--accent)" }} /> Planned</div>
         <div className="flex items-center gap-1.5 text-xs" style={{ color: "var(--text-muted)" }}><span className="w-1.5 h-1.5 rounded-full" style={{ background: "#f5b454" }} /> Missed</div>
         {[
-          { label: "Strong 7+", bg: "rgba(74,222,128,0.25)", color: "#4ade80" },
-          { label: "Solid 5.5-7", bg: "rgba(45,212,191,0.25)", color: "var(--accent)" },
-          { label: "Rough 4-5.5", bg: "rgba(245,180,84,0.25)", color: "#f5b454" },
-          { label: "Off day <4", bg: "rgba(248,113,113,0.25)", color: "#f87171" },
+          { label: "8+ elite", bg: "rgba(34,197,94,0.25)", color: "#22c55e" },
+          { label: "6–8 strong", bg: "rgba(245,158,11,0.25)", color: "#f59e0b" },
+          { label: "4–6 solid", bg: "rgba(249,115,22,0.25)", color: "#f97316" },
+          { label: "<4 off day", bg: "rgba(239,68,68,0.25)", color: "#ef4444" },
         ].map((x) => (
           <div key={x.label} className="flex items-center gap-1.5 text-xs" style={{ color: "var(--text-muted)" }}>
             <span className="inline-flex px-1.5 py-0.5 rounded-md text-[10px] font-black font-mono" style={{ background: x.bg, color: x.color }}>
@@ -325,11 +300,11 @@ export default function CalendarGrid({ year, todayKey, calendarData, plannedDayM
 
             {modalRun.rating != null && (
               <>
-                <p className="text-5xl font-black font-mono tabular-nums text-center my-4" style={{ color: ratingTextColor(modalRun.rating) }}>
+                <p className="text-5xl font-black font-mono tabular-nums text-center my-4" style={{ color: calendarRatingTextColor(modalRun.rating) }}>
                   {modalRun.rating.toFixed(1)}
                 </p>
-                <p className="text-xs text-center -mt-2 mb-3" style={{ color: ratingTextColor(modalRun.rating) }}>
-                  {ratingBand(modalRun.rating)}
+                <p className="text-xs text-center -mt-2 mb-3" style={{ color: calendarRatingTextColor(modalRun.rating) }}>
+                  {calendarRatingBand(modalRun.rating)}
                 </p>
               </>
             )}

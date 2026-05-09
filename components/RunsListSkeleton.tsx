@@ -2,7 +2,7 @@ import { Skeleton } from "@/components/Skeleton";
 
 export default function RunsListSkeleton() {
   return (
-    <div className="rounded-2xl border border-white/[0.08] bg-white/[0.04] p-2 sm:p-3">
+    <div className="rounded-2xl border border-white/[0.08] bg-[var(--card-bg)] p-2 sm:p-3">
       {Array.from({ length: 5 }).map((_, i) => (
         <div
           key={i}

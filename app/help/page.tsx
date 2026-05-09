@@ -13,7 +13,7 @@ function SectionCard({
 }) {
   return (
     <div
-      className="rounded-2xl border bg-white/[0.04] border-white/[0.08] backdrop-blur-sm p-4 sm:p-5 space-y-2.5"
+      className="rounded-2xl border bg-[var(--card-bg)] border-white/[0.08] backdrop-blur-sm p-4 sm:p-5 space-y-2.5"
       style={{
       }}
     >
@@ -37,7 +37,7 @@ function QA({
 }) {
   return (
     <div
-      className="rounded-2xl border bg-white/[0.04] border-white/[0.08] backdrop-blur-sm p-4 sm:p-5 space-y-2"
+      className="rounded-2xl border bg-[var(--card-bg)] border-white/[0.08] backdrop-blur-sm p-4 sm:p-5 space-y-2"
       style={{
       }}
     >

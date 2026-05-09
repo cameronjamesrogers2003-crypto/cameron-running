@@ -12,7 +12,7 @@ export default function PhaseOverview({ description }: { description: string }) 
     >
       <button
         type="button"
-        className="flex items-center justify-between px-4 py-3 rounded-xl cursor-pointer bg-white/[0.04] border border-white/[0.08] hover:bg-white/[0.06] transition-colors w-full min-h-11 text-left"
+        className="flex items-center justify-between px-4 py-3 rounded-xl cursor-pointer bg-[var(--card-bg)] border border-white/[0.08] hover:bg-white/[0.06] transition-colors w-full min-h-11 text-left"
         onClick={() => setOpen(o => !o)}
       >
         <div className="flex items-center gap-2">

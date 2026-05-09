@@ -384,7 +384,7 @@ export default function SettingsForm() {
 
   if (loading) {
     return (
-      <div className="rounded-2xl border bg-white/[0.04] border-white/[0.08] backdrop-blur-sm p-5 text-sm">
+      <div className="rounded-2xl border bg-[var(--card-bg)] border-white/[0.08] backdrop-blur-sm p-5 text-sm">
         Loading settings…
       </div>
     );
@@ -451,7 +451,7 @@ export default function SettingsForm() {
                   onClick={() => setExperienceLevel(lvl)}
                   className="p-3.5 rounded-xl border cursor-pointer transition-all text-left hover:bg-white/[0.07]"
                   style={{
-                    background: experienceLevel === lvl ? "rgba(45,212,191,0.08)" : "rgba(255,255,255,0.04)",
+                    background: experienceLevel === lvl ? "rgba(45,212,191,0.08)" : "var(--card-bg)",
                     border: experienceLevel === lvl ? "1px solid rgba(45,212,191,0.35)" : "1px solid rgba(255,255,255,0.08)",
                   }}
                 >
@@ -470,7 +470,7 @@ export default function SettingsForm() {
                 onClick={() => setGoalRace("HALF")}
                 className="p-3.5 rounded-xl border cursor-pointer transition-all text-left hover:bg-white/[0.07]"
                 style={{
-                  background: goalRace === "HALF" ? "rgba(45,212,191,0.08)" : "rgba(255,255,255,0.04)",
+                  background: goalRace === "HALF" ? "rgba(45,212,191,0.08)" : "var(--card-bg)",
                   border: goalRace === "HALF" ? "1px solid rgba(45,212,191,0.35)" : "1px solid rgba(255,255,255,0.08)",
                 }}
               >
@@ -482,7 +482,7 @@ export default function SettingsForm() {
                 onClick={() => setGoalRace("FULL")}
                 className="p-3.5 rounded-xl border cursor-pointer transition-all text-left hover:bg-white/[0.07]"
                 style={{
-                  background: goalRace === "FULL" ? "rgba(45,212,191,0.08)" : "rgba(255,255,255,0.04)",
+                  background: goalRace === "FULL" ? "rgba(45,212,191,0.08)" : "var(--card-bg)",
                   border: goalRace === "FULL" ? "1px solid rgba(45,212,191,0.35)" : "1px solid rgba(255,255,255,0.08)",
                 }}
               >
@@ -502,7 +502,7 @@ export default function SettingsForm() {
                   onClick={() => setPlanLengthWeeks(weeks)}
                   className="p-3.5 rounded-xl border cursor-pointer transition-all text-left hover:bg-white/[0.07]"
                   style={{
-                    background: planLengthWeeks === weeks ? "rgba(45,212,191,0.08)" : "rgba(255,255,255,0.04)",
+                    background: planLengthWeeks === weeks ? "rgba(45,212,191,0.08)" : "var(--card-bg)",
                     border: planLengthWeeks === weeks ? "1px solid rgba(45,212,191,0.35)" : "1px solid rgba(255,255,255,0.08)",
                   }}
                 >

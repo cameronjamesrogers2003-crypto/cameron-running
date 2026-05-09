@@ -286,7 +286,7 @@ export default function InterruptionsForm() {
                   className="shrink-0 min-h-11 text-[11px] px-3 py-2 rounded"
                   style={{
                     color: "rgba(232,230,224,0.3)",
-                    background: "rgba(255,255,255,0.04)",
+                    background: "var(--card-bg)",
                     border: "1px solid rgba(255,255,255,0.06)",
                   }}
                 >

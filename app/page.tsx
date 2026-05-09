@@ -103,7 +103,7 @@ function Card({
 }) {
   return (
     <div
-      className={`rounded-2xl border bg-white/[0.04] border-white/[0.08] backdrop-blur-sm ${className}`}
+      className={`rounded-2xl border bg-[var(--card-bg)] border-white/[0.08] backdrop-blur-sm ${className}`}
       style={{
         borderRadius: "var(--card-radius)",
         ...style,

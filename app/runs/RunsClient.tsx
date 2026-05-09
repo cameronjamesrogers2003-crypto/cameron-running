@@ -247,7 +247,7 @@ export default function RunsClient() {
   return (
     <div className="space-y-3.5">
       {/* ── Filter panel ───────────────────────────────────────────────── */}
-      <div className="rounded-2xl border bg-white/[0.04] border-white/[0.08] backdrop-blur-sm p-3.5 space-y-2.5">
+      <div className="rounded-2xl border bg-[var(--card-bg)] border-white/[0.08] backdrop-blur-sm p-3.5 space-y-2.5">
         {/* Search */}
         <input
           type="text"
@@ -324,7 +324,7 @@ export default function RunsClient() {
               type="button"
               onClick={() => { setSearch(""); setTypes([]); setDateFrom(""); setDateTo(""); setDistMin(""); setDistMax(""); }}
               className="min-h-11 text-xs px-3 py-2 rounded-md w-full sm:w-auto"
-              style={{ color: "var(--text-muted)", background: "rgba(255,255,255,0.04)" }}
+              style={{ color: "var(--text-muted)", background: "var(--card-bg)" }}
             >
               Clear filters
             </button>
@@ -343,7 +343,7 @@ export default function RunsClient() {
       </div>
 
       {/* ── Desktop table ─────────────────────────────────────────────── */}
-      <div className="hidden md:block rounded-2xl border bg-white/[0.04] border-white/[0.08] backdrop-blur-sm w-full overflow-hidden">
+      <div className="hidden md:block rounded-2xl border bg-[var(--card-bg)] border-white/[0.08] backdrop-blur-sm w-full overflow-hidden">
         {/* Header */}
         <div className="flex items-center gap-2 px-4 py-2 border-b border-white/[0.10] w-full">
           {[
@@ -518,7 +518,7 @@ export default function RunsClient() {
       {/* ── Mobile cards ─────────────────────────────────────────────── */}
       <div className="md:hidden space-y-2.5">
         {!loading && runs.length === 0 && (
-          <div className="rounded-2xl border bg-white/[0.04] border-white/[0.08] backdrop-blur-sm">
+          <div className="rounded-2xl border bg-[var(--card-bg)] border-white/[0.08] backdrop-blur-sm">
             <EmptyState
               icon={<Activity className="w-7 h-7" style={{ color: "var(--accent)" }} />}
               title="No runs yet"
@@ -533,7 +533,7 @@ export default function RunsClient() {
           return (
             <div
               key={run.id}
-              className="rounded-2xl border bg-white/[0.04] border-white/[0.08] backdrop-blur-sm overflow-hidden transition-all duration-150 hover:brightness-105 hover:scale-[1.005] active:scale-[0.998]"
+              className="rounded-2xl border bg-[var(--card-bg)] border-white/[0.08] backdrop-blur-sm overflow-hidden transition-all duration-150 hover:brightness-105 hover:scale-[1.005] active:scale-[0.998]"
             >
               <div className="p-3.5">
                 <div className="flex items-start justify-between gap-2">

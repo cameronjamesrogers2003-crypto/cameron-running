@@ -8,6 +8,7 @@ import { brisbaneCalendarYearUtcRange, startOfBrisbaneMonthContaining, startOfDa
 import type { CalendarRun, CalendarData, PlannedDayMeta } from "./types";
 import CalendarGrid from "./CalendarGrid";
 import PageHeading from "@/components/ui/PageHeading";
+import { calendarRatingTextColor } from "@/lib/calendarRunRatingStyle";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Runshift — Calendar" };
@@ -192,7 +193,7 @@ export default async function CalendarPage({
           { label: "EXTRAS", value: String(extraRunsThisMonth) },
           { label: "AVG RATING", value: avgRating28 != null ? `${avgRating28}/10` : "—", isRating: true },
         ].map((item) => (
-          <div key={item.label} className="rounded-xl border border-white/[0.08] bg-white/[0.04] px-3.5 py-2.5 flex flex-col gap-0.5">
+          <div key={item.label} className="rounded-xl border border-white/[0.08] bg-[var(--card-bg)] px-3.5 py-2.5 flex flex-col gap-0.5">
             <p className="text-xs font-semibold tracking-widest uppercase" style={{ color: "var(--text-label)" }}>
               {item.label}
             </p>
@@ -200,7 +201,7 @@ export default async function CalendarPage({
               className="text-lg font-black font-mono tabular-nums text-white"
               style={
                 item.isRating && avgRating28 != null
-                  ? { color: avgRating28 >= 9.0 ? "#a78bfa" : avgRating28 >= 7.0 ? "#4ade80" : avgRating28 >= 5.5 ? "var(--accent)" : avgRating28 >= 4.0 ? "#f5b454" : "#f87171" }
+                  ? { color: calendarRatingTextColor(avgRating28) }
                   : undefined
               }
             >

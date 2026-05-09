@@ -65,7 +65,7 @@ export default function PlanAdaptationCards({ initialItems }: { initialItems: Ad
         <div
           key={item.id}
           className={`rounded-lg p-4 ${borderClassFor(item)}`}
-          style={{ background: "#121a19", borderTop: "1px solid rgba(255,255,255,0.08)", borderRight: "1px solid rgba(255,255,255,0.08)", borderBottom: "1px solid rgba(255,255,255,0.08)" }}
+          style={{ background: "var(--card-bg)", borderTop: "1px solid rgba(255,255,255,0.08)", borderRight: "1px solid rgba(255,255,255,0.08)", borderBottom: "1px solid rgba(255,255,255,0.08)" }}
         >
           <div className="flex items-start justify-between gap-3">
             <div className="space-y-1">

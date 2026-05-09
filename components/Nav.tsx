@@ -60,7 +60,7 @@ export default function Nav() {
                 key={link.href}
                 href={link.href}
                 className={`flex items-center gap-2.5 px-3 py-2 rounded-xl mx-2 mb-0.5 text-sm font-medium transition-colors duration-150 cursor-pointer ${
-                  active ? "bg-teal-500/10 text-teal-400" : "text-white/45 hover:text-white/75 hover:bg-white/[0.04]"
+                  active ? "bg-teal-500/10 text-teal-400" : "text-white/45 hover:text-white/75 hover:bg-[var(--card-bg)]"
                 }`}
                 style={active ? { borderLeft: "2px solid var(--accent)" } : undefined}
               >
@@ -75,7 +75,7 @@ export default function Nav() {
           <div className="flex items-center gap-2 px-4 pb-2">
             <button
               type="button"
-              className="flex-1 flex items-center justify-center gap-2 px-3 py-1.5 rounded-xl text-xs font-medium bg-white/[0.04] border border-white/[0.08] hover:bg-white/[0.07] transition-colors duration-150"
+              className="flex-1 flex items-center justify-center gap-2 px-3 py-1.5 rounded-xl text-xs font-medium bg-[var(--card-bg)] border border-white/[0.08] hover:bg-white/[0.07] transition-colors duration-150"
             >
               <RefreshCw className="w-4 h-4" style={{ color: "var(--accent)" }} />
               <span className="text-white/75">Sync Strava</span>

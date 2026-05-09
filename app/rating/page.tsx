@@ -183,7 +183,7 @@ export default async function RatingPage() {
             <PageHeading subtitle="Your athletic profile">Player Rating</PageHeading>
           </div>
         </div>
-        <div className="rounded-2xl border bg-white/[0.04] border-white/[0.08]">
+        <div className="rounded-2xl border bg-[var(--card-bg)] border-white/[0.08]">
           <EmptyState
             icon={<Star className="w-7 h-7" style={{ color: "var(--accent)" }} />}
             title="No rating yet"
@@ -239,7 +239,7 @@ export default async function RatingPage() {
           return (
             <div
               key={attr.key}
-              className={`rounded-2xl border bg-white/[0.04] border-white/[0.08] p-4 ${idx === 4 ? "md:col-span-2 lg:col-span-1 lg:col-start-2" : ""}`}
+              className={`rounded-2xl border bg-[var(--card-bg)] border-white/[0.08] p-4 ${idx === 4 ? "md:col-span-2 lg:col-span-1 lg:col-start-2" : ""}`}
             >
               <div className="flex items-center justify-between mb-3 gap-3">
                 <div className="flex items-center gap-2 min-w-0">
@@ -308,7 +308,7 @@ export default async function RatingPage() {
       <p className="text-xs font-semibold tracking-widest uppercase mt-6 mb-2" style={{ color: "var(--text-label)" }}>
         Recent Runs
       </p>
-      <div className="rounded-2xl border bg-white/[0.04] border-white/[0.08] p-3.5">
+      <div className="rounded-2xl border bg-[var(--card-bg)] border-white/[0.08] p-3.5">
         {recentRuns.length === 0 && (
           <p className="text-sm text-center py-3" style={{ color: "var(--text-muted)" }}>
             No rated runs yet.

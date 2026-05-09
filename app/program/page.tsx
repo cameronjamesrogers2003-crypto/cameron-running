@@ -194,7 +194,7 @@ export default async function ProgramPage({
   if (!storedPlan?.plan?.length && !settings.experienceLevel) {
     return (
       <div className="program-shell w-full pt-2 pb-24 lg:pb-8">
-        <div className="rounded-2xl border bg-white/[0.04] border-white/[0.08]">
+        <div className="rounded-2xl border bg-[var(--card-bg)] border-white/[0.08]">
           <EmptyState
             icon={<Calendar className="w-7 h-7" style={{ color: "var(--accent)" }} />}
             title="No training plan yet"
@@ -336,7 +336,7 @@ export default async function ProgramPage({
               {/* Phase header */}
               {section.isRecovery ? (
                 // Simplified recovery header
-                <div className="rounded-2xl border bg-white/[0.04] border-white/[0.08] backdrop-blur-sm px-3 py-2.5 sm:px-4">
+                <div className="rounded-2xl border bg-[var(--card-bg)] border-white/[0.08] backdrop-blur-sm px-3 py-2.5 sm:px-4">
                   <div className="flex items-center gap-2 sm:gap-3 flex-wrap text-xs sm:text-sm">
                     <span className="text-xs font-semibold px-2.5 py-1 rounded-full" style={chip}>
                       Return to Training
@@ -351,7 +351,7 @@ export default async function ProgramPage({
                 </div>
               ) : (
                 // Full phase header
-                <div className="rounded-2xl border bg-white/[0.04] border-white/[0.08] backdrop-blur-sm px-3 py-2.5 sm:px-4">
+                <div className="rounded-2xl border bg-[var(--card-bg)] border-white/[0.08] backdrop-blur-sm px-3 py-2.5 sm:px-4">
                   <div className="flex items-center justify-between gap-3 sm:gap-4 mb-1.5 flex-wrap">
                     <div className="flex items-center gap-2 sm:gap-3 flex-wrap min-w-0">
                       <span className="text-xs font-semibold px-2.5 py-1 rounded-full" style={chip}>
@@ -554,7 +554,7 @@ export default async function ProgramPage({
                             ? "rgba(167,139,250,0.06)"
                             : session.type === "easy"
                               ? "rgba(125,211,252,0.03)"
-                              : "rgba(255,255,255,0.04)";
+                              : "var(--card-bg)";
 
                           return (
                             <div
@@ -722,7 +722,7 @@ export default async function ProgramPage({
             </section>
           );
         })}
-        <details className="rounded-2xl border bg-white/[0.04] border-white/[0.08] backdrop-blur-sm px-4 py-2.5">
+        <details className="rounded-2xl border bg-[var(--card-bg)] border-white/[0.08] backdrop-blur-sm px-4 py-2.5">
           <summary className="text-xs font-semibold tracking-widest uppercase mb-3 cursor-pointer" style={{ color: "var(--text-label)" }}>
             Plan History
           </summary>
