@@ -260,21 +260,21 @@ export default function InterruptionsForm() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span
-                      className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full"
+                      className="text-xs font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full"
                       style={{ background: "rgba(255,255,255,0.06)", color: "var(--text-muted)" }}
                     >
                       {INTERRUPTION_TYPE_LABEL[parseInterruptionType(row.type)]}
                     </span>
                     <span className="text-xs text-white">{row.reason}</span>
                   </div>
-                  <p className="text-[11px] mt-1" style={{ color: "var(--text-muted)" }}>
+                  <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
                     {fmtDate(row.startDate)}
                     {row.endDate ? ` → ${fmtDate(row.endDate)}` : " (ongoing)"}
                     {row.weeksAffected != null && ` · ${row.weeksAffected}w affected`}
                     {row.weeklyKmEstimate != null && ` · ${row.weeklyKmEstimate} km/w`}
                   </p>
                   {row.notes && (
-                    <p className="text-[11px] mt-0.5 italic" style={{ color: "rgba(232,230,224,0.3)" }}>
+                    <p className="text-xs mt-0.5 italic" style={{ color: "rgba(232,230,224,0.3)" }}>
                       {row.notes}
                     </p>
                   )}
@@ -283,7 +283,7 @@ export default function InterruptionsForm() {
                   type="button"
                   onClick={() => handleDelete(row.id)}
                   disabled={deletingId === row.id}
-                  className="shrink-0 min-h-11 text-[11px] px-3 py-2 rounded"
+                  className="shrink-0 min-h-11 text-xs px-3 py-2 rounded"
                   style={{
                     color: "rgba(232,230,224,0.3)",
                     background: "var(--card-bg)",

@@ -21,7 +21,6 @@ import WeeklyKmChart from "@/components/charts/WeeklyKmChart";
 import AvgPaceTrendChart from "@/components/charts/AvgPaceTrendChart";
 import TrainingLoadChart from "@/components/charts/TrainingLoadChart";
 import SyncButton from "@/components/SyncButton";
-import Logo from "@/components/Logo";
 import PlayerRatingDeltaPanel from "@/components/PlayerRatingDeltaPanel";
 import PlanAdaptationCards from "@/components/PlanAdaptationCards";
 import PlayerCard from "@/components/PlayerCard";
@@ -30,6 +29,7 @@ import TodaySessionCard from "@/components/TodaySessionCard";
 import { RunTypePill } from "@/components/RunTypePill";
 import { runTypeColor } from "@/lib/runTypeStyles";
 import { redirect } from "next/navigation";
+import { phaseChipStyle } from "@/lib/phaseChipStyle";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Runshift — Dashboard" };
@@ -65,24 +65,6 @@ function ratingStatColor(score: number): string {
   return "#f87171";
 }
 
-function phaseStyle(phase: Phase): { background: string; color: string } {
-  switch (phase) {
-    case "Base":
-    case "Beginner Base":
-    case "Intermediate Base":
-    case "Advanced Base":
-      return { background: "#1e3a5f", color: "#93c5fd" };
-    case "Half Marathon Build":
-    case "Race Specific":
-      return { background: "#14532d", color: "#86efac" };
-    case "Marathon Build":
-      return { background: "#3b0764", color: "#d8b4fe" };
-    case "Taper":
-      return { background: "#3f3f46", color: "#e4e4e7" };
-    case "Recovery":
-      return { background: "#1a1133", color: "#a78bfa" };
-  }
-}
 
 function formatTargetPace(minPerKm: number): string {
   const mins = Math.floor(minPerKm);
@@ -504,9 +486,6 @@ export default async function Dashboard({
           </div>
         )}
 
-        {/* Logo icon + phase header */}
-        <Logo size="lg" showWordmark={false} className="scale-[0.56] sm:scale-[0.66] origin-left" />
-
         {playerRating && showPlayerRatingSummary && (
           <PlayerRatingDeltaPanel
             updatedAt={playerRating.updatedAt.toISOString()}
@@ -514,7 +493,7 @@ export default async function Dashboard({
           />
         )}
 
-        <div className="flex items-start justify-between mb-5 pt-1 gap-3">
+        <div className="flex items-start justify-between pt-2 mb-6 gap-3">
           <div>
             <PageHeading subtitle={`${greeting}, ${displayName}.`}>Dashboard</PageHeading>
             <span
@@ -562,7 +541,7 @@ export default async function Dashboard({
 
         {/* Today's plan — full width on small screens (sidebar is lg+) */}
         <div className="lg:hidden w-full">
-          <Card className="p-3.5" style={{ animation: "fadeInUp 300ms ease-out forwards", animationDelay: "0ms", opacity: 0 }}>
+          <Card className="p-4 md:p-5" style={{ animation: "fadeInUp 300ms ease-out forwards", animationDelay: "0ms", opacity: 0 }}>
             <SectionLabel>Today&apos;s workout</SectionLabel>
             {todayPlanEntry ? (
               <div className="mt-2.5 space-y-1">
@@ -594,7 +573,7 @@ export default async function Dashboard({
         {/* ── Stat tiles ─────────────────────────────────────────────────── */}
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-2.5">
           {/* Weekly distance */}
-          <Card className="p-3.5" style={{ animation: "fadeInUp 300ms ease-out forwards", animationDelay: "60ms", opacity: 0 }}>
+          <Card className="p-4 md:p-5" style={{ animation: "fadeInUp 300ms ease-out forwards", animationDelay: "60ms", opacity: 0 }}>
             <SectionLabel>Weekly Distance</SectionLabel>
             <p className="text-4xl font-black font-mono tabular-nums text-white mt-2">
               {weekActualKm.toFixed(1)}
@@ -613,7 +592,7 @@ export default async function Dashboard({
           </Card>
 
           {/* Runs completed */}
-          <Card className="p-3.5" style={{ animation: "fadeInUp 300ms ease-out forwards", animationDelay: "120ms", opacity: 0 }}>
+          <Card className="p-4 md:p-5" style={{ animation: "fadeInUp 300ms ease-out forwards", animationDelay: "120ms", opacity: 0 }}>
             <SectionLabel>Runs Completed</SectionLabel>
             <p className="text-4xl font-black font-mono tabular-nums text-white mt-2">
               {weekDone}
@@ -636,7 +615,7 @@ export default async function Dashboard({
           </Card>
 
           {/* Avg rating */}
-          <Card className="p-3.5">
+          <Card className="p-4 md:p-5">
             <SectionLabel>Avg Run Rating</SectionLabel>
             {avgWeekRating !== null ? (
               <>
@@ -665,7 +644,7 @@ export default async function Dashboard({
         </div>
 
         {/* ── Weekly km chart ─────────────────────────────────────────────── */}
-        <Card className="p-3.5">
+        <Card className="p-4 md:p-5">
           <SectionLabel>Weekly Distance (km)</SectionLabel>
           <div className="mt-3.5">
             <WeeklyKmChart data={weeklyKmData} />
@@ -674,14 +653,14 @@ export default async function Dashboard({
 
         {/* ── Pace + Load charts side by side ─────────────────────────────── */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
-          <Card className="p-3.5">
+          <Card className="p-4 md:p-5">
             <SectionLabel>Avg Easy Pace</SectionLabel>
             <p className="text-xs mt-0.5 mb-2.5" style={{ color: "rgba(156,163,175,0.6)" }}>
               easy runs only · lower = faster
             </p>
             <AvgPaceTrendChart data={paceData} />
           </Card>
-          <Card className="p-3.5">
+          <Card className="p-4 md:p-5">
             <SectionLabel>Training Load</SectionLabel>
             <p className="text-xs mt-0.5 mb-2.5" style={{ color: "rgba(156,163,175,0.6)" }}>
               km by run type
@@ -693,7 +672,7 @@ export default async function Dashboard({
         {/* ── Recent runs | Upcoming sessions (side by side on md+) ─────────── */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
           <Card>
-            <div className="px-3.5 pt-3.5 pb-1.5">
+            <div className="px-4 pt-4 pb-1.5">
               <SectionLabel>Recent Runs</SectionLabel>
             </div>
             {recentRunsRows.length === 0 ? (
@@ -709,7 +688,7 @@ export default async function Dashboard({
                 return (
                   <div
                     key={run.id}
-                  className="flex flex-col gap-2.5 px-3.5 py-2.5 sm:flex-row sm:items-center"
+                  className="flex flex-col gap-2.5 px-4 py-2.5 sm:flex-row sm:items-center"
                     style={{ borderTop: idx === 0 ? undefined : "1px solid rgba(255,255,255,0.06)" }}
                   >
                     <div className="flex items-start gap-3 min-w-0">
@@ -750,7 +729,7 @@ export default async function Dashboard({
           </Card>
 
           <Card>
-            <div className="px-3.5 pt-3.5 pb-1.5">
+            <div className="px-4 pt-4 pb-1.5">
               <SectionLabel>Upcoming Sessions</SectionLabel>
             </div>
             {upcomingSessions.length === 0 ? (
@@ -766,17 +745,17 @@ export default async function Dashboard({
                 return (
                   <div
                     key={`upcoming-${row.week}-${s.day}`}
-                    className="flex items-center gap-2.5 px-3.5 py-2"
+                    className="flex items-center gap-2.5 px-4 py-2.5"
                     style={{ borderTop: idx === 0 ? undefined : "1px solid rgba(255,255,255,0.06)" }}
                   >
                     <div
                       className="flex flex-col items-center justify-start w-9 h-9 rounded-lg text-center shrink-0 pt-0.5"
                       style={{ background: "rgba(255,255,255,0.05)" }}
                     >
-                      <p className="text-[10px] font-bold uppercase leading-none" style={{ color: "var(--text-muted)" }}>
+                      <p className="text-xs font-bold uppercase leading-none" style={{ color: "var(--text-muted)" }}>
                         {row.dayLabel}
                       </p>
-                      <p className="text-[13px] font-mono font-semibold leading-tight text-white mt-0.5">{dayNumber}</p>
+                      <p className="text-sm font-mono font-semibold leading-tight text-white mt-0.5">{dayNumber}</p>
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
@@ -790,7 +769,7 @@ export default async function Dashboard({
                       <p className="text-xs font-mono tabular-nums leading-tight text-white">
                         {formatTargetPace(s.targetPaceMinPerKm)}
                       </p>
-                      <p className="text-[10px] leading-tight" style={{ color: "var(--text-muted)" }}>
+                      <p className="text-xs leading-tight" style={{ color: "var(--text-muted)" }}>
                         pace
                       </p>
                     </div>
@@ -841,7 +820,7 @@ export default async function Dashboard({
           </p>
           <div className="flex flex-col gap-4">
             {/* This week panel */}
-            <Card className="px-4 py-3.5">
+            <Card className="p-4">
               <SectionLabel>This Week</SectionLabel>
               <p className="text-sm font-semibold text-white mt-1.5 mb-1">
                 Week {currentWeek} · {currentPhase}
@@ -928,7 +907,7 @@ export default async function Dashboard({
             <div className="border-t border-zinc-600 my-3" />
 
             {/* Phase progress */}
-            <Card className="px-4 py-3.5">
+            <Card className="p-4">
               <SectionLabel>Phase Progress</SectionLabel>
               <p className="text-sm font-semibold text-white mt-2">{currentPhase}</p>
               <p className="text-xs mt-0.5 mb-2" style={{ color: "var(--text-muted)" }}>
@@ -942,7 +921,7 @@ export default async function Dashboard({
                   className="h-full rounded-full"
                   style={{
                     width: `${phaseProgress}%`,
-                    background: phaseStyle(currentPhase).color,
+                    background: phaseChipStyle(currentPhase).color,
                   }}
                 />
               </div>

@@ -50,7 +50,7 @@ export default function TodayLabel({ day, enabled }: { day: Day; enabled: boolea
 
   return (
     <p
-      className="text-[11px] font-semibold mt-1.5"
+      className="text-xs font-semibold mt-1.5"
       style={{ color: "#a5b4fc" }}
     >
       Today

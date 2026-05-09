@@ -179,7 +179,7 @@ export default async function CalendarPage({
 
   return (
     <div className="calendar-shell max-w-[1100px] mx-auto w-full">
-      <div className="flex items-start justify-between mb-5 pt-1.5 gap-3">
+      <div className="flex items-start justify-between pt-2 mb-6 gap-3">
         <div>
           <PageHeading subtitle="Your training history">Calendar</PageHeading>
         </div>
@@ -193,16 +193,16 @@ export default async function CalendarPage({
           { label: "EXTRAS", value: String(extraRunsThisMonth) },
           { label: "AVG RATING", value: avgRating28 != null ? `${avgRating28}/10` : "—", isRating: true },
         ].map((item) => (
-          <div key={item.label} className="rounded-xl border border-white/[0.08] bg-[var(--card-bg)] px-3.5 py-2.5 flex flex-col gap-0.5">
+          <div key={item.label} className="rounded-xl border border-white/[0.08] bg-[var(--card-bg)] p-4 flex flex-col gap-0.5">
             <p className="text-xs font-semibold tracking-widest uppercase" style={{ color: "var(--text-label)" }}>
               {item.label}
             </p>
             <p
-              className="text-lg font-black font-mono tabular-nums text-white"
+              className="text-2xl font-black font-mono tabular-nums"
               style={
                 item.isRating && avgRating28 != null
                   ? { color: calendarRatingTextColor(avgRating28) }
-                  : undefined
+                  : { color: "white" }
               }
             >
               {item.value}

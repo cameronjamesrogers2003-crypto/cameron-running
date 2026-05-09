@@ -233,7 +233,7 @@ export default function CalendarGrid({ year, todayKey, calendarData, plannedDayM
               {!bestRun && planMeta?.kind === "planned" && (
                 <>
                   <div className="mt-auto mx-auto w-1.5 h-1.5 rounded-full mb-0.5" style={{ background: "var(--accent)", opacity: 0.75 }} />
-                  <p className="text-center" style={{ fontSize: "0.55rem", color: "var(--accent)", opacity: 0.75 }}>
+                  <p className="text-center text-xs" style={{ color: "var(--accent)", opacity: 0.75, fontSize: "0.6rem" }}>
                     {planMeta.runType}
                   </p>
                 </>
@@ -261,7 +261,7 @@ export default function CalendarGrid({ year, todayKey, calendarData, plannedDayM
           { label: "<4 off day", bg: "rgba(239,68,68,0.25)", color: "#ef4444" },
         ].map((x) => (
           <div key={x.label} className="flex items-center gap-1.5 text-xs" style={{ color: "var(--text-muted)" }}>
-            <span className="inline-flex px-1.5 py-0.5 rounded-md text-[10px] font-black font-mono" style={{ background: x.bg, color: x.color }}>
+            <span className="inline-flex px-1.5 py-0.5 rounded-md text-xs font-black font-mono" style={{ background: x.bg, color: x.color }}>
               ■
             </span>
             {x.label}

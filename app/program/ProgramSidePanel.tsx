@@ -161,12 +161,12 @@ export default function ProgramSidePanel({ maxHR }: Props) {
                   }}
                 >
                   <div className="flex items-center justify-between gap-1 mb-0.5">
-                    <span className="text-[11px] font-bold text-white">{row.zone} {row.name}</span>
-                    <span className="text-[10px] font-mono" style={{ color: "var(--text-muted)" }}>
+                    <span className="text-xs font-bold text-white">{row.zone} {row.name}</span>
+                    <span className="text-xs font-mono" style={{ color: "var(--text-muted)" }}>
                       {bpmRange}
                     </span>
                   </div>
-                  <p className="text-[11px] leading-tight" style={{ color: "rgba(232,230,224,0.5)" }}>
+                  <p className="text-xs leading-tight" style={{ color: "rgba(232,230,224,0.5)" }}>
                     {row.feel}
                   </p>
                 </div>
@@ -174,7 +174,7 @@ export default function ProgramSidePanel({ maxHR }: Props) {
             })}
 
             <p
-              className="text-[11px] leading-relaxed pt-1"
+              className="text-xs leading-relaxed pt-1"
               style={{ color: "rgba(232,230,224,0.35)" }}
             >
               Calculated from your max HR ({maxHR} bpm). Update in Settings if it changes.
@@ -195,12 +195,12 @@ export default function ProgramSidePanel({ maxHR }: Props) {
                   padding: "10px 12px",
                 }}
               >
-                <p className="text-[11px] font-semibold mb-1.5" style={{ color: rs.color }}>
+                <p className="text-xs font-semibold mb-1.5" style={{ color: rs.color }}>
                   {rs.type}
                 </p>
                 <ul className="space-y-0.5">
                   {rs.items.map((item, i) => (
-                    <li key={i} className="text-[11px] leading-snug flex gap-1.5">
+                    <li key={i} className="text-xs leading-snug flex gap-1.5">
                       <span style={{ color: "rgba(232,230,224,0.25)" }}>·</span>
                       <span style={{ color: "rgba(232,230,224,0.55)" }}>{item}</span>
                     </li>
@@ -208,7 +208,7 @@ export default function ProgramSidePanel({ maxHR }: Props) {
                 </ul>
                 {rs.note && (
                   <p
-                    className="text-[11px] leading-snug mt-2 pt-2 italic"
+                    className="text-xs leading-snug mt-2 pt-2 italic"
                     style={{
                       color: "rgba(232,230,224,0.4)",
                       borderTop: "1px solid rgba(255,255,255,0.05)",

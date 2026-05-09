@@ -43,12 +43,11 @@ function Panel({ number, title, children }: { number: string; title: string; chi
     <div
       className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-5 mb-3.5 space-y-3.5"
     >
-      <div className="flex items-center gap-3 mb-4.5">
+      <div className="flex items-center gap-3 pb-2 mb-2.5 border-b border-white/[0.08]">
         <span className="text-xs font-bold tracking-widest uppercase" style={{ color: "var(--accent)" }}>
           {number}
         </span>
-        <h2 className="text-base font-bold text-white">{title}</h2>
-        <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.08)" }} />
+        <h2 className="text-base font-semibold text-white">{title}</h2>
       </div>
       {children}
     </div>
@@ -426,7 +425,7 @@ export default function SettingsForm() {
               value={planStartDateIsoYmd}
               min={minPlanStartIsoYmd}
               onChange={(e) => setPlanStartDateIsoYmd(e.target.value)}
-              className={`w-full px-4 py-2.5 rounded-xl text-sm bg-white/[0.06] border border-white/[0.10] text-white outline-none focus:border-teal-500/50 transition-colors ${FORM_CONTROL_TW}`}
+              className={`w-full px-4 py-2.5 rounded-xl text-sm bg-white/[0.06] border border-white/[0.10] text-white outline-none focus:border-teal-400 transition-colors ${FORM_CONTROL_TW}`}
             />
             {planStartDateIsoYmd ? (
               <p className="text-xs mt-1.5" style={{ color: "var(--text-dim)" }}>
@@ -452,7 +451,7 @@ export default function SettingsForm() {
                   className="p-3.5 rounded-xl border cursor-pointer transition-all text-left hover:bg-white/[0.07]"
                   style={{
                     background: experienceLevel === lvl ? "rgba(45,212,191,0.08)" : "var(--card-bg)",
-                    border: experienceLevel === lvl ? "1px solid rgba(45,212,191,0.35)" : "1px solid rgba(255,255,255,0.08)",
+                    border: experienceLevel === lvl ? "2px solid rgba(45,212,191,0.60)" : "1px solid rgba(255,255,255,0.08)",
                   }}
                 >
                   <p className="text-sm font-bold text-white mb-1">{lvl}</p>
@@ -471,7 +470,7 @@ export default function SettingsForm() {
                 className="p-3.5 rounded-xl border cursor-pointer transition-all text-left hover:bg-white/[0.07]"
                 style={{
                   background: goalRace === "HALF" ? "rgba(45,212,191,0.08)" : "var(--card-bg)",
-                  border: goalRace === "HALF" ? "1px solid rgba(45,212,191,0.35)" : "1px solid rgba(255,255,255,0.08)",
+                  border: goalRace === "HALF" ? "2px solid rgba(45,212,191,0.60)" : "1px solid rgba(255,255,255,0.08)",
                 }}
               >
                 <p className="text-sm font-bold text-white mb-1">HALF MARATHON</p>
@@ -483,7 +482,7 @@ export default function SettingsForm() {
                 className="p-3.5 rounded-xl border cursor-pointer transition-all text-left hover:bg-white/[0.07]"
                 style={{
                   background: goalRace === "FULL" ? "rgba(45,212,191,0.08)" : "var(--card-bg)",
-                  border: goalRace === "FULL" ? "1px solid rgba(45,212,191,0.35)" : "1px solid rgba(255,255,255,0.08)",
+                  border: goalRace === "FULL" ? "2px solid rgba(45,212,191,0.60)" : "1px solid rgba(255,255,255,0.08)",
                 }}
               >
                 <p className="text-sm font-bold text-white mb-1">FULL MARATHON</p>
@@ -503,7 +502,7 @@ export default function SettingsForm() {
                   className="p-3.5 rounded-xl border cursor-pointer transition-all text-left hover:bg-white/[0.07]"
                   style={{
                     background: planLengthWeeks === weeks ? "rgba(45,212,191,0.08)" : "var(--card-bg)",
-                    border: planLengthWeeks === weeks ? "1px solid rgba(45,212,191,0.35)" : "1px solid rgba(255,255,255,0.08)",
+                    border: planLengthWeeks === weeks ? "2px solid rgba(45,212,191,0.60)" : "1px solid rgba(255,255,255,0.08)",
                   }}
                 >
                   <p className="text-sm font-bold text-white mb-1">{weeks} WEEKS</p>
@@ -528,7 +527,7 @@ export default function SettingsForm() {
                     className="px-4 py-2.5 rounded-xl text-sm font-semibold cursor-pointer transition-all"
                     style={{
                       background: selected ? "rgba(45,212,191,0.12)" : "rgba(255,255,255,0.05)",
-                      border: selected ? "1px solid rgba(45,212,191,0.35)" : "1px solid rgba(255,255,255,0.08)",
+                      border: selected ? "2px solid rgba(45,212,191,0.60)" : "1px solid rgba(255,255,255,0.08)",
                       color: selected ? "var(--accent)" : "rgba(255,255,255,0.45)",
                     }}
                   >
@@ -560,7 +559,7 @@ export default function SettingsForm() {
                     className="px-4 py-2.5 rounded-xl text-sm font-semibold cursor-pointer transition-all"
                     style={{
                       background: effectiveLongRunDay === day ? "rgba(45,212,191,0.12)" : "rgba(255,255,255,0.05)",
-                      border: effectiveLongRunDay === day ? "1px solid rgba(45,212,191,0.35)" : "1px solid rgba(255,255,255,0.08)",
+                      border: effectiveLongRunDay === day ? "2px solid rgba(45,212,191,0.60)" : "1px solid rgba(255,255,255,0.08)",
                       color: effectiveLongRunDay === day ? "var(--accent)" : "rgba(255,255,255,0.45)",
                     }}
                   >

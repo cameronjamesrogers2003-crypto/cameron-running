@@ -19,10 +19,11 @@ import PlanAdjustments from "./PlanAdjustments";
 import RaceFlagBanner from "./RaceFlagBanner";
 import TodayLabel from "./TodayLabel";
 import PlanUpdatedBanner from "./PlanUpdatedBanner";
-import Logo from "@/components/Logo";
 import PageHeading from "@/components/ui/PageHeading";
 import { RunTypePill } from "@/components/RunTypePill";
+import PlanHistoryPanel from "./PlanHistoryPanel";
 import { runTypeColor } from "@/lib/runTypeStyles";
+import { phaseChipStyle } from "@/lib/phaseChipStyle";
 import { EmptyState } from "@/components/EmptyState";
 import { Calendar } from "lucide-react";
 
@@ -107,24 +108,6 @@ function ratingBadgeStyle(score: number): { background: string; color: string } 
   return { background: "rgba(248,113,113,0.25)", color: "#f87171" };
 }
 
-function phaseChipStyle(phase: Phase): { background: string; color: string } {
-  switch (phase) {
-    case "Base":
-    case "Beginner Base":
-    case "Intermediate Base":
-    case "Advanced Base":
-      return { background: "#1e3a5f", color: "#93c5fd" };
-    case "Half Marathon Build":
-    case "Race Specific":
-      return { background: "#14532d", color: "#86efac" };
-    case "Marathon Build":
-      return { background: "#3b0764", color: "#d8b4fe" };
-    case "Taper":
-      return { background: "#3f3f46", color: "#e4e4e7" };
-    case "Recovery":
-      return { background: "#1a1133", color: "#a78bfa" };
-  }
-}
 
 function adaptationTypeDotColor(type: string): string {
   if (type === "volume_increased" || type === "vdot_improved") return "var(--accent)";
@@ -276,8 +259,7 @@ export default async function ProgramPage({
       <div className="flex-1 min-w-0 w-full space-y-5 sm:space-y-6 lg:pr-4">
 
         {/* Page header */}
-        <div className="flex items-start justify-between mb-5 pt-1.5 gap-3.5">
-          <Logo size="sm" showWordmark={false} />
+        <div className="flex items-start justify-between pt-2 mb-6 gap-3.5">
           <div className="flex-1 min-w-0">
             <PageHeading>Training Program</PageHeading>
             <div className="flex items-center gap-2 mt-1.5 flex-wrap">
@@ -428,7 +410,7 @@ export default async function ProgramPage({
                     {/* Weekly focus label */}
                     {focusLabel && (
                       <p
-                        className="text-[11px] mb-1.5 pl-0 sm:pl-[87px]"
+                        className="text-xs mb-1.5 pl-0 sm:pl-[87px]"
                         style={{ color: "rgba(232,230,224,0.3)" }}
                       >
                         {focusLabel}
@@ -567,17 +549,17 @@ export default async function ProgramPage({
                             >
                               <div
                                 style={{
-                                  height: session.type === "long" ? "4px" : "3px",
+                                  height: "3px",
                                   background: runTypeColor(session.type),
                                   width: "100%",
                                   flexShrink: 0,
                                 }}
                               />
-                              <div className="p-3.5">
+                              <div className="p-4">
                               {/* Day + rating + zone badges */}
                               <div className="flex items-start justify-between gap-1 mb-1.5">
                                 <span
-                                  className="text-[10px] font-semibold uppercase tracking-wider"
+                                  className="text-xs font-semibold uppercase tracking-wider"
                                   style={{ color: "var(--text-muted)" }}
                                 >
                                   {dayLabel}
@@ -585,7 +567,7 @@ export default async function ProgramPage({
                                 <div className="flex flex-col items-end gap-0.5 shrink-0">
                                   {ratingNum != null && (
                                     <span
-                                      className="text-[11px] font-bold px-1.5 py-0.5 rounded"
+                                      className="text-xs font-bold px-1.5 py-0.5 rounded"
                                       style={ratingBadgeStyle(ratingNum)}
                                     >
                                       {ratingNum.toFixed(1)}
@@ -593,7 +575,7 @@ export default async function ProgramPage({
                                   )}
                                   {zoneBadge && (
                                     <span
-                                      className="text-[10px] font-medium px-1.5 py-0.5 rounded"
+                                      className="text-xs font-medium px-1.5 py-0.5 rounded"
                                       style={{
                                         color:      zoneBadge.color,
                                         background: `${zoneBadge.color}22`,
@@ -610,7 +592,7 @@ export default async function ProgramPage({
 
                               {runTypeMismatch && (
                                 <p
-                                  className="text-[10px] mt-1.5 leading-snug rounded px-1.5 py-1"
+                                  className="text-xs mt-1.5 leading-snug rounded px-1.5 py-1"
                                   style={{
                                     background: "rgba(245,158,11,0.14)",
                                     color: "#fbbf24",
@@ -623,20 +605,20 @@ export default async function ProgramPage({
 
                               {/* Effort label */}
                               <p
-                                className="text-[11px] mt-0.5 mb-1.5"
+                                className="text-xs mt-0.5 mb-1.5"
                                 style={{ color: "rgba(232,230,224,0.35)" }}
                               >
                                 {EFFORT_LABEL[session.type]}
                               </p>
 
                               {/* Description */}
-                              <p className="text-xs font-medium text-white mb-0.5 leading-snug">
+                              <p className="text-sm font-semibold text-white mb-0.5 leading-snug">
                                 {session.description}
                               </p>
 
                               {/* Warm-up / cool-down */}
                               <p
-                                className="hidden sm:block text-[11px] mb-1 leading-snug"
+                                className="hidden sm:block text-xs mb-1 leading-snug"
                                 style={{ color: "rgba(232,230,224,0.25)" }}
                               >
                                 {WARMUP_COOLDOWN[session.type]}
@@ -667,7 +649,7 @@ export default async function ProgramPage({
 
                         {extraRuns.length > 0 && (
                           <p
-                            className="text-[11px] leading-relaxed pl-0 sm:pl-0"
+                            className="text-xs leading-relaxed pl-0 sm:pl-0"
                             style={{ color: "rgba(232,230,224,0.38)" }}
                           >
                             <span className="font-medium" style={{ color: "rgba(232,230,224,0.5)" }}>
@@ -687,10 +669,10 @@ export default async function ProgramPage({
                       {/* Total km + volume change */}
                       <div className="w-full sm:w-16 shrink-0 text-right ml-3 pt-0 sm:pt-1 flex sm:block items-center justify-between sm:justify-end gap-2">
                         <p className="text-sm font-bold text-white font-mono">{weekTotalKm.toFixed(1)}</p>
-                        <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>km</p>
+                        <p className="text-xs" style={{ color: "var(--text-muted)" }}>km</p>
                         {volumeChange !== null && (
                           <span
-                            className="text-[10px] font-medium mt-1 inline-block px-1.5 py-0.5 rounded-sm"
+                            className="text-xs font-medium mt-1 inline-block px-1.5 py-0.5 rounded-sm"
                             style={{
                               background: volumeChange > 0
                                 ? "rgba(93,202,165,0.12)"
@@ -722,33 +704,16 @@ export default async function ProgramPage({
             </section>
           );
         })}
-        <details className="rounded-2xl border bg-[var(--card-bg)] border-white/[0.08] backdrop-blur-sm px-4 py-2.5">
-          <summary className="text-xs font-semibold tracking-widest uppercase mb-3 cursor-pointer" style={{ color: "var(--text-label)" }}>
-            Plan History
-          </summary>
-          <div className="mt-2.5 space-y-1.5">
-            {adaptationHistory.map((item) => (
-              <div key={item.id} className="flex items-start gap-3 py-2.5 border-b border-white/[0.06] last:border-0">
-                <p className="text-xs font-mono shrink-0 w-20" style={{ color: "var(--text-dim)" }}>
-                  {new Date(item.createdAt).toLocaleDateString("en-AU")}
-                </p>
-                <span
-                  className="w-2 h-2 rounded-full mt-1.5 shrink-0"
-                  style={{ background: adaptationTypeDotColor(item.type) }}
-                />
-                <div className="min-w-0">
-                  <p className="text-xs text-white">
-                    {item.type} · Week {item.weekNumber}
-                  </p>
-                  <p className="text-xs" style={{ color: "var(--text-muted)" }}>{item.reason}</p>
-                </div>
-              </div>
-            ))}
-            {adaptationHistory.length === 0 && (
-              <p className="text-xs" style={{ color: "var(--text-muted)" }}>No adaptations recorded yet.</p>
-            )}
-          </div>
-        </details>
+        <PlanHistoryPanel
+          items={adaptationHistory.map((item) => ({
+            id: item.id,
+            dateLabel: new Date(item.createdAt).toLocaleDateString("en-AU"),
+            type: item.type,
+            weekNumber: item.weekNumber,
+            reason: item.reason,
+            dotColor: adaptationTypeDotColor(item.type),
+          }))}
+        />
       </div>
 
       {/* ── Side panel (desktop) ─────────────────────────────────────── */}

@@ -29,7 +29,7 @@ export default function PlanAdjustments({ adjustmentSummary, totalWeeksAdded, ne
       >
         <div className="flex items-center gap-2.5">
           <span
-            className="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider"
+            className="text-xs font-bold px-2 py-0.5 rounded-full uppercase tracking-wider"
             style={{ background: "rgba(167,139,250,0.15)", color: "#a78bfa" }}
           >
             Plan adjusted
@@ -65,7 +65,7 @@ export default function PlanAdjustments({ adjustmentSummary, totalWeeksAdded, ne
             </div>
           ))}
           <p
-            className="text-[11px] pt-1"
+            className="text-xs pt-1"
             style={{ color: "rgba(232,230,224,0.3)", borderTop: "1px solid rgba(255,255,255,0.05)", marginTop: "8px", paddingTop: "8px" }}
           >
             Recovery weeks use reduced volume at easy effort to safely return to training.

@@ -9,7 +9,7 @@ import { FORM_CONTROL_TW } from "@/lib/formControlClasses";
 import { RunTypePill } from "@/components/RunTypePill";
 import { runTypeColor } from "@/lib/runTypeStyles";
 import { EmptyState } from "@/components/EmptyState";
-import { Activity } from "lucide-react";
+import { Activity, ArrowUp, ArrowDown } from "lucide-react";
 
 interface Run {
   id: string;
@@ -151,10 +151,9 @@ function RatingBreakdownPanel({ json, rating }: { json: string | null; rating: n
 }
 
 function SortIcon({ active, dir }: { active: boolean; dir: "asc" | "desc" }) {
+  const Icon = dir === "asc" ? ArrowUp : ArrowDown;
   return (
-    <span className="ml-1 inline-block" style={{ opacity: active ? 1 : 0.3 }}>
-      {dir === "asc" ? "↑" : "↓"}
-    </span>
+    <Icon className="ml-1 inline-block w-3 h-3 align-middle" style={{ opacity: active ? 1 : 0.3 }} />
   );
 }
 
@@ -401,7 +400,9 @@ export default function RunsClient() {
               className="group relative"
               style={{
                 borderTop: i > 0 ? "1px solid rgba(255,255,255,0.04)" : undefined,
-                borderLeft: isOpen ? `3px solid ${runTypeColor(run.runType)}` : undefined,
+                borderLeft: isOpen
+                  ? `3px solid ${runTypeColor(run.runType)}`
+                  : `2px solid ${runTypeColor(run.runType)}66`,
               }}
             >
               <div
@@ -456,9 +457,11 @@ export default function RunsClient() {
 
               {ratingOpen && run.rating != null && (
                 <div
-                  className="px-4 pt-2 pb-3.5 border-b border-white/[0.06] bg-white/[0.02]"
+                  className="px-5 py-4 border-b border-white/[0.06]"
                   style={{
-                    borderTop: "1px solid rgba(255,255,255,0.04)",
+                    borderTop: "1px solid rgba(255,255,255,0.08)",
+                    background: "rgba(255,255,255,0.025)",
+                    borderLeft: `3px solid ${runTypeColor(run.runType)}`,
                   }}
                 >
                   <RatingBreakdownPanel json={run.ratingBreakdown} rating={run.rating} />
@@ -534,6 +537,7 @@ export default function RunsClient() {
             <div
               key={run.id}
               className="rounded-2xl border bg-[var(--card-bg)] border-white/[0.08] backdrop-blur-sm overflow-hidden transition-all duration-150 hover:brightness-105 hover:scale-[1.005] active:scale-[0.998]"
+              style={{ borderLeft: `3px solid ${runTypeColor(run.runType)}66` }}
             >
               <div className="p-3.5">
                 <div className="flex items-start justify-between gap-2">
@@ -584,7 +588,7 @@ export default function RunsClient() {
                     <p className="text-white font-medium tabular-nums">{formatDuration(run.durationSecs)}</p>
                   </div>
                 </button>
-                <p className="text-[11px] mt-2" style={{ color: "rgba(156,163,175,0.5)" }}>
+                <p className="text-xs mt-2" style={{ color: "rgba(156,163,175,0.5)" }}>
                   {isOpen ? "Tap to collapse details" : "Tap run or stats for details"}
                 </p>
               </div>
@@ -635,7 +639,7 @@ export default function RunsClient() {
                     className="mt-2 rounded-md px-3 py-2.5 space-y-1 col-span-1"
                     style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}
                   >
-                    <p className="text-[10px] uppercase tracking-wider mb-1.5" style={{ color: "var(--text-muted)" }}>
+                    <p className="text-xs uppercase tracking-wider mb-1.5" style={{ color: "var(--text-muted)" }}>
                       Type classification
                     </p>
                     <p className="text-xs text-white flex items-center gap-2">

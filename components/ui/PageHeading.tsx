@@ -14,7 +14,7 @@ export default function PageHeading({ children, subtitle, className = "" }: Page
   return (
     <div className={className}>
       {subtitle != null && subtitle !== "" ? (
-        <p className="text-sm font-medium mb-1.5" style={{ color: "var(--text-muted)" }}>
+        <p className="text-sm mb-1.5 text-zinc-400">
           {subtitle}
         </p>
       ) : null}

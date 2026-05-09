@@ -178,7 +178,7 @@ export default async function RatingPage() {
   if (!playerRating) {
     return (
       <div className="rating-shell w-full max-w-5xl">
-        <div className="flex items-start justify-between mb-5 pt-1.5 gap-3">
+        <div className="flex items-start justify-between pt-2 mb-6 gap-3">
           <div>
             <PageHeading subtitle="Your athletic profile">Player Rating</PageHeading>
           </div>
@@ -202,7 +202,7 @@ export default async function RatingPage() {
 
   return (
     <div className="rating-shell w-full max-w-5xl">
-      <div className="flex items-start justify-between mb-5 pt-1.5 gap-3">
+      <div className="flex items-start justify-between pt-2 mb-6 gap-3">
         <div>
           <PageHeading subtitle="Your athletic profile">Player Rating</PageHeading>
         </div>
@@ -211,6 +211,9 @@ export default async function RatingPage() {
         </p>
       </div>
 
+      <p className="text-xs font-semibold tracking-widest uppercase mb-3" style={{ color: "var(--text-label)" }}>
+        Running Card
+      </p>
       <div className="w-full max-w-[780px] mx-auto mb-6 flex justify-center px-3 sm:px-0">
         <PlayerCard
           ovr={ovr}
@@ -290,7 +293,7 @@ export default async function RatingPage() {
         <span>World Class</span>
       </div>
 
-      <div className="rounded-2xl p-3.5 mt-3.5" style={{ background: tier.accentDim, border: `1px solid ${tier.borderColor}` }}>
+      <div className="rounded-2xl p-4 mt-3.5" style={{ background: tier.accentDim, border: `1px solid ${tier.borderColor}` }}>
         <p className="text-sm font-semibold" style={{ color: tier.accentColor }}>
           {tier.name}
         </p>
@@ -308,7 +311,7 @@ export default async function RatingPage() {
       <p className="text-xs font-semibold tracking-widest uppercase mt-6 mb-2" style={{ color: "var(--text-label)" }}>
         Recent Runs
       </p>
-      <div className="rounded-2xl border bg-[var(--card-bg)] border-white/[0.08] p-3.5">
+      <div className="rounded-2xl border bg-[var(--card-bg)] border-white/[0.08] p-4">
         {recentRuns.length === 0 && (
           <p className="text-sm text-center py-3" style={{ color: "var(--text-muted)" }}>
             No rated runs yet.
@@ -317,7 +320,7 @@ export default async function RatingPage() {
         {recentRuns.map((run) => {
           const runType = inferRunType(run as StatActivity, settings);
           const score = run.rating ?? 0;
-          const ratingColor = score >= 7 ? "#4ade80" : score >= 5.5 ? "var(--accent)" : score >= 4 ? "#f5b454" : "#f87171";
+          const ratingColor = score >= 8.0 ? "#4ade80" : score >= 6.0 ? "#f59e0b" : score >= 4.0 ? "#f97316" : "#ef4444";
           return (
             <div key={run.id} className="flex items-center gap-3 py-2.5 border-b border-white/[0.06] last:border-0">
               <RunTypePill type={runType} size="sm" />
