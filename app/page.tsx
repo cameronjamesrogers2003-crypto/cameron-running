@@ -531,17 +531,19 @@ export default async function Dashboard({
           </div>
         </div>
 
-        <PlayerCard
-          ovr={playerRating?.overall ?? 1}
-          name={getDisplayName(settings).toUpperCase()}
-          spd={playerRating?.speed ?? 1}
-          end={playerRating?.endurance ?? 1}
-          con={playerRating?.consistency ?? 1}
-          eff={playerRating?.hrEfficiency ?? 1}
-          tgh={playerRating?.toughness ?? 1}
-          prevOvr={playerRating?.prevOverall}
-          mode="dashboard"
-        />
+        <div className="w-full max-w-[680px] mb-6">
+          <PlayerCard
+            ovr={playerRating?.overall ?? 1}
+            name={getDisplayName(settings).toUpperCase()}
+            spd={playerRating?.speed ?? 1}
+            end={playerRating?.endurance ?? 1}
+            con={playerRating?.consistency ?? 1}
+            eff={playerRating?.hrEfficiency ?? 1}
+            tgh={playerRating?.toughness ?? 1}
+            prevOvr={playerRating?.prevOverall}
+            mode="dashboard"
+          />
+        </div>
 
         {/* Today's plan — full width on small screens (sidebar is lg+) */}
         <div className="lg:hidden w-full">

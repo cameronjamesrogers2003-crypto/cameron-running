@@ -216,7 +216,7 @@ export default async function RatingPage() {
         </p>
       </div>
 
-      <div className="w-full max-w-[420px] mx-auto mb-6 flex justify-center">
+      <div className="w-full max-w-[780px] mx-auto mb-6 flex justify-center px-3 sm:px-0">
         <PlayerCard
           ovr={ovr}
           name={getDisplayName(settings).toUpperCase()}

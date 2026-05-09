@@ -34,10 +34,15 @@ function tierBandProgress(rank: number, tier: TierConfig): number {
   return Math.min(100, Math.max(0, ((rank - tier.min) / span) * 100));
 }
 
-const LEFT_PANEL = "relative flex flex-col flex-1 min-w-0 bg-black";
-/** Art column — solid black (PNG blends via mix-blend-screen on the img only). */
-const ART_PANEL_BASE =
+const INNER_BASE = "relative rounded-[calc(1.5rem-1px)] bg-black overflow-hidden";
+const ART_PANEL =
   "relative flex shrink-0 flex-col bg-black overflow-hidden border-t border-white/[0.06] md:border-t-0 md:border-l md:border-white/[0.06]";
+const STATS_ORDER = ["SPD", "END", "CON", "EFF", "TGH"] as const;
+
+function orderedStats(stats: readonly TierCardStat[]): TierCardStat[] {
+  const byKey = Object.fromEntries(stats.map((s) => [s.key, s]));
+  return STATS_ORDER.map((k) => byKey[k]).filter(Boolean) as TierCardStat[];
+}
 
 function TierCard({
   tier,
@@ -79,7 +84,7 @@ function TierCard({
   const accentIcon =
     badge ?? (
       <Trophy
-        className="w-4 h-4 sm:w-5 sm:h-5 shrink-0 opacity-90"
+        className="w-4 h-4 shrink-0 opacity-90 md:w-[1.05rem]"
         style={{
           color: tier.accentColor,
           filter: `drop-shadow(0 0 10px ${tier.accentColor}55)`,
@@ -103,114 +108,226 @@ function TierCard({
 
   const isCompact = variant === "compact";
 
-  const artShellClass = isCompact
-    ? `${ART_PANEL_BASE} min-h-[180px] sm:min-h-[200px] md:min-h-0 md:flex-[0_0_42%] md:max-w-[46%]`
-    : `${ART_PANEL_BASE} min-h-[220px] sm:min-h-[260px] md:min-h-0 md:flex-[0_0_44%] md:max-w-[48%]`;
+  const imageClassCompactWidget = [
+    "pointer-events-none select-none mix-blend-screen",
+    "h-auto w-auto max-h-[200px] max-w-[min(100%,200px)]",
+    "md:max-h-[min(260px,calc(100%-1rem))] md:max-w-[min(100%,220px)]",
+    "object-contain object-center",
+  ].join(" ");
 
-  const imageClass = isCompact
-    ? [
-        "pointer-events-none select-none mix-blend-screen",
-        "h-auto w-auto max-h-[min(240px,48vh)] max-w-[min(100%,220px)] sm:max-h-[260px] sm:max-w-[240px]",
-        "md:max-h-[min(288px,calc(100%-2rem))] md:max-w-[min(100%,280px)]",
-        "object-contain object-center",
-      ].join(" ")
-    : [
-        "pointer-events-none select-none mix-blend-screen",
-        "h-auto w-auto max-h-[min(340px,55vh)] max-w-[min(100%,300px)] sm:max-h-[380px] sm:max-w-[340px]",
-        "md:max-h-[min(420px,calc(100%-2.5rem))] md:max-w-[min(100%,380px)]",
-        "object-contain object-center",
-      ].join(" ");
+  const imageClassFullHero = [
+    "pointer-events-none select-none mix-blend-screen",
+    "h-auto w-auto max-h-[min(340px,calc(50vh-80px))] max-w-[min(100%,360px)]",
+    "sm:max-h-[380px] sm:max-w-[380px]",
+    "object-contain object-center",
+  ].join(" ");
 
-  const imageSizes = isCompact
-    ? "(max-width: 768px) 260px, 300px"
-    : "(max-width: 768px) 340px, 400px";
+  const artworkCompact = (
+    <Image
+      src={tier.cardArt}
+      width={920}
+      height={560}
+      alt=""
+      loading="lazy"
+      sizes="(max-width: 768px) 220px, 260px"
+      className={imageClassCompactWidget}
+    />
+  );
 
-  const artwork = (
+  const artworkFull = (
     <Image
       src={tier.cardArt}
       width={920}
       height={560}
       alt=""
       priority={variant === "full"}
-      loading={variant === "full" ? undefined : "lazy"}
-      sizes={imageSizes}
-      className={imageClass}
+      sizes="(max-width: 768px) 300px, 400px"
+      className={imageClassFullHero}
     />
   );
 
-  const runningCardRow = (
-    <div className="flex items-center gap-2.5 min-w-0">
-      {accentIcon}
-      <span className="text-[10px] font-bold tracking-[0.26em] uppercase text-[var(--text-label)] truncate">
-        Running card
+  const rowStats = orderedStats(stats);
+  const [s0, s1, s2, s3, s4] = rowStats;
+
+  const tierBadgeChip = (
+    <div
+      className="inline-flex items-center gap-1.5 self-start rounded-lg border px-2.5 py-1"
+      style={{ borderColor: `${tier.accentColor}55`, background: `${tier.accentColor}14` }}
+    >
+      <span className="text-[10px] font-bold uppercase tracking-wider md:text-[11px]" style={{ color: tier.accentColor }}>
+        {tier.name}
       </span>
     </div>
   );
 
-  const ovrBlockCompact = (
-    <div className="rounded-xl border border-white/[0.1] bg-black px-3 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
-      <div className="flex flex-wrap items-end gap-3">
+  const deltaCompact =
+    prevRank !== undefined && rank !== prevRank ? (
+      <span
+        className="rounded-md border border-white/[0.08] bg-white/[0.06] px-2 py-0.5 text-[11px] font-bold whitespace-nowrap"
+        style={{ color: rank > prevRank ? "#4ade80" : "#f87171" }}
+      >
+        {rank > prevRank ? "+" : ""}
+        {rank - prevRank} OVR
+      </span>
+    ) : null;
+
+  const deltaFull =
+    prevRank !== undefined && rank !== prevRank ? (
+      <p
+        className="rounded-lg border border-white/[0.08] bg-white/[0.06] px-2.5 py-1.5 text-sm font-bold inline-block"
+        style={{ color: rank > prevRank ? "#4ade80" : "#f87171" }}
+      >
+        {rank > prevRank ? "+" : ""}
+        {rank - prevRank} since last sync
+      </p>
+    ) : null;
+
+  const statCell = (s: TierCardStat | undefined) =>
+    s ? (
+      <div className={`flex min-w-0 items-center justify-between gap-2 border-b border-white/[0.07] py-1.5 last:border-b-0`}>
+        <span className="truncate text-sm text-white/85">{s.fullName}</span>
+        <span className="shrink-0 text-base font-bold tabular-nums font-mono" style={{ color: s.color }}>
+          {s.value}
+        </span>
+      </div>
+    ) : null;
+
+  const compactInner = (
+    <div className="relative z-[2]">
+      {/* Mobile stack */}
+      <div className="flex max-h-[min(520px,calc(100vh-240px))] flex-col gap-3 p-3.5 sm:p-4 md:hidden">
+        <div className="min-w-0">
+          <p className="truncate text-sm font-black tracking-tight text-white">{name}</p>
+          <div className="mt-1.5">{tierBadgeChip}</div>
+          <div className="mt-2 flex flex-wrap items-end gap-2">
+            <span
+              className="font-black leading-none tabular-nums tracking-tight"
+              style={{ color: tier.ovrColor, fontSize: "2rem" }}
+            >
+              {showRank}
+            </span>
+            {deltaCompact}
+          </div>
+        </div>
+        <div className="grid shrink-0 grid-cols-2 gap-x-3 gap-y-0">
+          {statCell(s0)}
+          {statCell(s1)}
+          {statCell(s2)}
+          {statCell(s3)}
+          <div className="col-span-2">{statCell(s4)}</div>
+        </div>
+        <div className={`${ART_PANEL} flex min-h-[140px] flex-1 items-center justify-center border-t p-3`} style={accentVars}>
+          {artworkCompact}
+        </div>
+      </div>
+
+        {/* Dashboard grid — md+ */}
+        <div
+          className="relative z-[2] hidden max-h-[320px] min-h-[280px] grid-cols-[minmax(0,1fr)_minmax(148px,36%)] grid-rows-[auto,minmax(0,1fr)] gap-x-3 gap-y-2 overflow-hidden px-4 py-3 md:grid"
+        >
+          <div className="col-start-1 row-start-1 flex min-h-0 min-w-0 flex-col gap-1.5 self-start pb-1">
+            <p className="truncate text-sm font-black tracking-tight text-white">{name}</p>
+            {tierBadgeChip}
+            <div className="mt-1 flex flex-wrap items-end gap-2">
+              <span
+                className="font-black leading-none tabular-nums tracking-tight"
+                style={{ color: tier.ovrColor, fontSize: "2rem" }}
+              >
+                {showRank}
+              </span>
+              {deltaCompact}
+            </div>
+          </div>
+
+          <div className="col-start-1 row-start-2 min-h-0 min-w-0 overflow-auto pr-1">
+            <div className="grid min-h-0 grid-cols-2 content-start gap-x-3">
+              {statCell(s0)}
+              {statCell(s1)}
+              {statCell(s2)}
+              {statCell(s3)}
+              <div className="col-span-2">{statCell(s4)}</div>
+            </div>
+          </div>
+
+          <div
+            className="col-start-2 row-span-2 row-start-1 flex items-center justify-center border-l border-white/[0.06] p-2"
+            style={accentVars}
+          >
+            {artworkCompact}
+          </div>
+        </div>
+    </div>
+  );
+
+  const fullInner = (
+    <div className="relative z-[2] grid min-h-0 grid-cols-1 gap-5 p-5 sm:p-6 md:min-h-[380px] md:grid-cols-[minmax(0,45%)_minmax(0,55%)] md:items-stretch md:gap-6 lg:p-7">
+      {/* Left — identity + OVR + XP */}
+      <div className="flex min-h-0 flex-col gap-4 md:h-full md:min-h-0">
+        <div className="flex items-center gap-2 min-w-0">
+          {accentIcon}
+          <span className="text-[10px] font-bold tracking-[0.22em] uppercase text-[var(--text-label)] truncate">
+            Running card
+          </span>
+        </div>
+        <p className="text-sm font-black tracking-wide text-white break-words sm:text-base">{name}</p>
+
         <div>
-          <p className="text-[9px] font-bold tracking-[0.22em] text-[var(--text-dim)] mb-1">RATING</p>
           <p
-            className="text-[2.35rem] sm:text-[2.65rem] font-black leading-none font-mono tabular-nums tracking-tight"
-            style={{ color: tier.ovrColor }}
+            className="font-black leading-[0.95] font-mono tabular-nums tracking-tight"
+            style={{ color: tier.ovrColor, fontSize: "clamp(2.75rem,8vw,4.25rem)" }}
           >
             {showRank}
           </p>
-          <p className="text-[9px] font-bold tracking-[0.2em] text-[var(--text-label)] mt-1">OVR</p>
+          <p className="mt-2 text-[10px] font-bold tracking-[0.2em] text-[var(--text-label)]">RANK · OVR</p>
         </div>
-        {prevRank !== undefined && rank !== prevRank && (
-          <p
-            className="text-[11px] font-bold pb-0.5 px-2 py-1 rounded-md bg-white/[0.06] border border-white/[0.08]"
-            style={{ color: rank > prevRank ? "#4ade80" : "#f87171" }}
-          >
-            {rank > prevRank ? "+" : ""}
-            {rank - prevRank} OVR
-          </p>
+
+        {tierBadgeChip}
+
+        {deltaFull}
+
+        {showXp && (
+          <div className="rounded-xl border border-white/[0.1] bg-black px-4 py-3 space-y-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+            <div className="flex justify-between items-baseline gap-2 text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--text-label)]">
+              <span>XP track</span>
+              <span className="text-white/70 normal-case tracking-normal font-semibold text-right">
+                {pointsToNext} pts to {nextTierName}
+              </span>
+            </div>
+            <div className="tier-card-stat-track overflow-hidden border border-white/[0.08]">
+              <div
+                className="h-full rounded-full transition-[width] duration-700 ease-out"
+                style={{
+                  width: `${bandPct}%`,
+                  background: tier.accentColor,
+                  boxShadow: `0 0 16px ${tier.accentColor}44`,
+                }}
+              />
+            </div>
+            <p className="text-[11px] text-[var(--text-dim)] leading-snug">
+              Progress within {tier.name} band ({tier.min}–{tier.max} OVR)
+            </p>
+          </div>
         )}
       </div>
-    </div>
-  );
 
-  const ovrBlockFull = (
-    <div className="rounded-2xl border border-white/[0.1] bg-black px-4 py-3 sm:px-5 sm:py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] max-w-md">
-      <div className="flex flex-wrap items-start gap-5 sm:gap-6">
-        <div className="min-w-0">
-          <p className="text-[10px] font-bold tracking-[0.22em] text-[var(--text-dim)] mb-1.5">OVERALL</p>
-          <p
-            className="text-[clamp(2.6rem,7vw,4.25rem)] lg:text-[4.5rem] xl:text-[4.85rem] font-black leading-[0.92] font-mono tabular-nums tracking-tight"
-            style={{ color: tier.ovrColor }}
-          >
-            {showRank}
-          </p>
-          <p className="text-[10px] font-bold tracking-[0.2em] text-[var(--text-label)] mt-2">RANK · OVR</p>
+      {/* Right — art upper, stats lower */}
+      <div className={`${ART_PANEL} flex min-h-[320px] flex-col rounded-none md:h-full md:min-h-0`} style={accentVars}>
+        <div className="flex min-h-[45%] flex-1 items-center justify-center px-4 py-4 md:py-6">
+          {artworkFull}
         </div>
-        <div className="flex-1 min-w-[9rem] pt-1 border-l border-white/[0.1] pl-5 sm:pl-6">
-          <p className="text-[11px] font-semibold text-white/75 leading-snug">
-            <span className="text-[var(--text-label)] uppercase tracking-[0.14em] text-[10px] font-bold block mb-1">
-              Tier
-            </span>
-            <span style={{ color: tier.accentColor }}>{tier.name}</span>
-          </p>
-          {prevRank !== undefined && rank !== prevRank && (
-            <p
-              className="text-sm font-bold mt-3 px-2.5 py-1.5 rounded-lg inline-block bg-white/[0.06] border border-white/[0.08]"
-              style={{ color: rank > prevRank ? "#4ade80" : "#f87171" }}
+        <div className="flex shrink-0 flex-col border-t border-white/[0.08] px-4 py-3 md:px-5 md:pb-5">
+          {rowStats.map((attr) => (
+            <div
+              key={attr.key}
+              className="flex items-center justify-between gap-4 border-b border-white/[0.08] py-3 last:border-b-0 first:pt-0"
             >
-              {rank > prevRank ? "+" : ""}
-              {rank - prevRank} since last sync
-            </p>
-          )}
+              <span className="min-w-0 flex-1 text-base font-semibold text-white/90">{attr.fullName}</span>
+              <span className="shrink-0 text-lg font-black tabular-nums font-mono" style={{ color: attr.color }}>
+                {attr.value}
+              </span>
+            </div>
+          ))}
         </div>
-      </div>
-    </div>
-  );
-
-  const heroArtSlot = (
-    <div className={artShellClass} style={accentVars}>
-      <div className="flex flex-1 min-h-0 w-full items-center justify-center px-4 py-5 sm:px-5 sm:py-6 md:p-6">
-        {artwork}
       </div>
     </div>
   );
@@ -223,125 +340,9 @@ function TierCard({
       onMouseEnter={onShellEnter}
       onMouseLeave={onShellLeave}
     >
-      <div
-        className="relative rounded-[calc(1.5rem-1px)] bg-black overflow-hidden"
-        style={{ boxShadow: `inset 0 1px 0 ${tier.rimLight}` }}
-      >
+      <div className={INNER_BASE} style={{ boxShadow: `inset 0 1px 0 ${tier.rimLight}` }}>
         {shimmerLayer}
-
-        {isCompact ? (
-          <div className="relative z-[2] flex flex-col md:flex-row md:items-stretch min-h-0">
-            <div className={`${LEFT_PANEL} gap-3.5 p-4 sm:p-5 md:pr-5 md:py-6`}>
-              {runningCardRow}
-              <p className="text-sm sm:text-[15px] font-black tracking-[0.05em] text-white break-words">{name}</p>
-              <p
-                className="text-[11px] sm:text-xs font-bold uppercase tracking-[0.18em]"
-                style={{ color: tier.accentColor }}
-              >
-                {tier.name}
-              </p>
-              {ovrBlockCompact}
-              <div className="rounded-full tier-card-stat-track max-w-xs overflow-hidden border border-white/[0.08]">
-                <div
-                  className="h-full rounded-full transition-[width] duration-700 ease-out"
-                  style={{
-                    width: `${bandPct}%`,
-                    background: tier.accentColor,
-                    boxShadow: `0 0 14px ${tier.accentColor}44`,
-                  }}
-                />
-              </div>
-              <div className="flex flex-col gap-2.5 pt-2">
-                {stats.map((attr) => (
-                  <div
-                    key={attr.key}
-                    className="flex items-center justify-between gap-3 min-w-0 rounded-lg border border-white/[0.08] px-3 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] bg-black"
-                  >
-                    <p className="text-base font-semibold text-white/90 truncate min-w-0 leading-snug">{attr.fullName}</p>
-                    <p
-                      className="text-xl font-black font-mono tabular-nums shrink-0 leading-none"
-                      style={{ color: attr.color }}
-                    >
-                      {attr.value}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
-            {heroArtSlot}
-          </div>
-        ) : (
-          <div className="relative z-[2] flex flex-col md:flex-row md:items-stretch min-h-[380px] md:min-h-[420px]">
-            <div className={`${LEFT_PANEL} gap-4 sm:gap-5 p-5 sm:p-6 lg:p-8 lg:pr-6`}>
-              {runningCardRow}
-              <p className="text-lg sm:text-xl font-black tracking-[0.06em] text-white break-words">{name}</p>
-
-              {ovrBlockFull}
-
-              {showXp && (
-                <div className="rounded-xl border border-white/[0.1] bg-black px-4 py-3 space-y-2.5 max-w-lg shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
-                  <div className="flex justify-between items-baseline gap-2 text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--text-label)]">
-                    <span>XP track</span>
-                    <span className="text-white/70 normal-case tracking-normal font-semibold text-right">
-                      {pointsToNext} pts to {nextTierName}
-                    </span>
-                  </div>
-                  <div className="tier-card-stat-track overflow-hidden border border-white/[0.08]">
-                    <div
-                      className="h-full rounded-full transition-[width] duration-700 ease-out"
-                      style={{
-                        width: `${bandPct}%`,
-                        background: tier.accentColor,
-                        boxShadow: `0 0 16px ${tier.accentColor}44`,
-                      }}
-                    />
-                  </div>
-                  <p className="text-[11px] text-[var(--text-dim)] leading-snug">
-                    Progress within {tier.name} band ({tier.min}–{tier.max} OVR)
-                  </p>
-                </div>
-              )}
-
-              <div className="mt-auto pt-6 border-t border-white/[0.08] space-y-3 w-full">
-                <p className="text-[10px] font-bold tracking-[0.22em] uppercase text-[var(--text-label)] mb-0.5">
-                  Attributes
-                </p>
-                {stats.map((attr, index) => {
-                  const width = Math.min(100, Math.max(0, (attr.value / 99) * 100));
-                  return (
-                    <div
-                      key={attr.key}
-                      className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 min-w-0 rounded-xl border border-white/[0.08] bg-black px-3 py-3 sm:px-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]"
-                    >
-                      <div className="flex shrink-0 items-baseline justify-between gap-4 sm:flex-col sm:justify-center sm:w-[12rem] lg:w-[13rem]">
-                        <p className="text-base font-semibold text-white/90 leading-tight">{attr.fullName}</p>
-                        <p
-                          className="text-xl font-black font-mono tabular-nums text-right lg:text-[1.35rem]"
-                          style={{ color: attr.color }}
-                        >
-                          {attr.value}
-                        </p>
-                      </div>
-                      <div className="flex-1 min-w-0 tier-card-stat-track h-3 overflow-hidden border border-white/[0.06] rounded-full">
-                        <div
-                          className="h-full rounded-full transition-[width] duration-700 ease-out gpu-bar-grow"
-                          style={{
-                            width: `${width}%`,
-                            background: attr.color,
-                            transitionDelay: `${index * 55}ms`,
-                            boxShadow: "0 0 12px rgba(255,255,255,0.12)",
-                          }}
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {heroArtSlot}
-          </div>
-        )}
+        {isCompact ? compactInner : fullInner}
       </div>
     </div>
   );
