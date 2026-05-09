@@ -6,6 +6,7 @@ import {
   isActivityOnOrAfterPlanStart,
 } from "@/lib/planUtils";
 import { sameDayAEST } from "@/lib/dateUtils";
+import { getDynamicLongRunThresholdKm } from "@/lib/longRunThreshold";
 import { DEFAULT_SETTINGS, formatPace, type UserSettings } from "@/lib/settings";
 
 export type { RunType };
@@ -164,7 +165,7 @@ function resolveRatingRunType(
   activity: StatActivity,
   intervalPaceMaxSec: number,
   tempoPaceMaxSec: number,
-  longRunThresholdKm: number,
+  settings: UserSettings,
 ): RunType {
   const stored = activity.classifiedRunType;
   if (
@@ -180,7 +181,7 @@ function resolveRatingRunType(
     activity.distanceKm,
     intervalPaceMaxSec,
     tempoPaceMaxSec,
-    longRunThresholdKm,
+    getDynamicLongRunThresholdKm(settings),
   );
 }
 
@@ -191,12 +192,12 @@ export function calculateRunRating(
   recentActivities: StatActivity[],
 ): RunRatingResult {
   const s = settings;
-  const longRunThresholdKm = s.longRunThresholdKm ?? 15;
+  const longRunThresholdKm = getDynamicLongRunThresholdKm(s);
   const runType = resolveRatingRunType(
     activity,
     s.intervalPaceMaxSec,
     s.tempoPaceMaxSec,
-    longRunThresholdKm,
+    s,
   );
   const usedStoredClassification =
     activity.classifiedRunType === "easy"
@@ -288,7 +289,7 @@ export function calculateRunRating(
         r,
         s.intervalPaceMaxSec,
         s.tempoPaceMaxSec,
-        longRunThresholdKm,
+        s,
       );
       return rType === runType;
     })
@@ -401,7 +402,7 @@ export function inferRunType(run: StatActivity, settings: UserSettings = DEFAULT
     run.distanceKm,
     settings.intervalPaceMaxSec,
     settings.tempoPaceMaxSec,
-    settings.longRunThresholdKm ?? 15,
+    getDynamicLongRunThresholdKm(settings),
   );
 }
 
