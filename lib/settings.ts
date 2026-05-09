@@ -43,6 +43,8 @@ export interface UserSettings {
   intervalPaceMaxSec: number;
   longPaceMinSec: number;
   longPaceMaxSec: number;
+  /** Optional km threshold for pace-only long classification (not persisted in DB yet). */
+  longRunThresholdKm?: number | null;
   firstName: string | null;
   nickname: string | null;
   lastCutbackInsertedWeek: number | null;
