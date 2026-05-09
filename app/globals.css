@@ -83,75 +83,8 @@ body {
   100% { transform: translateX(200%) skewX(-15deg); }
 }
 
-/* Collectible tier card shell — smooth outer glow + lift (box-shadow only; no filter on artwork) */
-.tier-card-shell {
-  box-shadow: var(--tier-glow-rest, none);
-  transform: translateZ(0);
-  transition:
-    box-shadow 0.65s cubic-bezier(0.22, 1, 0.36, 1),
-    transform 0.65s cubic-bezier(0.22, 1, 0.36, 1);
-  will-change: transform;
-}
-
-.tier-card-shell:hover {
-  box-shadow: var(--tier-glow-hover, var(--tier-glow-rest, none));
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .tier-card-shell {
-    transition-duration: 0.01ms;
-  }
-
-  .tier-card-shell:hover {
-    transform: none !important;
-  }
-}
-
 .gpu-bar-grow {
   transform: translateZ(0);
-}
-
-/* Tier card — matte vignette + hero art zone (uses --tier-accent from inline style) */
-.tier-card-inner-vignette {
-  pointer-events: none;
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  box-shadow: inset 0 0 100px rgba(0, 0, 0, 0.45);
-  z-index: 1;
-}
-
-.tier-card-art-zone {
-  position: relative;
-  isolation: isolate;
-  --tier-accent-mix: color-mix(in srgb, var(--tier-accent, #ffffff) 28%, transparent);
-  --tier-accent-soft: color-mix(in srgb, var(--tier-accent, #ffffff) 14%, transparent);
-}
-
-.tier-card-art-zone__bg {
-  pointer-events: none;
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  background:
-    linear-gradient(105deg, #050505 0%, rgba(5, 5, 5, 0.65) 28%, transparent 52%),
-    radial-gradient(ellipse 110% 85% at 92% 88%, var(--tier-accent-mix), transparent 58%),
-    radial-gradient(ellipse 70% 58% at 68% 36%, rgba(255, 255, 255, 0.06), transparent 52%),
-    linear-gradient(180deg, rgba(0, 0, 0, 0.15) 0%, transparent 42%, rgba(0, 0, 0, 0.5) 100%);
-}
-
-.tier-card-art-zone__floor {
-  pointer-events: none;
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  background: linear-gradient(
-    180deg,
-    transparent 0%,
-    transparent 48%,
-    color-mix(in srgb, var(--tier-accent, #ffffff) 8%, #000000) 100%
-  );
-  opacity: 0.85;
 }
 
 .tier-card-stat-track {

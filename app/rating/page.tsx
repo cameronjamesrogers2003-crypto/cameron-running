@@ -119,11 +119,11 @@ function playerAttributeExplanation(
 }
 
 const ATTRIBUTE_META = [
-  { key: "speed", shortName: "SPD", fullName: "Speed", color: "var(--c-interval)" },
-  { key: "endurance", shortName: "END", fullName: "Endurance", color: "var(--c-long)" },
-  { key: "consistency", shortName: "CON", fullName: "Consistency", color: "var(--c-tempo)" },
-  { key: "hrEfficiency", shortName: "EFF", fullName: "HR Efficiency", color: "var(--c-easy)" },
-  { key: "toughness", shortName: "TGH", fullName: "Toughness", color: "#f5b454" },
+  { key: "speed", fullName: "Speed", color: "var(--c-interval)" },
+  { key: "endurance", fullName: "Endurance", color: "var(--c-long)" },
+  { key: "consistency", fullName: "Consistency", color: "var(--c-tempo)" },
+  { key: "hrEfficiency", fullName: "HR Efficiency", color: "var(--c-easy)" },
+  { key: "toughness", fullName: "Toughness", color: "#f5b454" },
 ] as const;
 
 const TIER_MESSAGES: Record<string, string> = {
@@ -216,7 +216,7 @@ export default async function RatingPage() {
         </p>
       </div>
 
-      <div className="w-full max-w-2xl mx-auto mb-6">
+      <div className="w-full max-w-[420px] mx-auto mb-6 flex justify-center">
         <PlayerCard
           ovr={ovr}
           name={getDisplayName(settings).toUpperCase()}
@@ -246,17 +246,14 @@ export default async function RatingPage() {
               key={attr.key}
               className={`rounded-2xl border bg-white/[0.04] border-white/[0.08] p-4 ${idx === 4 ? "md:col-span-2 lg:col-span-1 lg:col-start-2" : ""}`}
             >
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <div style={{ width: 8, height: 8, borderRadius: "50%", background: attr.color }} />
-                  <span className="text-xs font-bold tracking-widest uppercase" style={{ color: "var(--text-label)" }}>
-                    {attr.shortName}
-                  </span>
-                  <span className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+              <div className="flex items-center justify-between mb-3 gap-3">
+                <div className="flex items-center gap-2 min-w-0">
+                  <div className="shrink-0" style={{ width: 8, height: 8, borderRadius: "50%", background: attr.color }} />
+                  <span className="text-base font-semibold text-white truncate" title={attr.fullName}>
                     {attr.fullName}
                   </span>
                 </div>
-                <span className="text-2xl font-black font-mono tabular-nums" style={{ color: attr.color }}>
+                <span className="text-xl font-black font-mono tabular-nums shrink-0" style={{ color: attr.color }}>
                   {score}
                 </span>
               </div>

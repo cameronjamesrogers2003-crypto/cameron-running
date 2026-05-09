@@ -1,6 +1,6 @@
 /**
- * Shared collectible tier outer glow — softer spread than earlier iterations for a premium look.
- * Applied via CSS variables on `.tier-card-shell` (see globals.css).
+ * Shared collectible tier outer glow strings (legacy / optional use).
+ * Tier cards now use `lib/tierGlowColors.ts` + inline shell shadow in `TierCard`.
  */
 export function tierGlowPair(
   ring: string,
