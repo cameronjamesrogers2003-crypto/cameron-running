@@ -1,0 +1,19 @@
+/**
+ * Shared collectible tier outer glow — softer spread than earlier iterations for a premium look.
+ * Applied via CSS variables on `.tier-card-shell` (see globals.css).
+ */
+export function tierGlowPair(
+  ring: string,
+  auraMid: string,
+  auraWide: string,
+  ringHover: string,
+  auraMidHover: string,
+  auraWideHover: string,
+): { glowShadow: string; glowShadowHover: string } {
+  const lift = "0 10px 32px rgba(0,0,0,0.52)";
+  const liftHover = "0 14px 40px rgba(0,0,0,0.58)";
+  return {
+    glowShadow: `0 0 0 1px ${ring}, ${lift}, 0 0 36px ${auraMid}, 0 0 56px ${auraWide}`,
+    glowShadowHover: `0 0 0 1px ${ringHover}, ${liftHover}, 0 0 44px ${auraMidHover}, 0 0 72px ${auraWideHover}`,
+  };
+}

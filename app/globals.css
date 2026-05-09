@@ -83,6 +83,34 @@ body {
   100% { transform: translateX(200%) skewX(-15deg); }
 }
 
+/* Collectible tier card shell — smooth outer glow + lift (box-shadow only; no filter on artwork) */
+.tier-card-shell {
+  box-shadow: var(--tier-glow-rest, none);
+  transform: translateZ(0);
+  transition:
+    box-shadow 0.65s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.65s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
+}
+
+.tier-card-shell:hover {
+  box-shadow: var(--tier-glow-hover, var(--tier-glow-rest, none));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tier-card-shell {
+    transition-duration: 0.01ms;
+  }
+
+  .tier-card-shell:hover {
+    transform: none !important;
+  }
+}
+
+.gpu-bar-grow {
+  transform: translateZ(0);
+}
+
 @keyframes pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.5; }

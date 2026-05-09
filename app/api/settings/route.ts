@@ -54,7 +54,7 @@ function isDay(value: unknown): value is Day {
   return value === "mon" || value === "tue" || value === "wed" || value === "thu" || value === "fri" || value === "sat" || value === "sun";
 }
 
-export async function GET(_req: NextRequest) {
+export async function GET() {
   try {
     const row = await prisma.userSettings.upsert({
       where:  { id: 1 },

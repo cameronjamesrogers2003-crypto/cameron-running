@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { startTransition, useEffect, useState } from "react";
 import { format } from "date-fns";
 
 interface SyncButtonProps {
@@ -17,8 +17,10 @@ export default function SyncButton({ lastSynced, stravaConnected }: SyncButtonPr
     const storedWarning = window.sessionStorage.getItem("syncPlayerRatingWarning");
     if (!storedWarning) return;
     window.sessionStorage.removeItem("syncPlayerRatingWarning");
-    setResult("Sync completed");
-    setWarning(storedWarning);
+    startTransition(() => {
+      setResult("Sync completed");
+      setWarning(storedWarning);
+    });
   }, []);
 
   async function handleSync() {

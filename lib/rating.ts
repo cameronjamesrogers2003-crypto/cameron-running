@@ -210,7 +210,6 @@ export function calculateRunRating(
   recentActivities: StatActivity[],
 ): RunRatingResult {
   const s = settings;
-  const longRunThresholdKm = getVdotFallbackLongRunThresholdKm(s);
   const runType = resolveRatingRunType(
     activity,
     s.intervalPaceMaxSec,

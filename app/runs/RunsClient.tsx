@@ -42,13 +42,6 @@ interface RunsResponse {
 
 const RUN_TYPES: RunType[] = ["easy", "tempo", "interval", "long"];
 
-const TYPE_COLORS: Record<RunType, string> = {
-  easy:     "#5DCAA5",
-  tempo:    "#F5C542",
-  interval: "#AFA9EC",
-  long:     "#85B7EB",
-};
-
 function ratingColor(score: number): string {
   if (score >= 9.0) return "#a78bfa";
   if (score >= 7.0) return "#4ade80";
@@ -165,13 +158,7 @@ function SortIcon({ active, dir }: { active: boolean; dir: "asc" | "desc" }) {
   );
 }
 
-export default function RunsClient({
-  intervalThresholdSec: _intervalThresholdSec,
-  tempoThresholdSec: _tempoThresholdSec,
-}: {
-  intervalThresholdSec: number;
-  tempoThresholdSec: number;
-}) {
+export default function RunsClient() {
   const [runs,      setRuns]      = useState<Run[]>([]);
   const [total,     setTotal]     = useState(0);
   const [totalPages, setTotalPages] = useState(1);

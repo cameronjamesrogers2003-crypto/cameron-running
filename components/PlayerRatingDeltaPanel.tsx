@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { startTransition, useEffect, useState } from "react";
 import type { PlayerRatingSummaryRow } from "@/lib/playerRating";
 
 interface Props {
@@ -24,7 +24,9 @@ export default function PlayerRatingDeltaPanel({ updatedAt, rows }: Props) {
   const [dismissed, setDismissed] = useState(true);
 
   useEffect(() => {
-    setDismissed(window.localStorage.getItem(storageKey) === "1");
+    startTransition(() => {
+      setDismissed(window.localStorage.getItem(storageKey) === "1");
+    });
   }, [storageKey]);
 
   if (dismissed || rows.length === 0) return null;

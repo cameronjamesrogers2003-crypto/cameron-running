@@ -1,5 +1,3 @@
-import prisma from "@/lib/db";
-import { dbSettingsToUserSettings, DEFAULT_SETTINGS } from "@/lib/settings";
 import RunsClient from "./RunsClient";
 import Logo from "@/components/Logo";
 
@@ -7,12 +5,6 @@ export const dynamic = "force-dynamic";
 export const metadata = { title: "Runshift — Runs" };
 
 export default async function RunsPage() {
-  const settingsRow = await prisma.userSettings.findUnique({ where: { id: 1 } });
-  const settings    = settingsRow ? dbSettingsToUserSettings(settingsRow) : DEFAULT_SETTINGS;
-
-  const intervalThresholdSec = settings.intervalPaceMaxSec;
-  const tempoThresholdSec    = settings.tempoPaceMaxSec;
-
   return (
     <div className="runs-shell space-y-4.5">
       <div className="flex items-start justify-between mb-5 pt-1.5 gap-3">
@@ -26,10 +18,7 @@ export default async function RunsPage() {
           </p>
         </div>
       </div>
-      <RunsClient
-        intervalThresholdSec={intervalThresholdSec}
-        tempoThresholdSec={tempoThresholdSec}
-      />
+      <RunsClient />
     </div>
   );
 }

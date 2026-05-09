@@ -16,14 +16,6 @@ interface Props {
 
 // ── style helpers ──────────────────────────────────────────────────────────
 
-function cellColors(rating: number): { bg: string; text: string } {
-  if (rating >= 8.5) return { bg: "#1a1428", text: "#AFA9EC" };
-  if (rating >= 7.0) return { bg: "#0a1e0f", text: "#5DCAA5" };
-  if (rating >= 5.5) return { bg: "#0a0f1e", text: "#85B7EB" };
-  if (rating >= 4.0) return { bg: "#2e1e0a", text: "#EF9F27" };
-  return                   { bg: "#2e1010", text: "#F09595" };
-}
-
 function fmtDate(isoStr: string): string {
   return formatAEST(isoStr, "dd/MM/yyyy · EEE");
 }
