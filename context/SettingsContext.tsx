@@ -44,7 +44,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     }
     const updated = await res.json();
     setSettings(updated);
-  }, [token]);
+  }, []);
 
   return (
     <SettingsContext.Provider value={{ settings, loading, updateSettings }}>

@@ -21,7 +21,7 @@ function parseTrainingDays(raw: string | null): Day[] {
   }
 }
 
-async function regenerateFromSettings(_req: NextRequest) {
+async function regenerateFromSettings() {
   const settingsRow = await prisma.userSettings.findUnique({ where: { id: 1 } });
   const settings = settingsRow ? dbSettingsToUserSettings(settingsRow) : DEFAULT_SETTINGS;
 
@@ -73,7 +73,8 @@ async function regenerateFromSettings(_req: NextRequest) {
 
 export async function GET(req: NextRequest) {
   try {
-    return await regenerateFromSettings(req);
+    void req;
+    return await regenerateFromSettings();
   } catch (err) {
     console.error("[plans/regenerate] GET failed:", err);
     return NextResponse.json({ error: "Failed to regenerate plan" }, { status: 500 });
@@ -82,7 +83,8 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    return await regenerateFromSettings(req);
+    void req;
+    return await regenerateFromSettings();
   } catch (err) {
     console.error("[plans/regenerate] POST failed:", err);
     return NextResponse.json({ error: "Failed to regenerate plan" }, { status: 500 });

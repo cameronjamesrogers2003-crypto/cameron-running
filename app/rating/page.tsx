@@ -216,7 +216,7 @@ export default async function RatingPage() {
         </p>
       </div>
 
-      <div style={{ width: "100%", maxWidth: "600px", margin: "0 auto 24px" }}>
+      <div className="w-full max-w-2xl mx-auto mb-6">
         <PlayerCard
           ovr={ovr}
           name={getDisplayName(settings).toUpperCase()}

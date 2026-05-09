@@ -32,13 +32,6 @@ function emptyRace(): RacePiece {
   return { minutes: "", seconds: "" };
 }
 
-function raceTotalsSeconds(r: RacePiece): number {
-  const minutes = parseInt(r.minutes, 10) || 0;
-  const seconds = parseInt(r.seconds, 10) || 0;
-  if (minutes <= 0) return 0;
-  return minutes * 60 + Math.min(59, Math.max(0, seconds));
-}
-
 function raceForCompute(r: RacePiece): { minutes: number; seconds: number } | null {
   const minutes = parseInt(r.minutes, 10) || 0;
   if (minutes <= 0) return null;

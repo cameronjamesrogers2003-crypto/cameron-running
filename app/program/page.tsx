@@ -174,8 +174,7 @@ export default async function ProgramPage({
   const today        = new Date();
   const todayMidnight = startOfDayAEST(today);
 
-  const [profile, userSettingsRow, activities, interruptionRows, storedPlan, adaptationHistory] = await Promise.all([
-    prisma.profile.findUnique({ where: { id: 1 } }),
+  const [userSettingsRow, activities, interruptionRows, storedPlan, adaptationHistory] = await Promise.all([
     prisma.userSettings.findUnique({ where: { id: 1 } }),
     prisma.activity.findMany({
       where: { activityType: { in: ["running", "trail_running"] } },

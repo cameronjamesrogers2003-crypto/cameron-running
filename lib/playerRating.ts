@@ -1,12 +1,11 @@
 import type { PlayerRating, PrismaClient } from "@prisma/client";
 import { buildTrainingPlan, type RunType, type TrainingWeek } from "@/data/trainingPlan";
-import { parseInterruptionType, reconfigurePlan, type PlanInterruption } from "@/lib/interruptions";
+import { parseInterruptionType, type PlanInterruption } from "@/lib/interruptions";
 import { sameDayAEST, toBrisbaneYmd } from "@/lib/dateUtils";
 import {
   getEffectivePlanStart,
   getPlanWeekForDate,
   getSessionDate,
-  getWeeklyTargetKm,
   isActivityOnOrAfterPlanStart,
 } from "@/lib/planUtils";
 import { inferRunType, parseRatingBreakdown, type StatActivity } from "@/lib/rating";
