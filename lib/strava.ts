@@ -250,9 +250,14 @@ export async function syncActivities(): Promise<{ synced: number; errors: number
         },
       });
       if (existing) {
+        const daysSinceRun = Math.floor(
+          (Date.now() - new Date(existing.date).getTime()) / (1000 * 60 * 60 * 24),
+        );
+        const archiveMayLag = daysSinceRun >= 0 && daysSinceRun < 2;
         const shouldRetryWeather =
           existing.temperatureC == null
-          && (existing.weatherFetchedAt == null
+          && (archiveMayLag
+            || existing.weatherFetchedAt == null
             || existing.weatherFetchedAt.getTime() < fiveDaysAgoMs);
 
         if (shouldRetryWeather) {
@@ -278,12 +283,22 @@ export async function syncActivities(): Promise<{ synced: number; errors: number
               console.warn(
                 `[weather] no weather data returned for existing activity ${existing.id} on ${toBrisbaneYmd(existing.date)}`,
               );
+              await prisma.activity.update({
+                where: { id: existing.id },
+                data: { weatherFetchedAt: new Date() },
+              });
             }
           } catch (err) {
             console.warn(
               `[weather] failed to fill weather for existing activity ${existing.id}:`,
               err,
             );
+            await prisma.activity
+              .update({
+                where: { id: existing.id },
+                data: { weatherFetchedAt: new Date() },
+              })
+              .catch(() => {});
           }
         }
 
