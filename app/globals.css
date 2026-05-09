@@ -111,6 +111,56 @@ body {
   transform: translateZ(0);
 }
 
+/* Tier card — matte vignette + hero art zone (uses --tier-accent from inline style) */
+.tier-card-inner-vignette {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: inset 0 0 100px rgba(0, 0, 0, 0.45);
+  z-index: 1;
+}
+
+.tier-card-art-zone {
+  position: relative;
+  isolation: isolate;
+  --tier-accent-mix: color-mix(in srgb, var(--tier-accent, #ffffff) 28%, transparent);
+  --tier-accent-soft: color-mix(in srgb, var(--tier-accent, #ffffff) 14%, transparent);
+}
+
+.tier-card-art-zone__bg {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background:
+    linear-gradient(105deg, #050505 0%, rgba(5, 5, 5, 0.65) 28%, transparent 52%),
+    radial-gradient(ellipse 110% 85% at 92% 88%, var(--tier-accent-mix), transparent 58%),
+    radial-gradient(ellipse 70% 58% at 68% 36%, rgba(255, 255, 255, 0.06), transparent 52%),
+    linear-gradient(180deg, rgba(0, 0, 0, 0.15) 0%, transparent 42%, rgba(0, 0, 0, 0.5) 100%);
+}
+
+.tier-card-art-zone__floor {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    transparent 48%,
+    color-mix(in srgb, var(--tier-accent, #ffffff) 8%, #000000) 100%
+  );
+  opacity: 0.85;
+}
+
+.tier-card-stat-track {
+  height: 0.5rem;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.06);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
 @keyframes pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.5; }
