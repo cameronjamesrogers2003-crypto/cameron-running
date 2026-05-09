@@ -9,8 +9,6 @@
   --border: rgba(255, 255, 255, 0.08);
   --text: #ffffff;
   --text-muted: #9ca3af;
-  --accent: #f97316;
-  --accent-hover: #ea6a0a;
   /* Run type colours */
   --c-easy: #7dd3fc;
   --c-tempo: #2dd4bf;
@@ -19,6 +17,7 @@
 
   /* Accent */
   --accent: #2dd4bf;
+  --accent-hover: #14b8a6;
   --accent-dim: rgba(45, 212, 191, 0.15);
   --accent-border: rgba(45, 212, 191, 0.30);
 

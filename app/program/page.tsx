@@ -20,6 +20,7 @@ import RaceFlagBanner from "./RaceFlagBanner";
 import TodayLabel from "./TodayLabel";
 import PlanUpdatedBanner from "./PlanUpdatedBanner";
 import Logo from "@/components/Logo";
+import PageHeading from "@/components/ui/PageHeading";
 import { RunTypePill } from "@/components/RunTypePill";
 import { runTypeColor } from "@/lib/runTypeStyles";
 import { EmptyState } from "@/components/EmptyState";
@@ -278,7 +279,7 @@ export default async function ProgramPage({
         <div className="flex items-start justify-between mb-5 pt-1.5 gap-3.5">
           <Logo size="sm" showWordmark={false} />
           <div className="flex-1 min-w-0">
-            <h1 className="text-2xl font-bold tracking-tight text-white">Training Program</h1>
+            <PageHeading>Training Program</PageHeading>
             <div className="flex items-center gap-2 mt-1.5 flex-wrap">
               <span
                 className="text-xs font-semibold px-2.5 py-1 rounded-full"

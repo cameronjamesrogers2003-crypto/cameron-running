@@ -5,7 +5,7 @@ import type { CSSProperties, ReactNode } from "react";
 import { memo, useCallback, useMemo, useState } from "react";
 import { Trophy } from "lucide-react";
 import type { TierConfig } from "@/lib/playerCardTiers";
-import { getTierGlowHex, tierShellBoxShadow } from "@/lib/tierGlowColors";
+import { getTierGlowHex, tierShellBoxShadow } from "@/lib/playerCardTiers";
 
 export type TierCardStat = {
   key: string;

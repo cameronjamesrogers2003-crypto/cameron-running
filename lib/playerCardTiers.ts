@@ -165,3 +165,28 @@ export const TIERS: TierConfig[] = [
 export function getTier(ovr: number): TierConfig {
   return TIERS.find((t) => ovr >= t.min && ovr <= t.max) ?? TIERS[0];
 }
+
+/** `#rrggbb` — shell border/glow matches each tier's `accentColor` (single source of truth). */
+export type TierGlowHex = `#${string}`;
+
+export function getTierGlowHex(tierName: string): TierGlowHex {
+  const t = TIERS.find((x) => x.name === tierName) ?? TIERS[0];
+  return t.accentColor as TierGlowHex;
+}
+
+/** Supports #rgb and #rrggbb */
+export function hexAlpha(hex: TierGlowHex, alpha: number): string {
+  const h = hex.slice(1);
+  const expand = h.length === 3 ? [...h].map((c) => c + c).join("") : h;
+  const r = Number.parseInt(expand.slice(0, 2), 16);
+  const g = Number.parseInt(expand.slice(2, 4), 16);
+  const b = Number.parseInt(expand.slice(4, 6), 16);
+  if ([r, g, b].some((n) => Number.isNaN(n))) return `rgba(156,163,175,${alpha})`;
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
+export function tierShellBoxShadow(hex: TierGlowHex, hover: boolean): string {
+  const innerA = hover ? 0.38 : 0.28;
+  const outerA = hover ? 0.18 : 0.12;
+  return `0 0 18px 4px ${hexAlpha(hex, innerA)}, 0 0 60px 12px ${hexAlpha(hex, outerA)}`;
+}

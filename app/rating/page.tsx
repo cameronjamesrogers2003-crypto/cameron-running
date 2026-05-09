@@ -13,6 +13,7 @@ import {
 import { formatAEST, startOfNextDayAEST, toBrisbaneYmd } from "@/lib/dateUtils";
 import { getEffectivePlanStart, getPlanWeekForDate, getSessionDate, isActivityOnOrAfterPlanStart } from "@/lib/planUtils";
 import { Star } from "lucide-react";
+import PageHeading from "@/components/ui/PageHeading";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Runshift — Rating" };
@@ -177,12 +178,9 @@ export default async function RatingPage() {
   if (!playerRating) {
     return (
       <div className="rating-shell w-full max-w-5xl">
-      <div className="flex items-start justify-between mb-5 pt-1.5 gap-3">
+        <div className="flex items-start justify-between mb-5 pt-1.5 gap-3">
           <div>
-            <p className="text-sm font-medium mb-1" style={{ color: "var(--text-muted)" }}>
-              Your athletic profile
-            </p>
-            <h1 className="text-2xl font-bold tracking-tight text-white">Player Rating</h1>
+            <PageHeading subtitle="Your athletic profile">Player Rating</PageHeading>
           </div>
         </div>
         <div className="rounded-2xl border bg-white/[0.04] border-white/[0.08]">
@@ -206,10 +204,7 @@ export default async function RatingPage() {
     <div className="rating-shell w-full max-w-5xl">
       <div className="flex items-start justify-between mb-5 pt-1.5 gap-3">
         <div>
-          <p className="text-sm font-medium mb-1" style={{ color: "var(--text-muted)" }}>
-            Your athletic profile
-          </p>
-          <h1 className="text-2xl font-bold tracking-tight text-white">Player Rating</h1>
+          <PageHeading subtitle="Your athletic profile">Player Rating</PageHeading>
         </div>
         <p className="text-xs" style={{ color: "var(--text-muted)" }}>
           Last updated: {playerRating?.updatedAt ? formatAEST(playerRating.updatedAt, "d MMM yyyy, h:mm a") : "—"}

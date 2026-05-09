@@ -25,6 +25,8 @@ import Logo from "@/components/Logo";
 import PlayerRatingDeltaPanel from "@/components/PlayerRatingDeltaPanel";
 import PlanAdaptationCards from "@/components/PlanAdaptationCards";
 import PlayerCard from "@/components/PlayerCard";
+import PageHeading from "@/components/ui/PageHeading";
+import TodaySessionCard from "@/components/TodaySessionCard";
 import { RunTypePill } from "@/components/RunTypePill";
 import { runTypeColor } from "@/lib/runTypeStyles";
 import { redirect } from "next/navigation";
@@ -514,10 +516,7 @@ export default async function Dashboard({
 
         <div className="flex items-start justify-between mb-5 pt-1 gap-3">
           <div>
-            <p className="text-sm font-medium mb-1.5" style={{ color: "var(--text-muted)" }}>
-              {greeting}, {displayName}.
-            </p>
-            <h1 className="text-[1.9rem] sm:text-[2.15rem] font-black tracking-[-0.03em] leading-none text-white">Dashboard</h1>
+            <PageHeading subtitle={`${greeting}, ${displayName}.`}>Dashboard</PageHeading>
             <span
               className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-semibold mt-2"
               style={{
@@ -531,7 +530,23 @@ export default async function Dashboard({
           </div>
         </div>
 
-        <div className="w-full max-w-[680px] mb-6">
+        <div className="w-full max-w-[680px] mb-6 space-y-4">
+          <TodaySessionCard
+            planLoaded={planToRender.length > 0}
+            todayPlanEntry={
+              todayPlanEntry
+                ? {
+                    session: {
+                      type: todayPlanEntry.session.type,
+                      description: todayPlanEntry.session.description,
+                      distanceLabel: `${todayPlanEntry.session.targetDistanceKm} km`,
+                      paceLabel: formatTargetPace(todayPlanEntry.session.targetPaceMinPerKm),
+                    },
+                    completed: todayPlanEntry.completed,
+                  }
+                : null
+            }
+          />
           <PlayerCard
             ovr={playerRating?.overall ?? 1}
             name={getDisplayName(settings).toUpperCase()}
@@ -811,7 +826,7 @@ export default async function Dashboard({
       </div>
 
       {/* ── Sidebar ──────────────────────────────────────────────────────── */}
-      <aside className="w-[220px] min-w-[220px] shrink-0 space-y-2.5 hidden lg:block mt-[220px]">
+      <aside className="w-full lg:w-[220px] lg:min-w-[220px] shrink-0 space-y-2.5 hidden lg:block lg:sticky lg:top-4 lg:self-start">
         <PlanAdaptationCards initialItems={planAdaptations.map((item) => ({
           id: item.id,
           weekNumber: item.weekNumber,

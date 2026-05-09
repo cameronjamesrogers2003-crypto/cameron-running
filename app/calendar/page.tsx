@@ -7,6 +7,7 @@ import { getEffectivePlanStart, getSessionDate, isPlannedRun } from "@/lib/planU
 import { brisbaneCalendarYearUtcRange, startOfBrisbaneMonthContaining, startOfDayAEST, startOfNextDayAEST, toBrisbaneYmd } from "@/lib/dateUtils";
 import type { CalendarRun, CalendarData, PlannedDayMeta } from "./types";
 import CalendarGrid from "./CalendarGrid";
+import PageHeading from "@/components/ui/PageHeading";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Runshift — Calendar" };
@@ -179,10 +180,7 @@ export default async function CalendarPage({
     <div className="calendar-shell max-w-[1100px] mx-auto w-full">
       <div className="flex items-start justify-between mb-5 pt-1.5 gap-3">
         <div>
-          <p className="text-sm font-medium mb-1" style={{ color: "var(--text-muted)" }}>
-            Your training history
-          </p>
-          <h1 className="text-2xl font-bold tracking-tight text-white">Calendar</h1>
+          <PageHeading subtitle="Your training history">Calendar</PageHeading>
         </div>
       </div>
 

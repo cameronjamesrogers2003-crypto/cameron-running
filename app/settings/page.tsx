@@ -1,5 +1,6 @@
 import SettingsForm from "./SettingsForm";
 import Logo from "@/components/Logo";
+import PageHeading from "@/components/ui/PageHeading";
 
 export const metadata = { title: "Runshift — Settings" };
 
@@ -10,7 +11,7 @@ export default function SettingsPage() {
         <div>
           <div className="flex items-center gap-2.5 mb-1">
             <Logo size="sm" showWordmark={false} />
-            <h1 className="text-2xl font-bold tracking-tight text-white">Settings</h1>
+            <PageHeading>Settings</PageHeading>
           </div>
           <p className="text-sm mt-1" style={{ color: "var(--text-muted)" }}>
             Training plan configuration and performance constants

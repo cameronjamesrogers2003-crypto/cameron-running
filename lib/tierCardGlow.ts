@@ -1,6 +1,6 @@
 /**
- * Shared collectible tier outer glow strings (legacy / optional use).
- * Tier cards now use `lib/tierGlowColors.ts` + inline shell shadow in `TierCard`.
+ * Shared collectible tier outer glow strings (PNG card art + ambient layers).
+ * The Running Card shell border/bloom reads hex from each tier's `accentColor` in `playerCardTiers.ts`.
  */
 export function tierGlowPair(
   ring: string,
