@@ -95,11 +95,12 @@ export default function HelpPage() {
         </h2>
         <p className="text-sm sm:text-base leading-relaxed" style={{ color: "var(--text-muted)" }}>
           Every run you sync from Strava gets a score out of 10. The score reflects how well the run went
-          across four areas. It&apos;s calculated automatically — you don&apos;t need to do anything.
+          across five areas — pace, effort, distance, elevation/terrain, and conditions. It&apos;s calculated
+          automatically — you don&apos;t need to do anything.
         </p>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-          <SectionCard title="Pace Quality (worth up to 4 points)" icon="🏃">
+          <SectionCard title="Pace Quality (worth up to 3 points)" icon="🏃">
             <p>Did you run at the right pace for this type of run?</p>
             <p>Each run type has a target pace zone:</p>
             <ul className="list-disc pl-5 space-y-1">
@@ -109,8 +110,9 @@ export default function HelpPage() {
               <li>Long runs: slightly slower than easy pace</li>
             </ul>
             <p>
-              The closer your pace to the centre of your zone, the higher your score. You still get points if
-              you&apos;re slightly outside the zone — it drops off gradually.
+              Your pace is compared to the centre of the zone, adjusted slightly for how hilly the run was (more
+              climbing → slower pace is expected). Scoring uses a smooth decay — no harsh cutoffs — so small misses
+              still earn most of the points.
             </p>
             <p>
               Special rule for easy runs: if you ran faster than your easy zone but your heart rate stayed low,
@@ -118,7 +120,7 @@ export default function HelpPage() {
             </p>
           </SectionCard>
 
-          <SectionCard title="Effort (worth up to 3 points)" icon="❤️">
+          <SectionCard title="Effort (worth up to 3.5 points)" icon="❤️">
             <p>Was your heart rate right for this type of run?</p>
             <ul className="list-disc pl-5 space-y-1">
               <li>Easy runs: 60–75% of your max heart rate</li>
@@ -126,40 +128,49 @@ export default function HelpPage() {
               <li>Interval runs: 90–100% of your max heart rate</li>
             </ul>
             <p>
-              Heart rate in the middle of the right zone = full points. The further outside the zone, the lower
-              the score.
+              Heart rate near the middle of the right zone earns the most points; the score decays smoothly as HR
+              drifts away from that target.
             </p>
             <p>
-              No heart rate data? You get 1.5 points as a neutral score — you&apos;re not penalised for missing
-              data.
+              No heart rate data? You get half credit (1.75) as a neutral score — you&apos;re not penalised for
+              missing data.
             </p>
           </SectionCard>
 
-          <SectionCard title="Distance (worth up to 2 points)" icon="📏">
+          <SectionCard title="Distance (worth up to 1.5 points)" icon="📏">
             <p>Did you run a good distance compared to your recent average?</p>
             <p>
               This is scored against your own history — not a fixed target. The app looks at your last 5+ runs
               of the same type and uses the median distance as your benchmark.
             </p>
             <ul className="list-disc pl-5 space-y-1">
-              <li>Beat your median by 20% or more → 2.0 points</li>
-              <li>Match your median exactly → 1.5 points</li>
-              <li>Half your median → 0.75 points</li>
+              <li>Beat your median by 20% or more → 1.5 points</li>
+              <li>Match your median exactly → about 1.1 points</li>
+              <li>Half your median → about 0.56 points</li>
             </ul>
             <p>
-              New to the app? Until you have 5 runs of the same type, you get 1.0–1.2 as a neutral score while
-              your benchmark builds up.
+              New to the app? Until you have 5 runs of the same type, you get 0.75–0.9 as a neutral score while your
+              benchmark builds up.
             </p>
           </SectionCard>
 
-          <SectionCard title="Conditions (worth up to 1 point)" icon="🌡️">
+          <SectionCard title="Elevation / terrain (worth up to 1.5 points)" icon="⛰️">
+            <p>
+              Strava elevation gain over distance (metres per km) is compared to a flat reference (10 m/km).
+              Hillier runs shift your pace target — they don&apos;t exist just to inflate your score — but staying
+              close to expected difficulty for your terrain earns the most points here.
+            </p>
+            <p>No elevation on file? Half credit — neutral.</p>
+          </SectionCard>
+
+          <SectionCard title="Conditions (worth up to 0.5 points)" icon="🌡️">
             <p>A small bonus for running in tough conditions.</p>
             <ul className="list-disc pl-5 space-y-1">
-              <li>Normal conditions → 0.8 points</li>
-              <li>Hot (above 28°C) → up to +0.3 bonus</li>
-              <li>Humid (above 80%) → up to +0.2 bonus</li>
-              <li>Maximum possible → 1.0 points</li>
-              <li>No weather data → 0.5 points (neutral)</li>
+              <li>Normal conditions → 0.4 points (scaled from the base formula)</li>
+              <li>Hot (above 28°C) → adds up to more credit toward the cap</li>
+              <li>Humid (above 80%) → adds up to more credit toward the cap</li>
+              <li>Maximum possible → 0.5 points</li>
+              <li>No weather data → 0.25 points (neutral)</li>
             </ul>
             <p>Running in Brisbane heat genuinely counts for something.</p>
           </SectionCard>

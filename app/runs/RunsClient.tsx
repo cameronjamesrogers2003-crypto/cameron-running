@@ -65,6 +65,29 @@ function ratingBand(score: number): string {
   return "Off Day";
 }
 
+function chipStyle(type: RunType, selectedTypes: RunType[]): React.CSSProperties {
+  const isActive = selectedTypes.includes(type);
+  if (!isActive) {
+    return {
+      background: "rgba(255,255,255,0.06)",
+      border: "1px solid rgba(255,255,255,0.10)",
+      color: "rgba(255,255,255,0.50)",
+    };
+  }
+  const colors = {
+    easy: { bg: "rgba(125,211,252,0.15)", border: "rgba(125,211,252,0.35)", text: "#7dd3fc" },
+    tempo: { bg: "rgba(45,212,191,0.15)", border: "rgba(45,212,191,0.35)", text: "#2dd4bf" },
+    interval: { bg: "rgba(249,115,22,0.15)", border: "rgba(249,115,22,0.35)", text: "#f97316" },
+    long: { bg: "rgba(167,139,250,0.15)", border: "rgba(167,139,250,0.35)", text: "#a78bfa" },
+  } as const;
+  const c = colors[type] ?? colors.easy;
+  return {
+    background: c.bg,
+    border: `1px solid ${c.border}`,
+    color: c.text,
+  };
+}
+
 function RatingBreakdownPanel({ json, rating }: { json: string | null; rating: number }) {
   const parsed = parseRatingBreakdown(json);
   if (!parsed) {
@@ -110,6 +133,7 @@ function RatingBreakdownPanel({ json, rating }: { json: string | null; rating: n
       {line("Pace Quality", c.pace.score, c.pace.max, c.pace.reason, "var(--c-interval)")}
       {line("Effort", c.effort.score, c.effort.max, c.effort.reason, "var(--c-easy)")}
       {line("Distance", c.distance.score, c.distance.max, c.distance.reason, "var(--c-long)")}
+      {line("Elevation", c.elevation.score, c.elevation.max, c.elevation.reason, "#c4b5fd")}
       {line("Conditions", c.conditions.score, c.conditions.max, c.conditions.reason, "#f5b454")}
       <div
         className="border-t border-white/[0.08] pt-2 mt-1"
@@ -276,8 +300,8 @@ export default function RunsClient({
                 key={t}
                 type="button"
                 onClick={() => toggleType(t)}
-                className="px-3.5 py-1.5 rounded-full text-xs font-semibold cursor-pointer transition-all capitalize"
-                style={chipStyle(t)}
+                className="px-4 py-1.5 rounded-full text-xs font-semibold cursor-pointer transition-all capitalize"
+                style={chipStyle(t, types)}
               >
                 {t}
               </button>
@@ -364,13 +388,13 @@ export default function RunsClient({
             { label: "Pace",     field: "avgPaceSecKm"},
             { label: "Time",     field: "durationSecs"},
             { label: "Date",     field: "date"        },
-            { label: "Rating",   field: ""            },
+            { label: "RTG",      field: ""            },
           ].map(({ label, field }) => (
             <button
               key={label}
               type="button"
               onClick={() => field && toggleSort(field)}
-              className={`text-xs font-semibold tracking-widest uppercase text-left ${
+              className={`text-xs font-semibold tracking-widest uppercase px-4 py-2 text-left ${
                 label === "Run"
                   ? "flex-1 min-w-0"
                   : label === "Type"
@@ -422,7 +446,7 @@ export default function RunsClient({
               <div
                 role="button"
                 tabIndex={0}
-                className="flex items-center gap-2 px-4 py-2.5 border-b border-white/[0.06] hover:bg-white/[0.03] transition-all duration-150 hover:brightness-105 active:scale-[0.998] cursor-pointer w-full outline-none focus-visible:ring-1 focus-visible:ring-white/20"
+                className="flex items-center gap-2 px-4 py-2.5 border-b border-white/[0.06] hover:bg-white/[0.03] transition-all duration-150 hover:brightness-105 active:scale-[0.998] cursor-pointer w-full outline-none focus-visible:ring-1 focus-visible:ring-white/20 text-left"
                 onClick={() => toggleExpand(run.id)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" || e.key === " ") {

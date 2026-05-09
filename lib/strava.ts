@@ -241,6 +241,7 @@ export async function syncActivities(): Promise<{ synced: number; errors: number
         where: { id },
         select: {
           id: true,
+          elevationGainM: true,
           temperatureC: true,
           date: true,
           startLat: true,
@@ -250,6 +251,13 @@ export async function syncActivities(): Promise<{ synced: number; errors: number
         },
       });
       if (existing) {
+        const gain = act.total_elevation_gain;
+        if (gain != null && gain !== existing.elevationGainM) {
+          await prisma.activity.update({
+            where: { id },
+            data: { elevationGainM: gain },
+          });
+        }
         const daysSinceRun = Math.floor(
           (Date.now() - new Date(existing.date).getTime()) / (1000 * 60 * 60 * 24),
         );
@@ -345,10 +353,12 @@ export async function syncActivities(): Promise<{ synced: number; errors: number
       try {
         const detailed = await fetchFullActivity(id);
         const splits = Array.isArray(detailed?.splits_metric) ? detailed.splits_metric : null;
+        const detailElev = detailed?.total_elevation_gain;
         await prisma.activity.update({
           where: { id },
           data: {
             splitsJson: splits ? JSON.stringify(splits) : null,
+            ...(detailElev != null ? { elevationGainM: detailElev } : {}),
           },
         });
       } catch (splitErr) {
