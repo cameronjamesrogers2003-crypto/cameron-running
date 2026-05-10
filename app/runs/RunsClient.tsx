@@ -358,7 +358,7 @@ export default function RunsClient() {
               key={label}
               type="button"
               onClick={() => field && toggleSort(field)}
-              className={`text-xs font-semibold tracking-widest uppercase px-4 py-2 text-left ${
+              className={`ty-label px-4 py-2 text-left ${
                 label === "Run"
                   ? "flex-1 min-w-0"
                   : label === "Type"
@@ -421,14 +421,14 @@ export default function RunsClient() {
                   }
                 }}
               >
-                <span className="font-medium text-sm text-white flex-1 min-w-0 truncate">{run.name ?? "Run"}</span>
+                <span className="ty-run-name flex-1 min-w-0 truncate">{run.name ?? "Run"}</span>
                 <span className="w-24 shrink-0">
                   <RunTypePill type={run.runType} size="sm" />
                 </span>
-                <span className="font-mono text-sm text-white w-24 shrink-0">{run.distanceKm.toFixed(2)} km</span>
-                <span className="font-mono text-sm text-white w-24 shrink-0">{run.avgPaceSecKm > 0 ? formatPace(run.avgPaceSecKm) + "/km" : "—"}</span>
-                <span className="font-mono text-sm text-white w-20 shrink-0 hidden md:block">{formatDuration(run.durationSecs)}</span>
-                <span className="text-xs font-mono w-28 shrink-0 hidden md:block" style={{ color: "var(--text-muted)" }}>{formatDateAest(run.dateIso)}</span>
+                <span className="ty-stat font-mono tabular-nums w-24 shrink-0">{run.distanceKm.toFixed(2)} km</span>
+                <span className="ty-stat font-mono tabular-nums w-24 shrink-0">{run.avgPaceSecKm > 0 ? formatPace(run.avgPaceSecKm) + "/km" : "—"}</span>
+                <span className="ty-stat font-mono tabular-nums w-20 shrink-0 hidden md:block">{formatDuration(run.durationSecs)}</span>
+                <span className="ty-date w-28 shrink-0 hidden md:block">{formatDateAest(run.dateIso)}</span>
                 <button
                   type="button"
                   className="text-base font-black font-mono tabular-nums w-16 shrink-0 min-w-[60px] text-right rounded px-0.5 -mx-0.5 hover:underline underline-offset-2 disabled:opacity-50 disabled:no-underline transition-colors duration-150"
@@ -546,18 +546,16 @@ export default function RunsClient() {
                     className="min-w-0 flex-1 text-left min-h-11"
                     onClick={() => toggleExpand(run.id)}
                   >
-                    <p className="text-sm text-white font-medium break-words">{run.name ?? "Run"}</p>
-                    <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
-                      {formatDateAest(run.dateIso)}
-                    </p>
+                    <p className="ty-run-name break-words">{run.name ?? "Run"}</p>
+                    <p className="ty-date mt-1">{formatDateAest(run.dateIso)}</p>
                     <div className="mt-2">
                       <RunTypePill type={run.runType} size="sm" />
                     </div>
                   </button>
                   <button
                     type="button"
-                    className="text-lg font-bold shrink-0 tabular-nums min-h-11 min-w-[3rem] text-right rounded px-1 -mr-1 hover:underline underline-offset-2 disabled:opacity-50 disabled:no-underline"
-                    style={{ color: run.rating != null ? ratingColor(run.rating) : "var(--text-muted)" }}
+                    className="text-xl font-black font-mono tabular-nums shrink-0 min-h-11 min-w-[3rem] text-right rounded px-1 -mr-1 hover:underline underline-offset-2 disabled:opacity-50 disabled:no-underline"
+                    style={{ color: run.rating != null ? ratingColor(run.rating) : "var(--text-muted)", letterSpacing: "-0.03em" }}
                     disabled={run.rating == null}
                     aria-expanded={ratingOpen}
                     aria-label={run.rating != null ? "Toggle rating breakdown" : "No rating"}
@@ -570,25 +568,25 @@ export default function RunsClient() {
                 </div>
                 <button
                   type="button"
-                  className="w-full text-left grid grid-cols-3 gap-2 mt-2.5 text-xs min-h-11"
+                  className="w-full text-left grid grid-cols-3 gap-2 mt-2.5 min-h-11"
                   onClick={() => toggleExpand(run.id)}
                 >
                   <div>
-                    <p style={{ color: "var(--text-muted)" }}>Distance</p>
-                    <p className="text-white font-medium tabular-nums">{run.distanceKm.toFixed(2)} km</p>
+                    <p className="ty-stat-label">Distance</p>
+                    <p className="ty-stat font-mono tabular-nums">{run.distanceKm.toFixed(2)} km</p>
                   </div>
                   <div>
-                    <p style={{ color: "var(--text-muted)" }}>Pace</p>
-                    <p className="text-white font-medium tabular-nums">
+                    <p className="ty-stat-label">Pace</p>
+                    <p className="ty-stat font-mono tabular-nums">
                       {run.avgPaceSecKm > 0 ? formatPace(run.avgPaceSecKm) : "—"}
                     </p>
                   </div>
                   <div>
-                    <p style={{ color: "var(--text-muted)" }}>Time</p>
-                    <p className="text-white font-medium tabular-nums">{formatDuration(run.durationSecs)}</p>
+                    <p className="ty-stat-label">Time</p>
+                    <p className="ty-stat font-mono tabular-nums">{formatDuration(run.durationSecs)}</p>
                   </div>
                 </button>
-                <p className="text-xs mt-2" style={{ color: "rgba(156,163,175,0.5)" }}>
+                <p className="ty-stat-label mt-2">
                   {isOpen ? "Tap to collapse details" : "Tap run or stats for details"}
                 </p>
               </div>

@@ -14,11 +14,14 @@ export default function PageHeading({ children, subtitle, className = "" }: Page
   return (
     <div className={className}>
       {subtitle != null && subtitle !== "" ? (
-        <p className="text-sm mb-1.5 text-zinc-400">
-          {subtitle}
-        </p>
+        <p className="ty-date mb-1.5">{subtitle}</p>
       ) : null}
-      <h1 className="text-3xl font-black tracking-tight text-white">{children}</h1>
+      <h1
+        className="text-white font-extrabold tracking-tight"
+        style={{ fontSize: "clamp(22px, 4vw, 28px)", letterSpacing: "-0.03em", lineHeight: 1.1 }}
+      >
+        {children}
+      </h1>
     </div>
   );
 }

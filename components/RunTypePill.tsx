@@ -10,8 +10,8 @@ export function RunTypePill({ type, size = "md" }: RunTypePillProps) {
   const bg = runTypeBg(type);
   const label = runTypeLabel(type);
 
-  const padding = size === "sm" ? "2px 8px" : "3px 10px";
-  const fontSize = size === "sm" ? "0.7rem" : "0.75rem";
+  const padding = size === "sm" ? "3px 8px" : "4px 10px";
+  const fontSize = "12px";
   const dotSize = size === "sm" ? 5 : 6;
 
   return (
@@ -23,12 +23,13 @@ export function RunTypePill({ type, size = "md" }: RunTypePillProps) {
         borderRadius: "999px",
         fontSize,
         fontWeight: 600,
-        letterSpacing: "0.02em",
+        letterSpacing: "-0.01em",
         display: "inline-flex",
         alignItems: "center",
         gap: "5px",
         whiteSpace: "nowrap",
         border: `1px solid ${color}22`,
+        lineHeight: 1.2,
       }}
     >
       <span

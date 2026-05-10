@@ -98,12 +98,7 @@ function Card({
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <p
-      className="text-xs font-semibold tracking-widest uppercase"
-      style={{ color: "var(--text-label)" }}
-    >
-      {children}
-    </p>
+    <p className="ty-label">{children}</p>
   );
 }
 
@@ -700,26 +695,26 @@ export default async function Dashboard({
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-white font-semibold text-sm break-words">
+                          <span className="ty-run-name break-words">
                             {run.name ?? `${run.distanceKm.toFixed(1)} km run`}
                           </span>
                           <RunTypePill type={run.runType} size="sm" />
                         </div>
-                        <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
+                        <p className="ty-date mt-0.5">
                           {formatAEST(run.date, "EEE d MMM")}
                         </p>
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-2.5 text-xs sm:flex sm:flex-wrap sm:gap-3.5 sm:justify-end sm:ml-auto sm:text-right">
+                    <div className="grid grid-cols-2 gap-2.5 sm:flex sm:flex-wrap sm:gap-3.5 sm:justify-end sm:ml-auto sm:text-right">
                       <div className="min-w-0">
-                        <p className="text-white font-medium tabular-nums">{run.distanceKm.toFixed(2)} km</p>
-                        <p style={{ color: "var(--text-muted)" }}>dist</p>
+                        <p className="ty-stat font-mono tabular-nums">{run.distanceKm.toFixed(2)} km</p>
+                        <p className="ty-stat-label">dist</p>
                       </div>
                       <div className="min-w-0">
-                        <p className="text-white font-medium tabular-nums">
+                        <p className="ty-stat font-mono tabular-nums">
                           {run.avgPaceSecKm > 0 ? `${formatPace(run.avgPaceSecKm)} /km` : "—"}
                         </p>
-                        <p style={{ color: "var(--text-muted)" }}>pace</p>
+                        <p className="ty-stat-label">pace</p>
                       </div>
                     </div>
                   </div>
@@ -759,19 +754,17 @@ export default async function Dashboard({
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <p className="text-sm font-mono font-semibold text-white leading-tight">
+                        <p className="ty-stat font-mono tabular-nums">
                           {s.targetDistanceKm} km
                         </p>
                         <RunTypePill type={s.type} size="sm" />
                       </div>
                     </div>
                     <div className="text-right shrink-0 pl-1">
-                      <p className="text-xs font-mono tabular-nums leading-tight text-white">
+                      <p className="ty-stat font-mono tabular-nums">
                         {formatTargetPace(s.targetPaceMinPerKm)}
                       </p>
-                      <p className="text-xs leading-tight" style={{ color: "var(--text-muted)" }}>
-                        pace
-                      </p>
+                      <p className="ty-stat-label">pace</p>
                     </div>
                   </div>
                 );
@@ -782,18 +775,11 @@ export default async function Dashboard({
 
         {/* ── Strava sync indicator ────────────────────────────────────────── */}
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:flex-wrap px-1 pb-1">
-          <div
-            className="flex flex-col gap-0.5 text-xs sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-1"
-            style={{ color: "var(--text-muted)" }}
-          >
+          <div className="ty-footer-meta flex flex-col gap-0.5 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-1.5">
             <span>Synced via Strava</span>
-            <span className="hidden sm:inline" aria-hidden>
-              ·
-            </span>
+            <span className="hidden sm:inline opacity-40" aria-hidden>·</span>
             <span>Last run imported {lastRunImportedLabel}</span>
-            <span className="hidden sm:inline" aria-hidden>
-              ·
-            </span>
+            <span className="hidden sm:inline opacity-40" aria-hidden>·</span>
             <span>Last refreshed {lastRefreshedLabel}</span>
           </div>
           <SyncButton

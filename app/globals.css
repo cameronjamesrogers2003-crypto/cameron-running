@@ -163,6 +163,72 @@ pre {
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
+   TYPOGRAPHY UTILITY CLASSES
+   Single source of truth for every recurring text pattern in the app.
+   ───────────────────────────────────────────────────────────────────────────── */
+
+/* Section headers — "RECENT RUNS", "UPCOMING SESSIONS", "THIS WEEK" */
+.ty-label {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.50);
+  line-height: 1;
+}
+
+/* Primary workout / run names */
+.ty-run-name {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+  color: #ffffff;
+}
+
+/* Dates, timestamps, session metadata */
+.ty-date {
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.005em;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+/* Inline metric values (distance, pace in cards/rows) */
+.ty-stat {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: #ffffff;
+  line-height: 1.2;
+}
+
+/* Small metric sublabels ("dist", "pace", "time") */
+.ty-stat-label {
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  color: rgba(255, 255, 255, 0.45);
+  line-height: 1.3;
+}
+
+/* Footer / sync metadata */
+.ty-footer-meta {
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.50);
+  line-height: 1.5;
+}
+
+/* Primary button text */
+.ty-btn {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
    SCROLLBAR
    ───────────────────────────────────────────────────────────────────────────── */
 
