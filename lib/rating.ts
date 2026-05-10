@@ -15,8 +15,7 @@ export type { RunType };
 const MAX_PACE = 3.0;
 const MAX_EFFORT = 3.5;
 const MAX_DISTANCE = 1.5;
-const MAX_ELEVATION = 1.5;
-const MAX_CONDITIONS = 0.5;
+const MAX_CONDITIONS = 2.0;
 
 const EXPECTED_ELEVATION_PER_KM = 10;
 
@@ -53,7 +52,6 @@ export interface RunRatingResult {
     pace: RunRatingComponentBreakdown;
     effort: RunRatingComponentBreakdown;
     distance: RunRatingComponentBreakdown;
-    elevation: RunRatingComponentBreakdown;
     conditions: RunRatingComponentBreakdown;
   };
 }
@@ -88,7 +86,6 @@ function isRunRatingResult(value: unknown): value is RunRatingResult {
     && isRatingComponent(components.pace)
     && isRatingComponent(components.effort)
     && isRatingComponent(components.distance)
-    && isRatingComponent(components.elevation)
     && isRatingComponent(components.conditions)
   );
 }
@@ -237,32 +234,12 @@ export function calculateRunRating(
     && !Number.isNaN(elevM)
     && activity.distanceKm > 0;
   const elevationPerKm = hasElevationData ? elevM / activity.distanceKm : null;
-  const elevationFactor =
-    elevationPerKm != null ? elevationPerKm / EXPECTED_ELEVATION_PER_KM : null;
-  const elevationFactorClamped =
-    elevationFactor != null ? clamp(elevationFactor, 0.5, 2.5) : 1;
+  // Elevation adjustment factor for pace midpoint (deviation from 10 m/km baseline)
+  const elevAdjFactor = elevationPerKm != null ? elevationPerKm / EXPECTED_ELEVATION_PER_KM : null;
+  const elevAdjClamped = elevAdjFactor != null ? clamp(elevAdjFactor, 0.5, 2.5) : 1;
 
   const adjustedMidpoint =
-    zoneMid * (1 + 0.04 * (elevationFactorClamped - 1));
-
-  let elevationScoreRaw: number;
-  let elevationReason: string;
-  if (!hasElevationData) {
-    elevationScoreRaw = MAX_ELEVATION / 2;
-    elevationReason =
-      classificationPreamble
-      + (activity.distanceKm <= 0
-        ? "Invalid distance — elevation scoring neutral."
-        : "No elevation data — neutral score applied.");
-  } else {
-    const elevationDeviation = Math.abs(elevationFactorClamped - 1);
-    elevationScoreRaw = scoreFromDeviation(elevationDeviation, MAX_ELEVATION, 0.9);
-    elevationReason =
-      classificationPreamble
-      + `Elevation ${elevM.toFixed(0)} m over ${activity.distanceKm.toFixed(2)} km `
-      + `(${elevationPerKm!.toFixed(1)} m/km vs baseline ${EXPECTED_ELEVATION_PER_KM} m/km, `
-      + `factor ${elevationFactorClamped.toFixed(2)}).`;
-  }
+    zoneMid * (1 + 0.04 * (elevAdjClamped - 1));
 
   // ── 1. Pace (max 3.0) + reason ───────────────────────────────────────────
   let paceForDeviation = activity.avgPaceSecKm;
@@ -285,7 +262,7 @@ export function calculateRunRating(
 
   let paceReason: string;
   const hillNote =
-    elevationFactorClamped !== 1
+    elevAdjClamped !== 1
       ? ` Base zone midpoint ${paceKmStr(zoneMid)} → hill-adjusted ${paceKmStr(adjustedMidpoint)}.`
       : "";
   if (usedEasyHrMidpoint) {
@@ -363,44 +340,55 @@ export function calculateRunRating(
       `${classificationPreamble}Your ${activity.distanceKm.toFixed(2)} km vs median ${bench.toFixed(2)} km from ${dists.length} prior ${runTypeLabel(runType)} runs (ratio ${ratio.toFixed(2)}).`;
   }
 
-  // ── 4. Conditions (max 0.5) + reason — same heat/humidity logic, scaled ──
+  // ── 4. Conditions (max 2.0) — merged weather + elevation challenge ──────────
+  // Weather factor (0–1): how tough the conditions were (heat, humidity)
   const t = activity.temperatureC;
-  let conditionsScoreRaw: number;
-  let conditionsReason: string;
+  let weatherFactor: number;
+  let weatherDesc: string;
   if (t == null || Number.isNaN(t)) {
-    conditionsScoreRaw = 0.25;
-    conditionsReason = "No temperature data — neutral score applied.";
+    weatherFactor = 0.5;
+    weatherDesc = "No temperature data — neutral weather factor.";
   } else {
     let bonus = 0;
     const bonusParts: string[] = [];
     if (t > 28) {
-      const hBonus = Math.min(0.3, (t - 28) * 0.1);
+      const hBonus = Math.min(0.2, (t - 28) * 0.1);
       bonus += hBonus;
-      bonusParts.push(`heat bonus +${hBonus.toFixed(1)}`);
+      bonusParts.push(`heat +${hBonus.toFixed(2)}`);
     }
     const h = activity.humidityPct;
     if (h != null && !Number.isNaN(h) && h > 80) {
       const hu = Math.min(0.2, Math.floor((h - 80) / 5) * 0.1);
       bonus += hu;
-      bonusParts.push(`humidity bonus +${hu.toFixed(1)}`);
+      bonusParts.push(`humidity +${hu.toFixed(2)}`);
     }
-    const rawUnitScale = Math.min(1.0, 0.8 + bonus);
-    conditionsScoreRaw = rawUnitScale * MAX_CONDITIONS;
-    const humDisp = h != null && !Number.isNaN(h) ? `${h.toFixed(0)}%` : "—";
-    if (bonus === 0) {
-      conditionsReason = `Normal conditions (${t.toFixed(1)}°C, ${humDisp}) — base contribution ${(0.8 * MAX_CONDITIONS).toFixed(2)} / ${MAX_CONDITIONS}.`;
-    } else {
-      const label = t > 28 ? "Hot conditions" : "Humid conditions";
-      conditionsReason = `${label} (${t.toFixed(1)}°C, ${humDisp}) — ${bonusParts.join(", ")} → ${conditionsScoreRaw.toFixed(2)} / ${MAX_CONDITIONS}.`;
-    }
+    weatherFactor = Math.min(1.0, 0.8 + bonus);
+    const humDisp = activity.humidityPct != null && !Number.isNaN(activity.humidityPct)
+      ? `${activity.humidityPct.toFixed(0)}%`
+      : "—";
+    weatherDesc = bonus > 0
+      ? `Tough weather (${t.toFixed(1)}°C, ${humDisp}) — ${bonusParts.join(", ")} → factor ${weatherFactor.toFixed(2)}.`
+      : `Normal weather (${t.toFixed(1)}°C, ${humDisp}) — factor ${weatherFactor.toFixed(2)}.`;
   }
+
+  // Elevation challenge (0–1): raw hilliness of the course (20 m/km = max challenge)
+  const elevationChallenge = hasElevationData
+    ? clamp(elevationPerKm! / 20, 0, 1)
+    : 0.5;
+  const elevDesc = hasElevationData
+    ? `${elevM!.toFixed(0)} m gain over ${activity.distanceKm.toFixed(2)} km (${elevationPerKm!.toFixed(1)} m/km).`
+    : "No elevation data — neutral elevation factor.";
+
+  const conditionsRaw = weatherFactor * 0.6 + elevationChallenge * 0.4;
+  const conditionsScoreRaw = conditionsRaw * MAX_CONDITIONS;
+  const conditionsReason =
+    `${classificationPreamble}${weatherDesc} ${elevDesc} Combined: ${conditionsScoreRaw.toFixed(2)} / ${MAX_CONDITIONS}.`;
 
   const pace = round1(paceScoreRaw);
   const effort = round1(effortScoreRaw);
   const distance = round1(distanceScoreRaw);
-  const elevation = round1(elevationScoreRaw);
   const conditions = round1(conditionsScoreRaw);
-  const rawTotal = pace + effort + distance + elevation + conditions;
+  const rawTotal = pace + effort + distance + conditions;
   const total = round1(Math.max(3.0, Math.min(10, rawTotal)));
   const band = ratingBand(total);
   const floorApplied = rawTotal < 3.0;
@@ -416,7 +404,6 @@ export function calculateRunRating(
       pace:       { score: pace,       max: MAX_PACE,       reason: paceReason },
       effort:     { score: effort,     max: MAX_EFFORT,     reason: effortReason },
       distance:   { score: distance,   max: MAX_DISTANCE,   reason: distanceReason },
-      elevation:  { score: elevation,  max: MAX_ELEVATION,  reason: elevationReason },
       conditions: { score: conditions, max: MAX_CONDITIONS, reason: conditionsReason },
     },
   };

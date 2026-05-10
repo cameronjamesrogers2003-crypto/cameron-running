@@ -306,11 +306,15 @@ export async function syncActivities(): Promise<{ synced: number; errors: number
                 where: { id: existing.id },
                 data: { weatherFetchedAt: new Date() },
               })
-              .catch(() => {});
+              .catch((markErr: unknown) => {
+                console.error("[strava] failed to mark weatherFetchedAt:", existing.id, markErr);
+              });
           }
         }
 
-        await persistActivityRating(prisma, id).catch(() => {});
+        await persistActivityRating(prisma, id).catch((err: unknown) => {
+          console.error("[strava] persistActivityRating failed for existing activity:", id, err);
+        });
         await refreshPlayerRating(id, existing.activityType);
         continue;
       }
@@ -389,7 +393,9 @@ export async function syncActivities(): Promise<{ synced: number; errors: number
         );
       }
 
-      await persistActivityRating(prisma, id).catch(() => {});
+      await persistActivityRating(prisma, id).catch((err: unknown) => {
+        console.error("[strava] persistActivityRating failed for new activity:", id, err);
+      });
       await refreshPlayerRating(id, activityType);
 
       synced++;

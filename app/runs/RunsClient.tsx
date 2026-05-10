@@ -126,7 +126,6 @@ function RatingBreakdownPanel({ json, rating }: { json: string | null; rating: n
       {line("Pace Quality", c.pace.score, c.pace.max, c.pace.reason, "var(--c-interval)")}
       {line("Effort", c.effort.score, c.effort.max, c.effort.reason, "var(--c-easy)")}
       {line("Distance", c.distance.score, c.distance.max, c.distance.reason, "var(--c-long)")}
-      {line("Elevation", c.elevation.score, c.elevation.max, c.elevation.reason, "#c4b5fd")}
       {line("Conditions", c.conditions.score, c.conditions.max, c.conditions.reason, "#f5b454")}
       <div
         className="border-t border-white/[0.08] pt-2 mt-1"

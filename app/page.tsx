@@ -527,7 +527,7 @@ export default async function Dashboard({
             name={getDisplayName(settings).toUpperCase()}
             spd={playerRating?.speed ?? 1}
             end={playerRating?.endurance ?? 1}
-            con={playerRating?.consistency ?? 1}
+            res={playerRating?.resilience ?? 1}
             eff={playerRating?.hrEfficiency ?? 1}
             tgh={playerRating?.toughness ?? 1}
             prevOvr={playerRating?.prevOverall}

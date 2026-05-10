@@ -35,7 +35,7 @@ function tierBandProgress(rank: number, tier: TierConfig): number {
 }
 
 const INNER_BASE = "relative rounded-[calc(1.5rem-1px)] overflow-hidden bg-black";
-const STATS_ORDER = ["SPD", "END", "CON", "EFF", "TGH"] as const;
+const STATS_ORDER = ["SPD", "END", "RES", "EFF", "TGH"] as const;
 
 function orderedStats(stats: readonly TierCardStat[]): TierCardStat[] {
   const byKey = Object.fromEntries(stats.map((s) => [s.key, s]));

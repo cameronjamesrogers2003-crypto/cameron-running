@@ -9,7 +9,7 @@ interface PlayerCardProps {
   name: string;
   spd: number;
   end: number;
-  con: number;
+  res: number;
   eff: number;
   tgh: number;
   prevOvr?: number;
@@ -21,7 +21,7 @@ function PlayerCard({
   name,
   spd,
   end,
-  con,
+  res,
   eff,
   tgh,
   prevOvr,
@@ -34,11 +34,11 @@ function PlayerCard({
       [
         { key: "SPD", fullName: "Speed", value: spd, color: "var(--c-interval)" },
         { key: "END", fullName: "Endurance", value: end, color: "var(--c-long)" },
-        { key: "CON", fullName: "Consistency", value: con, color: "var(--c-tempo)" },
+        { key: "RES", fullName: "Resilience", value: res, color: "var(--c-tempo)" },
         { key: "EFF", fullName: "HR Efficiency", value: eff, color: "var(--c-easy)" },
         { key: "TGH", fullName: "Toughness", value: tgh, color: "#f5b454" },
       ] as const,
-    [spd, end, con, eff, tgh],
+    [spd, end, res, eff, tgh],
   );
 
   const isDashboard = mode === "dashboard";

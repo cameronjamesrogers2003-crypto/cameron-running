@@ -10,8 +10,8 @@ import {
   type PlayerRatingAttribute,
   ratingConditionsScore,
 } from "@/lib/playerRating";
-import { formatAEST, startOfNextDayAEST, toBrisbaneYmd } from "@/lib/dateUtils";
-import { getEffectivePlanStart, getPlanWeekForDate, getSessionDate, isActivityOnOrAfterPlanStart, parsePlanFirstSessionDay } from "@/lib/planUtils";
+import { formatAEST, startOfNextDayAEST } from "@/lib/dateUtils";
+import { getEffectivePlanStart, parsePlanFirstSessionDay } from "@/lib/planUtils";
 import { Star } from "lucide-react";
 import PageHeading from "@/components/ui/PageHeading";
 
@@ -69,45 +69,25 @@ function playerAttributeExplanation(
     return `Your longest run is ${formatKm(longestRun)} and weekly average is ${formatKm(avgWeeklyKm)}. Build your long run distance to improve this.`;
   }
 
-  if (key === "consistency") {
-    const planStartLabel = formatAEST(planStart, "d MMM");
-    let hits = 0;
-    const currentWeek = Math.max(1, getPlanWeekForDate(today, planStart));
-    const firstWeek = Math.max(1, currentWeek - 3);
-    const runKeys = new Set(
-      activities
-        .filter((a) => isActivityOnOrAfterPlanStart(new Date(a.date), planStart))
-        .map((a) => toBrisbaneYmd(a.date)),
-    );
-    const planSessions: Date[] = [];
-    for (let week = firstWeek; week <= currentWeek; week++) {
-      const planWeek = plan.find((w) => w.week === week);
-      if (!planWeek) continue;
-      for (const session of planWeek.sessions) {
-        const sessionDate = getSessionDate(week, session.day, planStart);
-        planSessions.push(sessionDate);
-        if (runKeys.has(toBrisbaneYmd(sessionDate))) hits++;
-      }
+  if (key === "resilience") {
+    const runsWithSplits = recent30.filter((a) => (a.splitsJson ?? "").length > 0);
+    if (runsWithSplits.length === 0) {
+      return "No per-km split data found in the last 30 days. Run with a Strava-connected watch to track pace consistency and recovery quality.";
     }
-    const plannedCount = planSessions.length;
-    if (hits === 0) {
-      return `No scheduled sessions completed yet; plan starts ${planStartLabel}. Hit your sessions every week to climb this.`;
-    }
-    return `You have completed ${hits}/${plannedCount} scheduled sessions in the last 4 weeks. Hit your sessions every week to climb this.`;
+    return `Based on ${runsWithSplits.length} ${runsWithSplits.length === 1 ? "run" : "runs"} with split data in the last 30 days. Consistent even splits and running after hard efforts lift this score.`;
   }
 
   if (key === "hrEfficiency") {
-    const easyHrRuns = recent30.filter((a) =>
-      a.avgPaceSecKm > 0
-      && (a.avgHeartRate ?? 0) > 0
-      && inferRunType(a, settings) === "easy"
-    );
-    if (easyHrRuns.length === 0) {
-      return "No HR data on easy runs found in the last 30 days. Run more easy runs with your HR monitor to improve this score.";
+    const easyLongHrRuns = recent30.filter((a) => {
+      const rt = inferRunType(a, settings);
+      return a.avgPaceSecKm > 0 && (a.avgHeartRate ?? 0) > 0 && (rt === "easy" || rt === "long");
+    });
+    if (easyLongHrRuns.length === 0) {
+      return "No HR data on easy or long runs found in the last 30 days. Run more aerobic runs with your HR monitor to improve this score.";
     }
-    const avgPace = Math.round(easyHrRuns.reduce((sum, a) => sum + a.avgPaceSecKm, 0) / easyHrRuns.length);
-    const avgHr = Math.round(easyHrRuns.reduce((sum, a) => sum + (a.avgHeartRate ?? 0), 0) / easyHrRuns.length);
-    return `Based on ${easyHrRuns.length} easy HR ${easyHrRuns.length === 1 ? "run" : "runs"} averaging ${formatPace(avgPace)}/km at ${avgHr} bpm. Run more easy runs with your HR monitor to improve this score.`;
+    const avgPace = Math.round(easyLongHrRuns.reduce((sum, a) => sum + a.avgPaceSecKm, 0) / easyLongHrRuns.length);
+    const avgHr = Math.round(easyLongHrRuns.reduce((sum, a) => sum + (a.avgHeartRate ?? 0), 0) / easyLongHrRuns.length);
+    return `Based on ${easyLongHrRuns.length} easy/long HR ${easyLongHrRuns.length === 1 ? "run" : "runs"} averaging ${formatPace(avgPace)}/km at ${avgHr} bpm. Run more aerobic runs with your HR monitor to improve this score.`;
   }
 
   const conditionRuns = recent30;
@@ -122,7 +102,7 @@ function playerAttributeExplanation(
 const ATTRIBUTE_META = [
   { key: "speed", fullName: "Speed", color: "var(--c-interval)" },
   { key: "endurance", fullName: "Endurance", color: "var(--c-long)" },
-  { key: "consistency", fullName: "Consistency", color: "var(--c-tempo)" },
+  { key: "resilience", fullName: "Resilience", color: "var(--c-tempo)" },
   { key: "hrEfficiency", fullName: "HR Efficiency", color: "var(--c-easy)" },
   { key: "toughness", fullName: "Toughness", color: "#f5b454" },
 ] as const;
@@ -167,6 +147,7 @@ export default async function RatingPage() {
       ratingBreakdown: true,
       classifiedRunType: true,
       activityType: true,
+      splitsJson: true,
       name: true,
       durationSecs: true,
     },
@@ -220,7 +201,7 @@ export default async function RatingPage() {
           name={getDisplayName(settings).toUpperCase()}
           spd={Math.round(playerRating?.speed ?? 1)}
           end={Math.round(playerRating?.endurance ?? 1)}
-          con={Math.round(playerRating?.consistency ?? 1)}
+          res={Math.round(playerRating?.resilience ?? 1)}
           eff={Math.round(playerRating?.hrEfficiency ?? 1)}
           tgh={Math.round(playerRating?.toughness ?? 1)}
           prevOvr={playerRating?.prevOverall ?? undefined}

@@ -1,14 +1,6 @@
 import type { PlayerRating, PrismaClient } from "@prisma/client";
 import { buildTrainingPlan, type RunType, type TrainingWeek } from "@/data/trainingPlan";
 import { parseInterruptionType, type PlanInterruption } from "@/lib/interruptions";
-import { sameDayAEST, toBrisbaneYmd } from "@/lib/dateUtils";
-import {
-  getEffectivePlanStart,
-  getPlanWeekForDate,
-  getSessionDate,
-  isActivityOnOrAfterPlanStart,
-  parsePlanFirstSessionDay,
-} from "@/lib/planUtils";
 import { inferRunType, parseRatingBreakdown, type StatActivity } from "@/lib/rating";
 import { dbSettingsToUserSettings, DEFAULT_SETTINGS, type UserSettings } from "@/lib/settings";
 import { loadGeneratedPlan } from "@/lib/planStorage";
@@ -20,7 +12,7 @@ export type PlayerRatingAttribute =
   | "overall"
   | "speed"
   | "endurance"
-  | "consistency"
+  | "resilience"
   | "hrEfficiency"
   | "toughness";
 
@@ -43,7 +35,7 @@ export interface PlayerRatingLike extends PlayerRatingScores {
   prevOverall: number;
   prevSpeed: number;
   prevEndurance: number;
-  prevConsistency: number;
+  prevResilience: number;
   prevHrEfficiency: number;
   prevToughness: number;
 }
@@ -55,7 +47,7 @@ export const PLAYER_RATING_ATTRIBUTES: Array<{
 }> = [
   { key: "speed", label: "SPD", name: "Speed" },
   { key: "endurance", label: "END", name: "Endurance" },
-  { key: "consistency", label: "CON", name: "Consistency" },
+  { key: "resilience", label: "RES", name: "Resilience" },
   { key: "hrEfficiency", label: "EFF", name: "HR Efficiency" },
   { key: "toughness", label: "TGH", name: "Toughness" },
 ];
@@ -147,40 +139,81 @@ function calculateEndurance(activities: RatingActivity[], now: Date): number {
   return scoreFromRaw((longScore + volScore) / 2);
 }
 
-/** Calculates the consistency attribute from recent scheduled-day run hits. */
-function calculateConsistency(
+/** Calculates the resilience attribute from intra-run pace consistency and back-to-back recovery. */
+function calculateResilience(
   activities: RatingActivity[],
   settings: UserSettings,
-  plan: TrainingWeek[],
-  _interruptions: PlanInterruption[],
   now: Date,
 ): number {
-  const since = new Date(now.getTime() - 28 * MS_PER_DAY);
-  const hitDays = new Set<string>();
-  const planStart = getEffectivePlanStart(settings.planStartDate, parsePlanFirstSessionDay(settings.trainingDays));
-  let plannedSessions = 0;
+  const since = new Date(now.getTime() - 30 * MS_PER_DAY);
+  const recent = activities.filter((a) => {
+    const d = new Date(a.date);
+    return d >= since && d <= now;
+  });
 
-  for (const week of plan) {
-    for (const session of week.sessions) {
-      const sessionDate = getSessionDate(week.week, session.day, planStart);
-      if (sessionDate < since || sessionDate > now) continue;
-      plannedSessions++;
+  if (recent.length === 0) return 1;
+
+  // Part A: pace consistency within each run (lower variance = higher score)
+  let splitScoreSum = 0;
+  let splitCount = 0;
+  for (const act of recent) {
+    if (!act.splitsJson) continue;
+    try {
+      const splits = JSON.parse(act.splitsJson) as Array<{ average_speed?: number; distance?: number }>;
+      const paces = splits
+        .filter(
+          (s) =>
+            typeof s.average_speed === "number" &&
+            s.average_speed > 0 &&
+            (s.distance ?? 0) >= 800,
+        )
+        .map((s) => 1000 / (s.average_speed as number));
+      if (paces.length < 3) continue;
+      const avg = paces.reduce((sum, p) => sum + p, 0) / paces.length;
+      if (avg <= 0) continue;
+      const mad = paces.reduce((sum, p) => sum + Math.abs(p - avg), 0) / (avg * paces.length);
+      splitScoreSum += Math.exp(-5 * mad);
+      splitCount++;
+    } catch {
+      // ignore parse errors
     }
   }
+  const partA = splitCount > 0 ? splitScoreSum / splitCount : 0.5;
 
-  for (const activity of activities) {
-    const d = new Date(activity.date);
-    if (d < since || d > now) continue;
-    if (!isActivityOnOrAfterPlanStart(d, planStart)) continue;
-    const weekNum = getPlanWeekForDate(d, planStart);
-    if (weekNum <= 0 || weekNum > plan.length) continue;
-    const week = plan[weekNum - 1];
-    const matched = week?.sessions.some((session) => sameDayAEST(d, getSessionDate(weekNum, session.day, planStart)));
-    if (matched) hitDays.add(toBrisbaneYmd(d));
+  // Part B: ability to run after hard efforts (back-to-back recovery quality)
+  const sorted = [...recent].sort(
+    (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
+  );
+  let backToBackScore = 0;
+  let backToBackCount = 0;
+  const maxHR = Math.max(1, settings.maxHR);
+
+  for (let i = 0; i < sorted.length - 1; i++) {
+    const hard = sorted[i]!;
+    const next = sorted[i + 1]!;
+    const hardType = getRunType(hard, settings);
+    if (hardType !== "tempo" && hardType !== "interval") continue;
+    const gapHours =
+      (new Date(next.date).getTime() - new Date(hard.date).getTime()) / 3_600_000;
+    if (gapHours > 36) continue;
+    backToBackCount++;
+    const hrFrac = next.avgHeartRate ? next.avgHeartRate / maxHR : null;
+    // Credit if the recovery run HR stayed in an easy/aerobic zone
+    const inZone = hrFrac != null ? hrFrac >= 0.55 && hrFrac <= 0.82 : true;
+    backToBackScore += inZone ? 1.0 : 0.5;
   }
+  const partB = backToBackCount > 0 ? backToBackScore / backToBackCount : 0.5;
 
-  const denominator = Math.max(1, plannedSessions);
-  return scoreFromRaw(clamp(hitDays.size, 0, denominator) / denominator);
+  const combined =
+    splitCount > 0 && backToBackCount > 0
+      ? partA * 0.6 + partB * 0.4
+      : splitCount > 0
+      ? partA
+      : backToBackCount > 0
+      ? partB
+      : 0.5;
+
+  return scoreFromRaw(combined);
 }
 
 /** Calculates the HR efficiency attribute from recent easy-run pace per heart-rate effort. */
@@ -199,7 +232,7 @@ function calculateHrEfficiency(
         && d <= now
         && a.avgPaceSecKm > 0
         && (a.avgHeartRate ?? 0) > 0
-        && getRunType(a, settings) === "easy"
+        && (getRunType(a, settings) === "easy" || getRunType(a, settings) === "long")
       );
     })
     .map((a) => {
@@ -215,18 +248,9 @@ function calculateHrEfficiency(
   return scoreFromRaw((avgRatio - beginnerRatio) / (eliteRatio - beginnerRatio));
 }
 
-/** Returns the display accent color for a 1-99 player rating score. */
-export function playerRatingAccent(score: number): string {
-  if (score >= 85) return "#22c55e";
-  if (score >= 70) return "#84cc16";
-  if (score >= 55) return "#facc15";
-  if (score >= 40) return "#fb923c";
-  return "#f87171";
-}
-
 /** Returns the stored run-rating conditions score, defaulting to neutral when absent. */
 export function ratingConditionsScore(ratingBreakdown: string | null | undefined): number {
-  return parseRatingBreakdown(ratingBreakdown)?.components.conditions.score ?? 0.5;
+  return parseRatingBreakdown(ratingBreakdown)?.components.conditions.score ?? 1.0;
 }
 
 /** Calculates the toughness attribute from recent run-rating conditions scores. */
@@ -241,16 +265,16 @@ function calculateToughness(activities: RatingActivity[], now: Date): number {
 
   const avgConditionsScore =
     last30.reduce((sum, a) => sum + ratingConditionsScore(a.ratingBreakdown), 0) / last30.length;
-  return scoreFromRange(avgConditionsScore, 0.5, 1.0);
+  return scoreFromRange(avgConditionsScore, 0.8, 2.0);
 }
 
 /** Calculates the weighted overall player rating from individual attributes. */
 function calculateOverall(scores: Omit<PlayerRatingScores, "overall">): number {
   return roundRating(
-    scores.speed * 0.25
-    + scores.endurance * 0.30
-    + scores.consistency * 0.25
-    + scores.hrEfficiency * 0.10
+    scores.speed * 0.28
+    + scores.endurance * 0.32
+    + scores.resilience * 0.15
+    + scores.hrEfficiency * 0.15
     + scores.toughness * 0.10,
   );
 }
@@ -259,15 +283,15 @@ function calculateOverall(scores: Omit<PlayerRatingScores, "overall">): number {
 function calculateScores(
   activities: RatingActivity[],
   settings: UserSettings,
-  plan: TrainingWeek[],
-  interruptions: PlanInterruption[],
+  _plan: TrainingWeek[],
+  _interruptions: PlanInterruption[],
   now = new Date(),
 ): PlayerRatingScores {
   const runningActivities = activities.filter(isRunningActivity);
   const scores = {
     speed: calculateSpeed(runningActivities, settings, now),
     endurance: calculateEndurance(runningActivities, now),
-    consistency: calculateConsistency(runningActivities, settings, plan, interruptions, now),
+    resilience: calculateResilience(runningActivities, settings, now),
     hrEfficiency: calculateHrEfficiency(runningActivities, settings, now),
     toughness: calculateToughness(runningActivities, now),
   };
@@ -284,13 +308,13 @@ function ratingData(scores: PlayerRatingScores, previous: PlayerRatingScores = s
     overall: scores.overall,
     speed: scores.speed,
     endurance: scores.endurance,
-    consistency: scores.consistency,
+    resilience: scores.resilience,
     hrEfficiency: scores.hrEfficiency,
     toughness: scores.toughness,
     prevOverall: previous.overall,
     prevSpeed: previous.speed,
     prevEndurance: previous.endurance,
-    prevConsistency: previous.consistency,
+    prevResilience: previous.resilience,
     prevHrEfficiency: previous.hrEfficiency,
     prevToughness: previous.toughness,
   };
@@ -302,7 +326,7 @@ function previousScores(row: PlayerRatingLike): PlayerRatingScores {
     overall: row.overall,
     speed: row.speed,
     endurance: row.endurance,
-    consistency: row.consistency,
+    resilience: row.resilience,
     hrEfficiency: row.hrEfficiency,
     toughness: row.toughness,
   };
@@ -314,7 +338,7 @@ function deltaFrom(before: PlayerRatingScores, after: PlayerRatingScores): Playe
     overall: after.overall - before.overall,
     speed: after.speed - before.speed,
     endurance: after.endurance - before.endurance,
-    consistency: after.consistency - before.consistency,
+    resilience: after.resilience - before.resilience,
     hrEfficiency: after.hrEfficiency - before.hrEfficiency,
     toughness: after.toughness - before.toughness,
   };
@@ -357,6 +381,7 @@ async function loadActivities(prisma: PrismaClient): Promise<RatingActivity[]> {
       ratingBreakdown: true,
       classifiedRunType: true,
       activityType: true,
+      splitsJson: true,
     },
   });
 }
@@ -451,8 +476,8 @@ function prevValue(rating: PlayerRatingLike, key: PlayerRatingAttribute): number
       return rating.prevSpeed;
     case "endurance":
       return rating.prevEndurance;
-    case "consistency":
-      return rating.prevConsistency;
+    case "resilience":
+      return rating.prevResilience;
     case "hrEfficiency":
       return rating.prevHrEfficiency;
     case "toughness":
@@ -468,22 +493,6 @@ function currentValue(rating: PlayerRatingLike, key: PlayerRatingAttribute): num
 /** Converts a score delta into a short trend word. */
 function trendWord(delta: number): string {
   return delta > 0 ? "improved" : "dipped";
-}
-
-/** Explains whether a run matched a scheduled plan session. */
-function scheduledHitReason(run: StatActivity, settings: UserSettings): string {
-  const planStart = getEffectivePlanStart(settings.planStartDate, parsePlanFirstSessionDay(settings.trainingDays));
-  if (!isActivityOnOrAfterPlanStart(new Date(run.date), planStart)) {
-    return "Before plan start";
-  }
-  const week = getPlanWeekForDate(new Date(run.date), planStart);
-  if (week <= 0) return "Before plan start";
-  const plan = buildTrainingPlan(settings);
-  const planWeek = plan.find((w) => w.week === week);
-  const matched = planWeek?.sessions.some((session) =>
-    sameDayAEST(new Date(run.date), getSessionDate(week, session.day, planStart)),
-  );
-  return matched ? "Scheduled session hit" : "Not a scheduled session";
 }
 
 /** Builds a short explanation for a player rating attribute delta. */
@@ -517,23 +526,24 @@ function summaryReason(
     return delta >= 0 ? "Weekly volume increased" : "Rolling volume decreased";
   }
 
-  if (key === "consistency") {
-    const reason = scheduledHitReason(run, settings);
-    return delta === 0 ? reason : `${reason}; 4-week hit rate ${trendWord(delta)}`;
+  if (key === "resilience") {
+    const hasSplits = (run.splitsJson ?? "").length > 0;
+    if (delta === 0) return hasSplits ? "Splits consistency steady" : "No splits data yet";
+    return delta > 0 ? "Improved pacing or back-to-back recovery" : "Pace variance or recovery dipped";
   }
 
   if (key === "hrEfficiency") {
     const hasHr = (run.avgHeartRate ?? 0) > 0;
     if ((runType === "easy" || runType === "long") && hasHr) {
-      return delta >= 0 ? "Easy HR efficiency improved" : "Easy HR efficiency dipped";
+      return delta >= 0 ? "Easy/long HR efficiency improved" : "Easy/long HR efficiency dipped";
     }
-    if (delta !== 0) return "Older easy HR data rolled off";
-    return hasHr ? "Easy runs only" : "No HR data";
+    if (delta !== 0) return "Older easy/long HR data rolled off";
+    return hasHr ? "Easy/long runs only" : "No HR data";
   }
 
   const conditions = ratingConditionsScore(run.ratingBreakdown);
-  if (delta === 0) return conditions > 0.5 ? "Conditions already reflected" : "Mild conditions";
-  return conditions > 0.5 ? "Tough conditions added credit" : "Milder conditions lowered toughness";
+  if (delta === 0) return conditions > 1.1 ? "Conditions already reflected" : "Mild conditions";
+  return conditions > 1.1 ? "Tough conditions added credit" : "Milder conditions lowered toughness";
 }
 
 /** Builds player rating summary rows for display and returns one row per attribute. */
@@ -546,7 +556,7 @@ export function buildPlayerRatingSummaryRows(
     { key: "overall", label: "OVR" },
     { key: "speed", label: "SPD" },
     { key: "endurance", label: "END" },
-    { key: "consistency", label: "CON" },
+    { key: "resilience", label: "RES" },
     { key: "hrEfficiency", label: "EFF" },
     { key: "toughness", label: "TGH" },
   ];
