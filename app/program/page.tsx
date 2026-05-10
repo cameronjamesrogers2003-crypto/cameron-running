@@ -710,7 +710,7 @@ export default async function ProgramPage({
       </div>
 
       {/* ── Side panel (desktop) ─────────────────────────────────────── */}
-      <div className="hidden lg:block shrink-0">
+      <div className="hidden lg:block shrink-0 min-w-0">
         <ProgramSidePanel maxHR={maxHR} />
       </div>
     </div>

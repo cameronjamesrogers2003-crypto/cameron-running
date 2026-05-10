@@ -121,7 +121,7 @@ function Section({
 export default function ProgramSidePanel({ maxHR }: Props) {
   return (
     <aside
-      className="w-[252px] shrink-0 sticky overflow-y-auto"
+      className="w-[252px] min-w-0 shrink-0 sticky overflow-y-auto overflow-x-hidden"
       style={{
         top: 70,
         maxHeight: "calc(100vh - 70px)",
@@ -129,11 +129,11 @@ export default function ProgramSidePanel({ maxHR }: Props) {
         padding: "14px",
       }}
     >
-      <div className="space-y-1 divide-y" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
+      <div className="space-y-1 divide-y min-w-0" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
         {/* ── Section 1: HR Zones ──────────────────────────────────────── */}
         <Section title="Heart Rate Zones">
-          <div className="pb-3 pt-0.5 space-y-2">
-            <p className="text-[11px] leading-relaxed" style={{ color: "rgba(232,230,224,0.35)" }}>
+          <div className="pb-3 pt-0.5 space-y-2 min-w-0">
+            <p className="text-[11px] leading-relaxed break-words" style={{ color: "rgba(232,230,224,0.35)" }}>
               Calculated from your max HR of {maxHR} bpm. Update in{" "}
               <Link
                 href="/settings"
@@ -144,58 +144,56 @@ export default function ProgramSidePanel({ maxHR }: Props) {
               </Link>{" "}
               if it changes.
             </p>
-            <div className="rounded-md overflow-hidden border border-white/[0.05]" style={{ background: "#141414" }}>
-              <table className="w-full text-left border-collapse text-[11px]">
-                <thead>
-                  <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-                    <th className="py-1.5 px-1.5 font-semibold text-white align-bottom">Zone</th>
-                    <th className="py-1.5 px-1.5 font-semibold text-white align-bottom">Name</th>
-                    <th
-                      className="py-1.5 px-1.5 font-semibold font-mono align-bottom whitespace-nowrap"
-                      style={{ color: "var(--text-muted)" }}
-                    >
-                      BPM
-                    </th>
-                    <th className="py-1.5 px-1.5 font-semibold text-white align-bottom">Feel</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {ZONE_ROWS.map((row) => (
-                    <tr
-                      key={row.zone}
-                      style={{
-                        borderBottom: "1px solid rgba(255,255,255,0.04)",
-                        background: row.highlighted ? "rgba(255,255,255,0.05)" : undefined,
-                      }}
-                    >
-                      <td
-                        className="py-1.5 px-1.5 font-bold text-white align-top whitespace-nowrap"
+            {/* Stacked rows: full-width Feel avoids clipping in a 252px sidebar (4-col table was too wide). */}
+            <div className="rounded-md border border-white/[0.05] min-w-0" style={{ background: "#141414" }}>
+              <div
+                className="px-2 py-1.5 border-b border-white/[0.06] text-[10px] font-semibold uppercase tracking-wide"
+                style={{ color: "rgba(232,230,224,0.85)" }}
+              >
+                <div className="flex justify-between gap-2 min-w-0">
+                  <span className="text-white">Zone · Name</span>
+                  <span className="font-mono shrink-0" style={{ color: "rgba(232,230,224,0.85)" }}>
+                    BPM
+                  </span>
+                </div>
+                <div className="mt-0.5 text-white">Feel</div>
+              </div>
+              <div role="list">
+                {ZONE_ROWS.map((row) => (
+                  <div
+                    key={row.zone}
+                    role="listitem"
+                    className="px-2 py-1.5 border-b border-white/[0.04] last:border-b-0 min-w-0"
+                    style={{
+                      background: row.highlighted ? "rgba(255,255,255,0.05)" : undefined,
+                    }}
+                  >
+                    <div className="flex justify-between items-baseline gap-2 min-w-0 text-[11px]">
+                      <span
+                        className="font-bold text-white min-w-0 break-words"
                         style={{ opacity: row.highlighted ? 1 : 0.55 }}
                       >
-                        {row.zone}
-                      </td>
-                      <td
-                        className="py-1.5 px-1.5 text-white align-top"
-                        style={{ opacity: row.highlighted ? 1 : 0.55 }}
-                      >
-                        {row.name}
-                      </td>
-                      <td
-                        className="py-1.5 px-1.5 font-mono align-top whitespace-nowrap"
-                        style={{ color: "var(--text-muted)", opacity: row.highlighted ? 1 : 0.85 }}
+                        {row.zone} {row.name}
+                      </span>
+                      <span
+                        className="font-mono shrink-0 tabular-nums"
+                        style={{
+                          color: "rgba(232,230,224,0.75)",
+                          opacity: row.highlighted ? 1 : 0.85,
+                        }}
                       >
                         {zoneBpmCell(row, maxHR)}
-                      </td>
-                      <td
-                        className="py-1.5 px-1.5 align-top leading-snug"
-                        style={{ color: "rgba(232,230,224,0.5)", opacity: row.highlighted ? 1 : 0.55 }}
-                      >
-                        {row.feel}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                      </span>
+                    </div>
+                    <p
+                      className="text-[11px] leading-snug mt-1 break-words"
+                      style={{ color: "rgba(232,230,224,0.5)", opacity: row.highlighted ? 1 : 0.55 }}
+                    >
+                      {row.feel}
+                    </p>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </Section>
