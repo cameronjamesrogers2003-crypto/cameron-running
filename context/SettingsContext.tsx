@@ -27,11 +27,16 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     })
       .then(r => r.json())
-      .then(data => { setSettings(data); setLoading(false); })
+      .then(data => {
+        console.log("[SettingsContext] initial fetch:", { planStartDate: data.planStartDate, vdot: data.currentVdot });
+        setSettings(data);
+        setLoading(false);
+      })
       .catch(() => setLoading(false));
   }, [token]);
 
   const updateSettings = useCallback(async (patch: Partial<UserSettings>) => {
+    console.log("[SettingsContext] updateSettings patch keys:", Object.keys(patch));
     const res  = await fetch("/api/settings", {
       method:  "PATCH",
       headers: {
@@ -43,6 +48,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
       throw new Error("Failed to save settings");
     }
     const updated = await res.json();
+    console.log("[SettingsContext] updateSettings response:", { planStartDate: updated.planStartDate, vdot: updated.currentVdot });
     setSettings(updated);
   }, []);
 

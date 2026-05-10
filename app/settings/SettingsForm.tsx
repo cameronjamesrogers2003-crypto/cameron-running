@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSettings } from "@/context/SettingsContext";
 import { brisbaneMidnightUtcForYmd, toBrisbaneYmd } from "@/lib/dateUtils";
 import { planStartIsoYmdToAusDisplay } from "@/lib/planStartDateFormat";
@@ -120,6 +120,8 @@ export default function SettingsForm() {
   const [trainingDays, setTrainingDays] = useState<Day[]>(() => parseTrainingDaysValue(settings.trainingDays));
   const [selectedLongRunDay, setSelectedLongRunDay] = useState<Day | null>(() => parseLongRunDayValue(settings.longRunDay));
 
+  const syncedRef = useRef(false);
+
   const [vdotUpdatedMsg, setVdotUpdatedMsg] = useState<string | null>(null);
   const [suggestedLevel, setSuggestedLevel] = useState<"BEGINNER" | "INTERMEDIATE" | "ADVANCED" | null>(null);
   const [showTooManyDaysWarning, setShowTooManyDaysWarning] = useState(false);
@@ -166,12 +168,25 @@ export default function SettingsForm() {
     });
   }
 
-  // Sync remote settings into local form state when /api/settings returns fresh data.
+  // One-time hydration from DB — guard prevents re-running on every updateSettings call.
   /* eslint-disable react-hooks/set-state-in-effect -- single batch hydrate from API */
   useEffect(() => {
     if (loading) return;
+    if (syncedRef.current) return;
+    syncedRef.current = true;
 
-    setPlanStartDateIsoYmd(settings.planStartDate ? toBrisbaneYmd(new Date(settings.planStartDate)) : "");
+    const loaded = settings.planStartDate ? toBrisbaneYmd(new Date(settings.planStartDate)) : "";
+    console.log("[settings] hydrating form from DB:", {
+      planStartDate: loaded,
+      experienceLevel: settings.experienceLevel,
+      goalRace: settings.goalRace,
+      planLengthWeeks: settings.planLengthWeeks,
+      trainingDays: settings.trainingDays,
+      longRunDay: settings.longRunDay,
+      vdot: settings.currentVdot,
+    });
+
+    setPlanStartDateIsoYmd(loaded);
     setExperienceLevel(settings.experienceLevel ?? "BEGINNER");
     setGoalRace(settings.goalRace ?? "HALF");
     setPlanLengthWeeks((settings.planLengthWeeks ?? 16) as 12 | 16 | 20);
@@ -276,6 +291,15 @@ export default function SettingsForm() {
   async function handleMainSave() {
     setSaveError(null);
     setSaveStatus("saving");
+    console.log("[settings] saving:", {
+      planStartDateIsoYmd,
+      experienceLevel,
+      goalRace,
+      planLengthWeeks,
+      trainingDays: sortedTrainingDays,
+      longRunDay: effectiveLongRunDay,
+      vdot,
+    });
     try {
       const trimmedIsoYmd = planStartDateIsoYmd.trim();
       let planIso: string | null = null;
@@ -284,7 +308,9 @@ export default function SettingsForm() {
         if (!/^\d{4}-\d{2}-\d{2}$/.test(isoYmd)) {
           throw new Error("Invalid plan start date (expected yyyy-mm-dd)");
         }
-        if (isoYmd < minPlanStartIsoYmd) {
+        const loadedPlanStart = settings.planStartDate ? toBrisbaneYmd(new Date(settings.planStartDate)) : "";
+        const isNewDate = isoYmd !== loadedPlanStart;
+        if (isNewDate && isoYmd < minPlanStartIsoYmd) {
           throw new Error("Plan start date cannot be in the past.");
         }
         planIso = brisbaneMidnightUtcForYmd(isoYmd).toISOString();
