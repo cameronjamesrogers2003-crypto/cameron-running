@@ -1,12 +1,24 @@
 import type { Metadata, Viewport } from "next";
-import { Geist } from "next/font/google";
+import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import Nav from "@/components/Nav";
 import MobileBottomNav from "@/components/MobileBottomNav";
 import { SettingsProvider } from "@/context/SettingsContext";
 import { PageTransition } from "@/components/PageTransition";
 
-const geist = Geist({ subsets: ["latin"], variable: "--font-geist-sans" });
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-inter",
+  display: "swap",
+  weight: ["400", "500", "600", "700", "800"],
+});
+
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ["latin"],
+  variable: "--font-jetbrains-mono",
+  display: "swap",
+  weight: ["400", "500"],
+});
 
 export const metadata: Metadata = {
   title: "Runshift",
@@ -22,7 +34,7 @@ export const viewport: Viewport = {
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${geist.variable} h-full overflow-x-hidden dark`}>
+    <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable} h-full overflow-x-hidden dark`}>
       <body
         className="dark min-h-screen flex flex-col overflow-x-hidden"
         style={{ background: "var(--background)", color: "var(--text)" }}
