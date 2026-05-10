@@ -612,6 +612,9 @@ export default async function ProgramPage({
                           const cardProps: SessionCardProps = {
                             sessionType: session.type,
                             dayLabel,
+                            sessionDateStr: formatAEST(sessionDate, "EEE d MMM"),
+                            weekNumber: planWeek.week,
+                            phase: planWeek.phase,
                             description: session.description,
                             targetKm: session.targetDistanceKm,
                             targetPaceStr: fmtTargetPace(session.targetPaceMinPerKm),
