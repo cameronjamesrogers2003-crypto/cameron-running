@@ -540,10 +540,7 @@ export default async function ProgramPage({
 
                       {/* Session cards + extra runs */}
                       <div className="flex-1 min-w-0 w-full space-y-1.5">
-                        <div
-                          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 overflow-x-auto min-w-0 w-full"
-                          style={{ gridTemplateColumns: `repeat(${planWeek.sessions.length}, minmax(160px, 1fr))` }}
-                        >
+                        <div className="flex flex-col gap-2.5 sm:flex-row sm:overflow-x-auto sm:pb-1.5">
                         {planWeek.sessions.map((session) => {
                           const sessionDate = getSessionDate(planWeek.week, session.day, planStart);
                           const isPast      = sessionDate < todayMidnight;
@@ -608,7 +605,7 @@ export default async function ProgramPage({
                           return (
                             <div
                               key={session.day}
-                              className="rounded-2xl overflow-hidden border border-white/[0.08] min-w-[160px]"
+                              className="rounded-2xl overflow-hidden border border-white/[0.08] w-full sm:min-w-[240px] sm:shrink-0 sm:flex-1"
                               style={{
                                 background: cardBg,
                                 borderLeft: leftBorder,
