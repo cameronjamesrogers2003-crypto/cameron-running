@@ -9,7 +9,7 @@ import {
   getWeeklyTargetKm,
   isActivityOnOrAfterPlanStart,
 } from "@/lib/planUtils";
-import { formatAEST, sameDayAEST, startOfDayAEST } from "@/lib/dateUtils";
+import { formatAEST, sameDayAEST, startOfDayAEST, toBrisbaneYmd } from "@/lib/dateUtils";
 import { dbSettingsToUserSettings, DEFAULT_SETTINGS } from "@/lib/settings";
 import { parseInterruptionType, reconfigurePlan, type PlanInterruption } from "@/lib/interruptions";
 import { loadGeneratedPlan } from "@/lib/planStorage";
@@ -170,9 +170,10 @@ export default async function ProgramPage({
   ]);
 
   const settings   = userSettingsRow ? dbSettingsToUserSettings(userSettingsRow) : DEFAULT_SETTINGS;
-  const planStart  = getEffectivePlanStart(settings.planStartDate);
-  const rawWeek    = getPlanWeekForDate(today, planStart);
-  const maxHR       = settings.maxHR;
+  const planStart = getEffectivePlanStart(settings.planStartDate);
+  const planStartDay = startOfDayAEST(planStart);
+  const rawWeek = getPlanWeekForDate(today, planStart);
+  const maxHR = settings.maxHR;
 
   if (!storedPlan?.plan?.length && !settings.experienceLevel) {
     return (
@@ -235,7 +236,54 @@ export default async function ProgramPage({
   }
 
   const currentWeek = rawWeek > 0 ? Math.min(planToRender[planToRender.length - 1]?.week ?? 18, rawWeek) : 1;
+  // #region agent log
+  fetch("http://127.0.0.1:7686/ingest/802b3c62-81a1-4c73-9b1e-f751f7fdece0", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "c1e406" },
+    body: JSON.stringify({
+      sessionId: "c1e406",
+      location: "app/program/page.tsx:currentWeek",
+      message: "Program week vs plan start (Today label context)",
+      data: {
+        rawWeek,
+        currentWeek,
+        planStartUtc: planStart.toISOString(),
+        planStartDayUtc: planStartDay.toISOString(),
+        todayMidnightUtc: todayMidnight.toISOString(),
+        brisbaneTodayYmd: toBrisbaneYmd(today),
+        brisbanePlanStartYmd: toBrisbaneYmd(planStart),
+        todayBeforePlanStart: todayMidnight.getTime() < planStartDay.getTime(),
+      },
+      hypothesisId: "H1",
+    }),
+  }).catch(() => {});
+  // #endregion
   const currentPlanEntry = planToRender.find(w => w.week === currentWeek) ?? planToRender[0];
+  // #region agent log
+  {
+    const wk = currentPlanEntry;
+    const labelProbe = wk.sessions.map((session) => {
+      const sd = getSessionDate(wk.week, session.day, planStart);
+      const showToday =
+        todayMidnight.getTime() >= planStartDay.getTime() && sameDayAEST(sd, todayMidnight);
+      const starts =
+        todayMidnight.getTime() < planStartDay.getTime() && sameDayAEST(sd, planStartDay);
+      return { day: session.day, showToday, starts };
+    });
+    fetch("http://127.0.0.1:7686/ingest/802b3c62-81a1-4c73-9b1e-f751f7fdece0", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "c1e406" },
+      body: JSON.stringify({
+        sessionId: "c1e406",
+        runId: "post-fix",
+        location: "app/program/page.tsx:labelProbe",
+        message: "Per-session Today/Starts flags (current week row)",
+        data: { week: wk.week, labelProbe },
+        hypothesisId: "verify",
+      }),
+    }).catch(() => {});
+  }
+  // #endregion
 
   const sections = groupIntoSections(planToRender);
   const lockedWeeks = new Set(storedPlan?.lockedWeeks ?? []);
@@ -495,6 +543,14 @@ export default async function ProgramPage({
                         >
                         {planWeek.sessions.map((session) => {
                           const sessionDate = getSessionDate(planWeek.week, session.day, planStart);
+                          const showSessionToday =
+                            todayMidnight.getTime() >= planStartDay.getTime()
+                            && sameDayAEST(sessionDate, todayMidnight);
+                          const startsLabelText =
+                            todayMidnight.getTime() < planStartDay.getTime()
+                            && sameDayAEST(sessionDate, planStartDay)
+                              ? `Starts ${formatAEST(planStartDay, "EEE d MMM")}`
+                              : null;
                           const isPast      = sessionDate < todayMidnight;
                           const sameDayRuns = activities.filter((a) => {
                             const d = new Date(a.date);
@@ -640,7 +696,7 @@ export default async function ProgramPage({
                               )}
 
                               {/* Today label */}
-                              <TodayLabel day={session.day} enabled={isCurrentWeek} />
+                              <TodayLabel showToday={showSessionToday} startsText={startsLabelText} />
                               </div>
                             </div>
                           );

@@ -1,59 +1,20 @@
-"use client";
-
-import { useEffect, useState } from "react";
-import type { Day } from "@/data/trainingPlan";
-
-export const DAY_MAP: Record<string, number> = {
-  SUN: 0,
-  MON: 1,
-  TUE: 2,
-  WED: 3,
-  THU: 4,
-  FRI: 5,
-  SAT: 6,
-};
-
-export function isToday(day: string | null | undefined, today: number): boolean {
-  return DAY_MAP[day?.toUpperCase() ?? ""] === today;
-}
-
-function getLocalToday(): number {
-  return new Date().getDay();
-}
-
-function msUntilNextLocalDay(): number {
-  const now = new Date();
-  const nextDay = new Date(now);
-  nextDay.setHours(24, 0, 0, 100);
-  return nextDay.getTime() - now.getTime();
-}
-
-export default function TodayLabel({ day, enabled }: { day: Day; enabled: boolean }) {
-  const [today, setToday] = useState<number | null>(null);
-
-  useEffect(() => {
-    let timeoutId: number | undefined;
-
-    const updateToday = () => {
-      setToday(getLocalToday());
-      timeoutId = window.setTimeout(updateToday, msUntilNextLocalDay());
-    };
-
-    updateToday();
-
-    return () => {
-      if (timeoutId !== undefined) window.clearTimeout(timeoutId);
-    };
-  }, []);
-
-  if (!enabled || today == null || !isToday(day, today)) return null;
+/** Session-row label: "Today" vs first-day "Starts …" — props computed on Program page (Brisbane dates). */
+export default function TodayLabel({
+  showToday,
+  startsText,
+}: {
+  showToday: boolean;
+  startsText: string | null;
+}) {
+  const text = startsText ?? (showToday ? "Today" : null);
+  if (!text) return null;
 
   return (
     <p
       className="text-xs font-semibold mt-1.5"
       style={{ color: "#a5b4fc" }}
     >
-      Today
+      {text}
     </p>
   );
 }
