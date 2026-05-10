@@ -24,28 +24,31 @@ export function getPlanWeekForDate(date: Date, planStart: Date): number {
   return Math.floor(days / 7) + 1;
 }
 
-/** Returns the week anchor instant that starts a given plan week (same origin as planStart). */
-export function getWeekStartForPlanWeek(weekNumber: number, planStart: Date): Date {
-  // Use Brisbane civil weekday — `planStart.getUTCDay()` is wrong when the ISO instant is
-  // "previous UTC evening" for a Brisbane calendar morning (e.g. May 13 AEST → May 12 UTC).
-  const planWall = toAEST(planStart);
-  const dayOfWeek = planWall.getUTCDay(); // 0=Sun … 6=Sat in Brisbane (UTC fields mirror wall time)
-  const daysSinceSat = dayOfWeek === 6 ? 0 : (dayOfWeek + 1) % 7;
-  const satAnchor = new Date(planStart.getTime() - daysSinceSat * MS_PER_DAY);
-  return new Date(satAnchor.getTime() + (weekNumber - 1) * 7 * MS_PER_DAY);
-}
-
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
-/** Returns the session date for a plan week/day using the Saturday-anchored plan calendar. */
+// Day indices matching JS Date.getUTCDay() on AEST-shifted instants (Sun=0, Mon=1 … Sat=6)
+const DAY_UTC_INDEX: Record<Day, number> = { sun: 0, mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6 };
+
+/**
+ * Returns the plan week's anchor instant — identical origin to getPlanWeekForDate so the two
+ * functions stay consistent. Week 1 starts at planStart; every subsequent week is +7 days.
+ */
+export function getWeekStartForPlanWeek(weekNumber: number, planStart: Date): Date {
+  return new Date(planStart.getTime() + (weekNumber - 1) * 7 * MS_PER_DAY);
+}
+
+/**
+ * Returns the session date for a plan week/day, anchored to planStart's calendar day.
+ * Day offsets are computed forward (0–6) from planStart's Brisbane weekday, so every
+ * Week 1 session falls on or after planStart — never before it.
+ */
 export function getSessionDate(weekNumber: number, day: Day, planStart: Date): Date {
   const weekStart = getWeekStartForPlanWeek(weekNumber, planStart);
-  // Saturday-anchored week: sat+0, sun+1, mon+2, tue+3, wed+4, thu+5, fri+6
-  const offsets: Record<Day, number> = { sat: 0, sun: 1, mon: 2, tue: 3, wed: 4, thu: 5, fri: 6 };
-  // Whole-day offsets from week anchor (Brisbane week; no DST) — do not use setDate/getDate
-  // (those use the host timezone and shift session dates on UTC servers).
-  const result = new Date(weekStart.getTime() + offsets[day] * MS_PER_DAY);
-  return result;
+  // planStart's Brisbane weekday — toAEST shifts the instant so UTC fields mirror wall time.
+  const planDayIndex = toAEST(planStart).getUTCDay();
+  // Forward offset (0–6): how many days ahead of planStart's weekday is the target day?
+  const offset = (DAY_UTC_INDEX[day] - planDayIndex + 7) % 7;
+  return new Date(weekStart.getTime() + offset * MS_PER_DAY);
 }
 
 /** Total planned km across all sessions in a week. */

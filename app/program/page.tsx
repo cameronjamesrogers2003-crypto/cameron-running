@@ -136,13 +136,25 @@ function groupIntoSections(plan: TrainingWeek[]): PlanSection[] {
   }, []);
 }
 
-// ── Date formatter ────────────────────────────────────────────────────────────
+// ── Date formatters ───────────────────────────────────────────────────────────
 
 function fmtWeekStartDate(weekNumber: number, planStart: Date): string {
   const d = new Date(planStart.getTime() + (weekNumber - 1) * 7 * 24 * 60 * 60 * 1000);
   // shift to AEST (+10h) to get local date
   const aest = new Date(d.getTime() + 10 * 60 * 60 * 1000);
   return aest.toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+}
+
+/** "13 May – 17 May" span from the earliest to latest session date in the week. */
+function fmtWeekDateRange(planWeek: TrainingWeek, planStart: Date): string {
+  const dates = planWeek.sessions.map(s => getSessionDate(planWeek.week, s.day, planStart));
+  if (dates.length === 0) return "";
+  dates.sort((a, b) => a.getTime() - b.getTime());
+  const first = dates[0];
+  const last = dates[dates.length - 1];
+  const firstStr = formatAEST(first, "d MMM");
+  const lastStr = formatAEST(last, "d MMM");
+  return firstStr === lastStr ? firstStr : `${firstStr} – ${lastStr}`;
 }
 
 /** When the plan has not started yet: the single next upcoming session (earliest sessionDate > today, on/after plan start). */
@@ -453,9 +465,14 @@ export default async function ProgramPage({
                     <div className="flex flex-col gap-2.5 sm:flex-row sm:items-start sm:gap-3">
                       {/* Week label */}
                       <div className="w-full sm:w-[84px] shrink-0 pt-0 sm:pt-1 flex sm:block items-center justify-between sm:justify-start gap-2">
-                        <p className="text-xs font-bold text-white leading-tight">
-                          Week {planWeek.week}
-                        </p>
+                        <div>
+                          <p className="text-xs font-bold text-white leading-tight">
+                            Week {planWeek.week}
+                          </p>
+                          <p className="text-xs leading-tight mt-0.5" style={{ color: "rgba(255,255,255,0.38)" }}>
+                            {fmtWeekDateRange(planWeek, planStart)}
+                          </p>
+                        </div>
                         <div className="flex flex-wrap gap-1 mt-1 sm:mt-1.5 justify-end sm:justify-start">
                           {planWeek.phase === "Taper" && (
                             <span
