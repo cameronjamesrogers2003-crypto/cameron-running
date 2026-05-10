@@ -1,5 +1,5 @@
 import type { TrainingWeek, Phase, Day } from "@/data/trainingPlan";
-import { toAEST, toBrisbaneYmd } from "@/lib/dateUtils";
+import { toAEST, toBrisbaneYmd, startOfDayAEST } from "@/lib/dateUtils";
 
 // Default week anchor when UserSettings.planStartDate is null (sat+0, sun+1, wed+4 from this Saturday).
 export const PLAN_START_DATE = new Date("2026-05-01T14:00:00.000Z");
@@ -15,11 +15,12 @@ export function isActivityOnOrAfterPlanStart(activityDate: Date, planStart: Date
   return toBrisbaneYmd(activityDate) >= toBrisbaneYmd(planStart);
 }
 
-/** Returns 1-indexed plan week for a given date. Returns 0 if before plan start anchor. */
+/** Returns 1-indexed plan week for a given date. Returns 0 if before plan start calendar day (Brisbane). */
 export function getPlanWeekForDate(date: Date, planStart: Date): number {
-  const diff = date.getTime() - planStart.getTime();
-  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-  if (days < 0) return 0;
+  const dateDay = startOfDayAEST(date);
+  const planDay = startOfDayAEST(planStart);
+  if (dateDay.getTime() < planDay.getTime()) return 0;
+  const days = (dateDay.getTime() - planDay.getTime()) / MS_PER_DAY;
   return Math.floor(days / 7) + 1;
 }
 
