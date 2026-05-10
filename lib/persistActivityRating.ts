@@ -160,7 +160,10 @@ export async function persistActivityRating(
       }
     : undefined;
 
-  let ratingResult = calculateRunRating(stat, settings, recentSameType, priorActivity, ratingPlanContext);
+  let ratingResult = calculateRunRating(stat, settings, recentSameType, {
+    priorActivity: priorActivity ?? undefined,
+    planContext: ratingPlanContext,
+  });
 
   // PB detection and score bump (Change 8)
   const allPriorStats = prior.map((r) => toStat(r));

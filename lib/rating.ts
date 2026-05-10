@@ -91,6 +91,23 @@ export interface DistanceBreakdown extends RunRatingComponentBreakdown {
   overshootCapped?: boolean;
 }
 
+export interface PaceBreakdown extends RunRatingComponentBreakdown {
+  deviation: number;
+  softenedDeviation: number;
+  direction: "fast" | "slow" | "none";
+  outsideZone: boolean;
+  trendSignal: "improving" | "stable" | "insufficient";
+  softeningApplied: boolean;
+  hrAboveZone: number;
+  hrModifier: number;
+  trustHrApplied: boolean;
+  blendedTarget: number;
+  zoneLo: number;
+  zoneHi: number;
+  bufferedLo: number;
+  bufferedHi: number;
+}
+
 export interface RunRatingResult {
   total: number;
   band?: "Elite" | "Strong" | "Solid" | "Rough" | "Off Day";
@@ -99,7 +116,7 @@ export interface RunRatingResult {
   fatigueBonusApplied?: boolean;
   personalBests?: string[];
   components: {
-    pace: RunRatingComponentBreakdown;
+    pace: PaceBreakdown;
     effort: RunRatingComponentBreakdown;
     distance: DistanceBreakdown;
     conditions: ConditionsBreakdown;
@@ -187,6 +204,12 @@ function hrFracZone(runType: RunType): [number, number] {
     case "interval":
       return [0.9, 1.0];
   }
+}
+
+/** Returns the arithmetic mean of a numeric array, or 0 for an empty array. */
+function mean(nums: number[]): number {
+  if (nums.length === 0) return 0;
+  return nums.reduce((s, n) => s + n, 0) / nums.length;
 }
 
 /** Returns the median of a numeric array, or 0 for an empty array. */
@@ -312,6 +335,34 @@ function medianSplitHr(splitsJson: string | null | undefined): number | null {
   }
 }
 
+/** Returns blended pace target: VDOT midpoint alone when <3 priors, else 70/30 blend with prior median. */
+function getBlendedPaceTarget(
+  vdotMidpoint: number,
+  priorRunMedian: number | null,
+  priorRunCount: number,
+): number {
+  if (priorRunCount < 3 || priorRunMedian === null) return vdotMidpoint;
+  return vdotMidpoint * 0.7 + priorRunMedian * 0.3;
+}
+
+/** Checks last 5 same-type paces (most-recent-first) for a meaningful speed-up trend (≥3% faster). */
+function getPaceTrend(priorPaces: number[]): "improving" | "stable" | "insufficient" {
+  if (priorPaces.length < 3) return "insufficient";
+  const recent = priorPaces.slice(0, 2);
+  const older  = priorPaces.slice(2, 5);
+  if (older.length === 0) return "insufficient";
+  return mean(recent) < mean(older) * 0.97 ? "improving" : "stable";
+}
+
+/** Pace HR modifier: exempt for tempo/interval; piecewise reduction for easy/long based on HR above zone upper bound. */
+function hrModifierForPace(hrAboveZone: number, runType: RunType): number {
+  if (runType === "tempo" || runType === "interval") return 1.0;
+  if (hrAboveZone < 0.03) return 1.0;
+  if (hrAboveZone < 0.10) return 0.88;
+  if (hrAboveZone < 0.25) return 0.72;
+  return 0.47;
+}
+
 /** Returns the VDOT distance target (km) for a run type using the nearest bracket at or below the VDOT value. */
 export function getVdotDistanceTarget(vdot: number, runType: RunType): number {
   const clamped = Math.max(30, Math.min(70, vdot));
@@ -336,9 +387,11 @@ export function getVdotDurationTarget(vdot: number, runType: RunType): number {
 export function calculateRunRating(
   activity: StatActivity,
   settings: UserSettings,
-  recentActivities: StatActivity[],
-  priorActivity?: StatActivity | null,
-  planContext?: { targetDistanceKm?: number; targetDurationMin?: number },
+  recentSameType: StatActivity[],
+  options?: {
+    planContext?: { targetDistanceKm?: number; targetDurationMin?: number };
+    priorActivity?: StatActivity;
+  },
 ): RunRatingResult {
   const s = settings;
   const runType = resolveRatingRunType(
@@ -358,11 +411,6 @@ export function calculateRunRating(
 
   const { lo: zoneLo, hi: zoneHi } = paceZoneBounds(runType, s);
   const zoneMid = (zoneLo + zoneHi) / 2;
-  const halfWidth = Math.max(1e-6, (zoneHi - zoneLo) / 2);
-  // Widen tolerance for interval/tempo by 1.3× (Change 3)
-  const effectiveHalfWidth = (runType === "interval" || runType === "tempo")
-    ? halfWidth * 1.3
-    : halfWidth;
   const zoneStr = `${formatPace(zoneLo)}–${formatPace(zoneHi)}/km`;
 
   const elevM = activity.elevationGainM;
@@ -371,49 +419,81 @@ export function calculateRunRating(
     && !Number.isNaN(elevM)
     && activity.distanceKm > 0;
   const elevationPerKm = hasElevationData ? elevM! / activity.distanceKm : null;
-  const elevAdjFactor = elevationPerKm != null ? elevationPerKm / EXPECTED_ELEVATION_PER_KM : null;
-  const elevAdjClamped = elevAdjFactor != null ? clamp(elevAdjFactor, 0.5, 2.5) : 1;
-  const adjustedMidpoint = zoneMid * (1 + 0.04 * (elevAdjClamped - 1));
 
   // ── 1. Pace (max 3.0) ─────────────────────────────────────────────────────────
-  let paceForDeviation = activity.avgPaceSecKm;
-  let usedEasyHrMidpoint = false;
-  // Trust HR branch for easy AND long runs when faster than zone lower bound (Change 4)
-  if (
+  const bufferedLo = zoneLo - 10;
+  const bufferedHi = zoneHi + 10;
+
+  // Blended pace target: zone midpoint + 30% weight on prior median when ≥3 same-type priors
+  const priorPaces = recentSameType
+    .filter((r) => r.id !== activity.id && r.avgPaceSecKm > 0)
+    .slice(0, 5)
+    .map((r) => r.avgPaceSecKm);
+  const priorPaceMedian = priorPaces.length > 0 ? median(priorPaces) : null;
+  const blendedTarget = getBlendedPaceTarget(zoneMid, priorPaceMedian, priorPaces.length);
+
+  // Pace trend for fast-undershoot softening (easy/long only)
+  const trendSignal = getPaceTrend(priorPaces);
+
+  // HR signals for pace modifier and trust-HR branch (use avgHeartRate per spec)
+  const hrForPace = activity.avgHeartRate ?? null;
+  const zoneUpperBpm = hrFracZone(runType)[1] * s.maxHR;
+  const hrAboveZone = hrForPace != null && hrForPace > 0
+    ? Math.max(0, (hrForPace - zoneUpperBpm) / zoneUpperBpm)
+    : 0;
+  const paceHrModifier = hrModifierForPace(hrAboveZone, runType);
+
+  // Trust HR branch: easy/long, faster than zone lo, HR ≤ 75% maxHR → deviation = 0
+  const trustHrApplied =
     (runType === "easy" || runType === "long")
     && activity.avgPaceSecKm < zoneLo
-    && activity.avgHeartRate != null
-    && activity.avgHeartRate > 0
-  ) {
-    const hrFrac = activity.avgHeartRate / s.maxHR;
-    if (hrFrac <= 0.75) {
-      paceForDeviation = adjustedMidpoint;
-      usedEasyHrMidpoint = true;
-    }
+    && hrForPace != null
+    && hrForPace > 0
+    && hrForPace / s.maxHR <= 0.75;
+
+  // Zone-edge deviation (10 s buffer either side before penalty starts)
+  let paceDeviation: number;
+  let outsideZone: boolean;
+  let paceDirection: "fast" | "slow" | "none";
+  if (trustHrApplied) {
+    paceDeviation = 0; outsideZone = false; paceDirection = "none";
+  } else if (activity.avgPaceSecKm >= bufferedLo && activity.avgPaceSecKm <= bufferedHi) {
+    paceDeviation = 0; outsideZone = false; paceDirection = "none";
+  } else if (activity.avgPaceSecKm < bufferedLo) {
+    paceDeviation = (bufferedLo - activity.avgPaceSecKm) / (zoneHi - zoneLo);
+    outsideZone = true; paceDirection = "fast";
+  } else {
+    paceDeviation = (activity.avgPaceSecKm - bufferedHi) / (zoneHi - zoneLo);
+    outsideZone = true; paceDirection = "slow";
   }
 
-  const paceDeviation = Math.abs(paceForDeviation - adjustedMidpoint) / effectiveHalfWidth;
-  const paceScoreRaw = scoreFromDeviation(paceDeviation, MAX_PACE);
+  // Trend softening: improving easy/long runs that are faster than zone get 25% deviation reduction
+  const softeningApplied =
+    paceDirection === "fast"
+    && trendSignal === "improving"
+    && (runType === "easy" || runType === "long");
+  const softenedDeviation = softeningApplied ? paceDeviation * 0.75 : paceDeviation;
+
+  const paceScoreBase = MAX_PACE * Math.exp(-0.7 * softenedDeviation);
+  const finalPaceScore = paceScoreBase * paceHrModifier;
 
   let paceReason: string;
-  const hillNote =
-    elevAdjClamped !== 1
-      ? ` Base zone midpoint ${paceKmStr(zoneMid)} → hill-adjusted ${paceKmStr(adjustedMidpoint)}.`
-      : "";
-  if (usedEasyHrMidpoint) {
+  if (trustHrApplied) {
     paceReason =
-      `Pace ${paceKmStr(activity.avgPaceSecKm)} was faster than your ${runTypeLabel(runType)} zone lower bound (${paceKmStr(zoneLo)}), but HR ${activity.avgHeartRate} bpm is ≤ ${Math.round(0.75 * s.maxHR)} bpm (75% of max HR ${s.maxHR}) — scored vs midpoint ${paceKmStr(adjustedMidpoint)}.${hillNote}`;
+      `${classificationPreamble}Pace ${paceKmStr(activity.avgPaceSecKm)} faster than zone lower bound (${paceKmStr(zoneLo)}), but HR ${Math.round(hrForPace!)} bpm ≤ ${Math.round(0.75 * s.maxHR)} bpm — trust HR, scored as inside zone.`;
+  } else if (!outsideZone) {
+    paceReason =
+      `${classificationPreamble}Pace ${paceKmStr(activity.avgPaceSecKm)} inside ${runTypeLabel(runType)} zone (${zoneStr}, ±10 s buffer). Blended target ${paceKmStr(Math.round(blendedTarget))}.`;
   } else {
-    const rel =
-      activity.avgPaceSecKm < adjustedMidpoint - effectiveHalfWidth * 0.15
-        ? "near the fast edge"
-        : activity.avgPaceSecKm > adjustedMidpoint + effectiveHalfWidth * 0.15
-          ? "near the slow edge"
-          : "close to the centre";
+    const dirStr = paceDirection === "fast" ? "faster than" : "slower than";
+    const softenNote = softeningApplied ? ` Trend softening applied (deviation × 0.75).` : "";
+    const modNote = paceHrModifier < 1.0
+      ? ` HR modifier ${paceHrModifier.toFixed(2)} (HR ${Math.round(hrForPace!)} bpm, ${(hrAboveZone * 100).toFixed(0)}% above zone upper ${Math.round(zoneUpperBpm)} bpm).`
+      : "";
     paceReason =
-      `Pace ${paceKmStr(activity.avgPaceSecKm)} was ${rel} of your ${runTypeLabel(runType)} zone (${zoneStr}), vs midpoint ${paceKmStr(adjustedMidpoint)}.${hillNote}`;
+      `${classificationPreamble}Pace ${paceKmStr(activity.avgPaceSecKm)} ${dirStr} ${runTypeLabel(runType)} zone (${zoneStr}). ` +
+      `Deviation ${paceDeviation.toFixed(2)}${softeningApplied ? ` → ${softenedDeviation.toFixed(2)}` : ""}.${softenNote}${modNote}`;
   }
-  paceReason = classificationPreamble + paceReason;
 
   // ── 2. Effort (max 3.5) ───────────────────────────────────────────────────────
   // Use median split HR when ≥3 splits available, else fall back to avgHeartRate (Change 5)
@@ -449,6 +529,7 @@ export function calculateRunRating(
 
   // Fatigue context bonus: +0.3 effort when running easy/long the day after a hard session (Change 7)
   let fatigueBonusApplied = false;
+  const priorActivity = options?.priorActivity ?? null;
   if (priorActivity != null && (runType === "easy" || runType === "long")) {
     const priorType = priorActivity.classifiedRunType;
     if (priorType === "interval" || priorType === "tempo") {
@@ -468,13 +549,13 @@ export function calculateRunRating(
   const vdotDistKm  = getVdotDistanceTarget(vdot, runType);
   const vdotDurMin  = getVdotDurationTarget(vdot, runType);
 
-  const sameTypeActivities = recentActivities
+  const sameTypeActivities = recentSameType
     .filter((r) => r.id !== activity.id)
     .filter((r) => resolveRatingRunType(r, s.intervalPaceMaxSec, s.tempoPaceMaxSec, s) === runType)
     .filter((r) => r.distanceKm > 0);
 
   const hasPriorSignal = sameTypeActivities.length >= 5;
-  const hasPlanSignal  = (planContext?.targetDistanceKm ?? 0) > 0;
+  const hasPlanSignal  = (options?.planContext?.targetDistanceKm ?? 0) > 0;
 
   // Signal A: median of all-time same-type priors
   const priorDistKm = hasPriorSignal ? median(sameTypeActivities.map((r) => r.distanceKm)) : 0;
@@ -484,9 +565,9 @@ export function calculateRunRating(
   const priorDurMin = priorDurList.length > 0 ? median(priorDurList) / 60 : vdotDurMin;
 
   // Signal C: plan session
-  const planDistKm = hasPlanSignal ? planContext!.targetDistanceKm! : 0;
+  const planDistKm = hasPlanSignal ? options!.planContext!.targetDistanceKm! : 0;
   const planDurMin = hasPlanSignal
-    ? (planContext?.targetDurationMin ?? planDistKm * (vdotDurMin / Math.max(vdotDistKm, 0.001)))
+    ? (options?.planContext?.targetDurationMin ?? planDistKm * (vdotDurMin / Math.max(vdotDistKm, 0.001)))
     : 0;
 
   // Weighted benchmark from available signals
@@ -556,7 +637,7 @@ export function calculateRunRating(
 
   // ── Final assembly ─────────────────────────────────────────────────────────────
   // Round only the final total, not individual components (Change 11)
-  const rawTotal = paceScoreRaw + effortScoreRaw + distanceScoreRaw + conditionsScoreRaw;
+  const rawTotal = finalPaceScore + effortScoreRaw + distanceScoreRaw + conditionsScoreRaw;
   // Floor 2.0 (Change 9)
   const total = round1(Math.max(2.0, Math.min(10, rawTotal)));
   const band = ratingBand(total);
@@ -571,7 +652,25 @@ export function calculateRunRating(
     ...(floorApplied ? { floorApplied: true, floorReason } : {}),
     ...(fatigueBonusApplied ? { fatigueBonusApplied: true } : {}),
     components: {
-      pace:     { score: paceScoreRaw,     max: MAX_PACE,       reason: paceReason },
+      pace: {
+        score: finalPaceScore,
+        max: MAX_PACE,
+        reason: paceReason,
+        deviation: paceDeviation,
+        softenedDeviation,
+        direction: paceDirection,
+        outsideZone,
+        trendSignal,
+        softeningApplied,
+        hrAboveZone,
+        hrModifier: paceHrModifier,
+        trustHrApplied,
+        blendedTarget,
+        zoneLo,
+        zoneHi,
+        bufferedLo,
+        bufferedHi,
+      },
       effort:   { score: effortScoreRaw,   max: MAX_EFFORT,     reason: effortReason },
       distance: {
         score: distanceScoreRaw,
