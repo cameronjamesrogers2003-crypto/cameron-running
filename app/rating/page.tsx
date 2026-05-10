@@ -11,7 +11,7 @@ import {
   ratingConditionsScore,
 } from "@/lib/playerRating";
 import { formatAEST, startOfNextDayAEST, toBrisbaneYmd } from "@/lib/dateUtils";
-import { getEffectivePlanStart, getPlanWeekForDate, getSessionDate, isActivityOnOrAfterPlanStart } from "@/lib/planUtils";
+import { getEffectivePlanStart, getPlanWeekForDate, getSessionDate, isActivityOnOrAfterPlanStart, parsePlanFirstSessionDay } from "@/lib/planUtils";
 import { Star } from "lucide-react";
 import PageHeading from "@/components/ui/PageHeading";
 
@@ -172,7 +172,7 @@ export default async function RatingPage() {
     },
   });
 
-  const planStart = getEffectivePlanStart(settings.planStartDate);
+  const planStart = getEffectivePlanStart(settings.planStartDate, parsePlanFirstSessionDay(settings.trainingDays));
   const plan = buildTrainingPlan(settings);
 
   if (!playerRating) {

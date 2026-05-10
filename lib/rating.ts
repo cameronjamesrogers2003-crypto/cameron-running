@@ -4,6 +4,7 @@ import {
   getPlanWeekForDate,
   getSessionDate,
   isActivityOnOrAfterPlanStart,
+  parsePlanFirstSessionDay,
 } from "@/lib/planUtils";
 import { sameDayAEST } from "@/lib/dateUtils";
 import { getVdotFallbackLongRunThresholdKm } from "@/lib/longRunThreshold";
@@ -485,13 +486,13 @@ export function resolveRunSession(
 
 /** Resolves a run type from its planned session first, otherwise from canonical pace-zone classification. */
 export function resolveRunType(run: StatActivity, plan: TrainingWeek[], settings: UserSettings = DEFAULT_SETTINGS): RunType {
-  const planStart = getEffectivePlanStart(settings.planStartDate);
+  const planStart = getEffectivePlanStart(settings.planStartDate, parsePlanFirstSessionDay(settings.trainingDays));
   return resolveRunSession(run, plan, planStart)?.type ?? inferRunType(run, settings);
 }
 
 /** Resolves the planned target pace for a run and returns seconds per km, or null when unmatched. */
 export function resolveTargetPaceSecKm(run: StatActivity, plan: TrainingWeek[], settings: UserSettings): number | null {
-  const planStart = getEffectivePlanStart(settings.planStartDate);
+  const planStart = getEffectivePlanStart(settings.planStartDate, parsePlanFirstSessionDay(settings.trainingDays));
   const session = resolveRunSession(run, plan, planStart);
   return session ? Math.round(session.targetPaceMinPerKm * 60) : null;
 }

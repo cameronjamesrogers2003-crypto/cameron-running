@@ -11,6 +11,7 @@ import {
   getSessionDate,
   isActivityOnOrAfterPlanStart,
   isPlannedRun,
+  parsePlanFirstSessionDay,
 } from "@/lib/planUtils";
 import { sameDayAEST, startOfDayAEST } from "@/lib/dateUtils";
 
@@ -172,7 +173,7 @@ export async function checkAndAdaptPlan(prisma: PrismaClient): Promise<{
 
   const settings = settingsRow ? dbSettingsToUserSettings(settingsRow) : DEFAULT_SETTINGS;
   const name = settings.firstName ?? "Runner";
-  const planStart = getEffectivePlanStart(settings.planStartDate);
+  const planStart = getEffectivePlanStart(settings.planStartDate, parsePlanFirstSessionDay(settings.trainingDays));
   const currentWeek = getPlanWeekForDate(new Date(), planStart);
   if (currentWeek <= 0) {
     return { adapted: false, reason: "no active plan", changes: [] };

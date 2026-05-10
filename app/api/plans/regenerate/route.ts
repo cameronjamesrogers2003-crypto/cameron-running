@@ -3,7 +3,7 @@ import prisma from "@/lib/db";
 import { dbSettingsToUserSettings, DEFAULT_SETTINGS } from "@/lib/settings";
 import { generatePlan } from "@/lib/generatePlan";
 import { getLockedWeeks, loadGeneratedPlan, saveGeneratedPlan } from "@/lib/planStorage";
-import { getEffectivePlanStart } from "@/lib/planUtils";
+import { getEffectivePlanStart, parsePlanFirstSessionDay } from "@/lib/planUtils";
 import type { Day, PlanConfig } from "@/data/trainingPlan";
 
 function isDay(x: unknown): x is Day {
@@ -49,7 +49,7 @@ async function regenerateFromSettings() {
     },
   };
   const generatedPlan = generatePlan(config);
-  const planStart = getEffectivePlanStart(settings.planStartDate);
+  const planStart = getEffectivePlanStart(settings.planStartDate, parsePlanFirstSessionDay(settings.trainingDays));
   const computedLockedWeeks = getLockedWeeks(planStart, generatedPlan.length);
   const existingStored = await loadGeneratedPlan();
   const existingLockedSet = new Set(existingStored?.lockedWeeks ?? []);

@@ -5,7 +5,7 @@ import {
 } from "@/lib/rating";
 import { dbSettingsToUserSettings, DEFAULT_SETTINGS, type UserSettings } from "@/lib/settings";
 import { loadGeneratedPlan } from "@/lib/planStorage";
-import { getEffectivePlanStart } from "@/lib/planUtils";
+import { getEffectivePlanStart, parsePlanFirstSessionDay } from "@/lib/planUtils";
 import {
   enhancedClassifyRun,
   getPlanContextForDate,
@@ -91,7 +91,7 @@ export async function persistActivityRating(
       `Distance rule (>= ${Math.round(thresholdKm * 10) / 10}km · VDOT ${settings.currentVdot ?? 33} fallback · insufficient history)`;
   }
 
-  const planStart = getEffectivePlanStart(settings.planStartDate);
+  const planStart = getEffectivePlanStart(settings.planStartDate, parsePlanFirstSessionDay(settings.trainingDays));
   const planContext = generatedPlan
     ? getPlanContextForDate(act.date, generatedPlan.plan, planStart)
     : undefined;

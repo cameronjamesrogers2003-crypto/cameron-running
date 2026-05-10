@@ -3,7 +3,7 @@ import { buildTrainingPlan } from "@/data/trainingPlan";
 import { loadGeneratedPlan } from "@/lib/planStorage";
 import { inferRunType } from "@/lib/rating";
 import { dbSettingsToUserSettings, DEFAULT_SETTINGS } from "@/lib/settings";
-import { getEffectivePlanStart, getSessionDate, isPlannedRun } from "@/lib/planUtils";
+import { getEffectivePlanStart, getSessionDate, isPlannedRun, parsePlanFirstSessionDay } from "@/lib/planUtils";
 import { brisbaneCalendarYearUtcRange, startOfBrisbaneMonthContaining, startOfDayAEST, startOfNextDayAEST, toBrisbaneYmd } from "@/lib/dateUtils";
 import type { CalendarRun, CalendarData, PlannedDayMeta } from "./types";
 import CalendarGrid from "./CalendarGrid";
@@ -86,7 +86,7 @@ export default async function CalendarPage({
   ]);
 
   const settings = userSettingsRow ? dbSettingsToUserSettings(userSettingsRow) : DEFAULT_SETTINGS;
-  const planStart = getEffectivePlanStart(settings.planStartDate);
+  const planStart = getEffectivePlanStart(settings.planStartDate, parsePlanFirstSessionDay(settings.trainingDays));
   const plan = storedGenerated?.plan?.length ? storedGenerated.plan : buildTrainingPlan(settings);
   const injuryFreeWeeks = calculateInjuryFreeWeeks(statsActivities, plan, planStart, today);
 

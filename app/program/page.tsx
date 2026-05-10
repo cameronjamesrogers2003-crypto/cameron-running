@@ -8,6 +8,7 @@ import {
   getSessionDate,
   getWeeklyTargetKm,
   isActivityOnOrAfterPlanStart,
+  parsePlanFirstSessionDay,
 } from "@/lib/planUtils";
 import { formatAEST, sameDayAEST, startOfDayAEST } from "@/lib/dateUtils";
 import { dbSettingsToUserSettings, DEFAULT_SETTINGS } from "@/lib/settings";
@@ -208,7 +209,7 @@ export default async function ProgramPage({
   ]);
 
   const settings   = userSettingsRow ? dbSettingsToUserSettings(userSettingsRow) : DEFAULT_SETTINGS;
-  const planStart = getEffectivePlanStart(settings.planStartDate);
+  const planStart = getEffectivePlanStart(settings.planStartDate, parsePlanFirstSessionDay(settings.trainingDays));
   const planStartDay = startOfDayAEST(planStart);
   const rawWeek = getPlanWeekForDate(today, planStart);
   const maxHR = settings.maxHR;

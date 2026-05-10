@@ -7,6 +7,7 @@ import {
   getSessionDate,
   getWeeklyTargetKm,
   isActivityOnOrAfterPlanStart,
+  parsePlanFirstSessionDay,
 } from "@/lib/planUtils";
 import { formatAEST, formatDistanceToNowAEST, sameDayAEST, startOfDayAEST, toBrisbaneYmd } from "@/lib/dateUtils";
 import { inferRunType } from "@/lib/rating";
@@ -139,7 +140,7 @@ export default async function Dashboard({
   if ((settings.experienceLevel == null) && Boolean(profile?.stravaConnected)) {
     redirect("/onboarding");
   }
-  const planStart = getEffectivePlanStart(settings.planStartDate);
+  const planStart = getEffectivePlanStart(settings.planStartDate, parsePlanFirstSessionDay(settings.trainingDays));
 
   // Prefer generated plan from DB; fallback to legacy pipeline.
   const stored = await loadGeneratedPlan();

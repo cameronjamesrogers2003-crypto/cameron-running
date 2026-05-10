@@ -4,10 +4,55 @@ import { toAEST, toBrisbaneYmd, startOfDayAEST } from "@/lib/dateUtils";
 // Default week anchor when UserSettings.planStartDate is null (sat+0, sun+1, wed+4 from this Saturday).
 export const PLAN_START_DATE = new Date("2026-05-01T14:00:00.000Z");
 
-/** Plan week anchor from settings ISO string, or {@link PLAN_START_DATE} if unset. */
-export function getEffectivePlanStart(planStartIso: string | null | undefined): Date {
-  if (planStartIso && planStartIso.trim()) return new Date(planStartIso);
-  return PLAN_START_DATE;
+/** Mon-first week order used to find the earliest training day of a week (Mon=0 … Sun=6). */
+const DAY_MON_FIRST_ORDER: Record<Day, number> = { mon: 0, tue: 1, wed: 2, thu: 3, fri: 4, sat: 5, sun: 6 };
+
+/** Parses the trainingDays JSON string and returns the earliest training day in Mon–Sun order. */
+export function parsePlanFirstSessionDay(trainingDaysJson: string | null | undefined): Day | null {
+  if (!trainingDaysJson) return null;
+  try {
+    const days = JSON.parse(trainingDaysJson) as Day[];
+    if (!Array.isArray(days) || days.length === 0) return null;
+    return days.reduce((a, b) => DAY_MON_FIRST_ORDER[a] <= DAY_MON_FIRST_ORDER[b] ? a : b);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Plan week anchor from settings ISO string, or {@link PLAN_START_DATE} if unset.
+ *
+ * When `firstSessionDay` is supplied the function applies week-anchoring:
+ * - If the selected date falls on or before the first session day of the same Mon–Sun calendar
+ *   week, the effective start is anchored to that first session day.
+ * - If the selected date falls after it (meaning at least one session would already be missed),
+ *   the effective start advances to the same day in the following week.
+ */
+export function getEffectivePlanStart(
+  planStartIso: string | null | undefined,
+  firstSessionDay?: Day | null,
+): Date {
+  if (!planStartIso || !planStartIso.trim()) return PLAN_START_DATE;
+  const rawDate = new Date(planStartIso);
+  if (!firstSessionDay) return rawDate;
+
+  // rawDate's Brisbane weekday after +10 h shift (Sun=0, Mon=1 … Sat=6)
+  const rawUtcDay = toAEST(rawDate).getUTCDay();
+  // Days since the preceding Monday in rawDate's Brisbane calendar week
+  const daysSinceMon = (rawUtcDay - 1 + 7) % 7;
+  // UTC instant of that Monday
+  const mondayInstant = new Date(rawDate.getTime() - daysSinceMon * MS_PER_DAY);
+  // UTC instant of the first session day within that same Mon–Sun week
+  // DAY_UTC_INDEX is defined below; safe to use here since this fn is only called at runtime.
+  const firstUtcDay = DAY_UTC_INDEX[firstSessionDay]; // Sun=0 … Sat=6
+  const offsetFromMon = (firstUtcDay - 1 + 7) % 7;
+  const firstSessionInstant = new Date(mondayInstant.getTime() + offsetFromMon * MS_PER_DAY);
+
+  // Compare as Brisbane calendar date strings (timezone-safe)
+  if (toBrisbaneYmd(rawDate) <= toBrisbaneYmd(firstSessionInstant)) {
+    return firstSessionInstant; // on or before → anchor to this first session day
+  }
+  return new Date(firstSessionInstant.getTime() + 7 * MS_PER_DAY); // after → advance one week
 }
 
 /** True when the activity falls on or after the plan start calendar day (Brisbane). */

@@ -7,6 +7,7 @@ import {
   getPlanWeekForDate,
   getSessionDate,
   isActivityOnOrAfterPlanStart,
+  parsePlanFirstSessionDay,
 } from "@/lib/planUtils";
 import { inferRunType, parseRatingBreakdown, type StatActivity } from "@/lib/rating";
 import { dbSettingsToUserSettings, DEFAULT_SETTINGS, type UserSettings } from "@/lib/settings";
@@ -156,7 +157,7 @@ function calculateConsistency(
 ): number {
   const since = new Date(now.getTime() - 28 * MS_PER_DAY);
   const hitDays = new Set<string>();
-  const planStart = getEffectivePlanStart(settings.planStartDate);
+  const planStart = getEffectivePlanStart(settings.planStartDate, parsePlanFirstSessionDay(settings.trainingDays));
   let plannedSessions = 0;
 
   for (const week of plan) {
@@ -471,7 +472,7 @@ function trendWord(delta: number): string {
 
 /** Explains whether a run matched a scheduled plan session. */
 function scheduledHitReason(run: StatActivity, settings: UserSettings): string {
-  const planStart = getEffectivePlanStart(settings.planStartDate);
+  const planStart = getEffectivePlanStart(settings.planStartDate, parsePlanFirstSessionDay(settings.trainingDays));
   if (!isActivityOnOrAfterPlanStart(new Date(run.date), planStart)) {
     return "Before plan start";
   }
