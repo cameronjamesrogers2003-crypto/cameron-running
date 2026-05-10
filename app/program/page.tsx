@@ -18,15 +18,16 @@ import PhaseOverview from "./PhaseOverview";
 import ProgramSidePanel from "./ProgramSidePanel";
 import PlanAdjustments from "./PlanAdjustments";
 import RaceFlagBanner from "./RaceFlagBanner";
-import TodayLabel, { type SessionDayLabelVariant } from "./TodayLabel";
+import { type SessionDayLabelVariant } from "./TodayLabel";
 import PlanUpdatedBanner from "./PlanUpdatedBanner";
 import PageHeading from "@/components/ui/PageHeading";
-import { RunTypePill } from "@/components/RunTypePill";
 import PlanHistoryPanel from "./PlanHistoryPanel";
+import SessionCard, { type SessionCardProps } from "./SessionCard";
 import { runTypeColor } from "@/lib/runTypeStyles";
 import { phaseChipStyle } from "@/lib/phaseChipStyle";
 import { EmptyState } from "@/components/EmptyState";
 import { Calendar } from "lucide-react";
+import { buildWorkoutStructure, type WorkoutContext } from "@/lib/workoutStructure";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Runshift — Program" };
@@ -38,13 +39,6 @@ const EFFORT_LABEL: Record<RunType, string> = {
   long:     "Zone 2 effort",
   tempo:    "Zone 4 effort",
   interval: "Zone 5 effort",
-};
-
-const WARMUP_COOLDOWN: Record<RunType, string> = {
-  easy:     "5 min walk each end",
-  long:     "5 min jog + 10 min walk/stretch",
-  tempo:    "1.5 km easy warm-up · 1 km cool-down",
-  interval: "1.5 km easy warm-up · 90 sec rest between reps · 1 km cool-down",
 };
 
 const PHASE_OVERVIEW_FALLBACK: Partial<Record<Phase, string>> = {
@@ -101,7 +95,7 @@ function fmtTargetPace(minPerKm: number): string {
   return `${m}:${s.toString().padStart(2, "0")} /km`;
 }
 
-function ratingBadgeStyle(score: number): { background: string; color: string } {
+function getRatingBadgeStyle(score: number): { background: string; color: string } {
   if (score >= 9.0) return { background: "rgba(167,139,250,0.25)", color: "#a78bfa" };
   if (score >= 7.0) return { background: "rgba(74,222,128,0.25)", color: "#4ade80" };
   if (score >= 5.5) return { background: "rgba(45,212,191,0.25)", color: "var(--accent)" };
@@ -602,112 +596,44 @@ export default async function ProgramPage({
                               ? "rgba(125,211,252,0.03)"
                               : "var(--card-bg)";
 
-                          return (
-                            <div
-                              key={session.day}
-                              className="rounded-2xl overflow-hidden border border-white/[0.08] w-full sm:min-w-[240px] sm:shrink-0 sm:flex-1"
-                              style={{
-                                background: cardBg,
-                                borderLeft: leftBorder,
-                              }}
-                            >
-                              <div
-                                style={{
-                                  height: "3px",
-                                  background: runTypeColor(session.type),
-                                  width: "100%",
-                                  flexShrink: 0,
-                                }}
-                              />
-                              <div className="p-4">
-                              {/* Day + rating + zone badges */}
-                              <div className="flex items-start justify-between gap-1 mb-1.5">
-                                <span
-                                  className="text-xs font-semibold uppercase tracking-wider"
-                                  style={{ color: "var(--text-muted)" }}
-                                >
-                                  {dayLabel}
-                                </span>
-                                <div className="flex flex-col items-end gap-0.5 shrink-0">
-                                  {ratingNum != null && (
-                                    <span
-                                      className="text-xs font-bold px-1.5 py-0.5 rounded"
-                                      style={ratingBadgeStyle(ratingNum)}
-                                    >
-                                      {ratingNum.toFixed(1)}
-                                    </span>
-                                  )}
-                                  {zoneBadge && (
-                                    <span
-                                      className="text-xs font-medium px-1.5 py-0.5 rounded"
-                                      style={{
-                                        color:      zoneBadge.color,
-                                        background: `${zoneBadge.color}22`,
-                                      }}
-                                    >
-                                      {zoneBadge.label}
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
+                          const workoutCtx: WorkoutContext = {
+                            phase: planWeek.phase,
+                            week: planWeek.week,
+                            totalWeeks: planToRender.length,
+                            isCutback: planWeek.isCutback,
+                            isRecovery: planWeek.isRecovery ?? false,
+                            level: settings.experienceLevel ?? "BEGINNER",
+                            goal: settings.goalRace === "FULL" ? "full" : "hm",
+                            vdot: settings.currentVdot,
+                            targetDistanceKm: session.targetDistanceKm,
+                            targetPaceMinPerKm: session.targetPaceMinPerKm,
+                          };
 
-                              {/* Run type pill */}
-                              <RunTypePill type={session.type} size="sm" />
+                          const cardProps: SessionCardProps = {
+                            sessionType: session.type,
+                            dayLabel,
+                            description: session.description,
+                            targetKm: session.targetDistanceKm,
+                            targetPaceStr: fmtTargetPace(session.targetPaceMinPerKm),
+                            effortLabel: EFFORT_LABEL[session.type],
+                            cardBg,
+                            leftBorder,
+                            colorBarBg: runTypeColor(session.type),
+                            showRating,
+                            ratingNum,
+                            ratingBadgeStyle: ratingNum != null ? getRatingBadgeStyle(ratingNum) : null,
+                            zoneBadge,
+                            actualKm: showRating && matchedAct ? matchedAct.distanceKm : undefined,
+                            actualPaceStr: showRating && matchedAct ? fmtPaceSec(matchedAct.avgPaceSecKm) : undefined,
+                            runTypeMismatch,
+                            mismatchNote: runTypeMismatch && matchedAct
+                              ? `⚠️ Run type mismatch — planned: ${formatRunTypeWord(session.type)}, actual: ${formatRunTypeWord(matchedAct.classifiedRunType)}`
+                              : undefined,
+                            sessionLabelVariant,
+                            workoutStructure: buildWorkoutStructure(session.type, workoutCtx),
+                          };
 
-                              {runTypeMismatch && (
-                                <p
-                                  className="text-xs mt-1.5 leading-snug rounded px-1.5 py-1"
-                                  style={{
-                                    background: "rgba(245,158,11,0.14)",
-                                    color: "#fbbf24",
-                                  }}
-                                >
-                                  ⚠️ Run type mismatch — planned: {formatRunTypeWord(session.type)}, actual:{" "}
-                                  {formatRunTypeWord(matchedAct.classifiedRunType)}
-                                </p>
-                              )}
-
-                              {/* Effort label */}
-                              <p
-                                className="text-xs mt-0.5 mb-1.5"
-                                style={{ color: "rgba(232,230,224,0.35)" }}
-                              >
-                                {EFFORT_LABEL[session.type]}
-                              </p>
-
-                              {/* Description */}
-                              <p className="text-sm font-semibold text-white mb-0.5 leading-snug">
-                                {session.description}
-                              </p>
-
-                              {/* Warm-up / cool-down */}
-                              <p
-                                className="hidden sm:block text-xs mb-1 leading-snug"
-                                style={{ color: "rgba(232,230,224,0.25)" }}
-                              >
-                                {WARMUP_COOLDOWN[session.type]}
-                              </p>
-
-                              {/* Target */}
-                              <p className="font-mono font-semibold text-sm whitespace-nowrap text-white">
-                                {session.targetDistanceKm.toFixed(1)} km · {fmtTargetPace(session.targetPaceMinPerKm)}
-                              </p>
-
-                              {/* Actual (completed) */}
-                              {showRating && matchedAct && (
-                                <p
-                                  className="text-xs mt-0.5 font-mono"
-                                  style={{ color: "rgba(232,230,224,0.4)" }}
-                                >
-                                  {matchedAct.distanceKm.toFixed(1)} km · {fmtPaceSec(matchedAct.avgPaceSecKm)}
-                                </p>
-                              )}
-
-                              {/* Session day label (Today / Start Day / Missed) */}
-                              <TodayLabel variant={sessionLabelVariant} />
-                              </div>
-                            </div>
-                          );
+                          return <SessionCard key={session.day} {...cardProps} />;
                         })}
                         </div>
 
