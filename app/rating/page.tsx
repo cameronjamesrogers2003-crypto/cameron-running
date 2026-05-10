@@ -301,7 +301,7 @@ export default async function RatingPage() {
         {recentRuns.map((run) => {
           const runType = inferRunType(run as StatActivity, settings);
           const score = run.rating ?? 0;
-          const ratingColor = score >= 8.0 ? "#4ade80" : score >= 6.0 ? "#f59e0b" : score >= 4.0 ? "#f97316" : "#ef4444";
+          const ratingColor = score >= 8.5 ? "#4ade80" : score >= 7.0 ? "#f59e0b" : score >= 5.5 ? "#f97316" : "#ef4444";
           return (
             <div key={run.id} className="flex items-center gap-3 py-2.5 border-b border-white/[0.06] last:border-0">
               <RunTypePill type={runType} size="sm" />

@@ -43,7 +43,7 @@ interface RunsResponse {
 const RUN_TYPES: RunType[] = ["easy", "tempo", "interval", "long"];
 
 function ratingColor(score: number): string {
-  if (score >= 9.0) return "#a78bfa";
+  if (score >= 8.5) return "#a78bfa";
   if (score >= 7.0) return "#4ade80";
   if (score >= 5.5) return "var(--accent)";
   if (score >= 4.0) return "#f5b454";
@@ -51,11 +51,21 @@ function ratingColor(score: number): string {
 }
 
 function ratingBand(score: number): string {
-  if (score >= 9.0) return "Elite";
+  if (score >= 8.5) return "Elite";
   if (score >= 7.0) return "Strong";
   if (score >= 5.5) return "Solid";
   if (score >= 4.0) return "Rough";
   return "Off Day";
+}
+
+function getPersonalBests(ratingBreakdown: string | null): string[] {
+  if (!ratingBreakdown) return [];
+  try {
+    const parsed = JSON.parse(ratingBreakdown) as { personalBests?: string[] };
+    return Array.isArray(parsed.personalBests) ? parsed.personalBests : [];
+  } catch {
+    return [];
+  }
 }
 
 function chipStyle(type: RunType, selectedTypes: RunType[]): CSSProperties {
@@ -420,7 +430,12 @@ export default function RunsClient() {
                   }
                 }}
               >
-                <span className="ty-run-name flex-1 min-w-0 truncate">{run.name ?? "Run"}</span>
+                <span className="ty-run-name flex-1 min-w-0 flex items-center gap-1.5 truncate">
+                  <span className="truncate">{run.name ?? "Run"}</span>
+                  {getPersonalBests(run.ratingBreakdown).length > 0 && (
+                    <span className="shrink-0 text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border" style={{ background: "rgba(250,204,21,0.15)", color: "#facc15", borderColor: "rgba(250,204,21,0.3)" }}>PB</span>
+                  )}
+                </span>
                 <span className="w-24 shrink-0">
                   <RunTypePill type={run.runType} size="sm" />
                 </span>
@@ -545,7 +560,12 @@ export default function RunsClient() {
                     className="min-w-0 flex-1 text-left min-h-11"
                     onClick={() => toggleExpand(run.id)}
                   >
-                    <p className="ty-run-name break-words">{run.name ?? "Run"}</p>
+                    <p className="ty-run-name break-words flex items-center gap-1.5 flex-wrap">
+                      <span>{run.name ?? "Run"}</span>
+                      {getPersonalBests(run.ratingBreakdown).length > 0 && (
+                        <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border" style={{ background: "rgba(250,204,21,0.15)", color: "#facc15", borderColor: "rgba(250,204,21,0.3)" }}>PB</span>
+                      )}
+                    </p>
                     <p className="ty-date mt-1">{formatDateAest(run.dateIso)}</p>
                     <div className="mt-2">
                       <RunTypePill type={run.runType} size="sm" />

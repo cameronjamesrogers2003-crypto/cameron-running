@@ -255,10 +255,10 @@ export default function CalendarGrid({ year, todayKey, calendarData, plannedDayM
         <div className="flex items-center gap-1.5 text-xs" style={{ color: "var(--text-muted)" }}><span className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--accent)" }} /> Planned</div>
         <div className="flex items-center gap-1.5 text-xs" style={{ color: "var(--text-muted)" }}><span className="w-1.5 h-1.5 rounded-full" style={{ background: "#f5b454" }} /> Missed</div>
         {[
-          { label: "8+ elite", bg: "rgba(34,197,94,0.25)", color: "#22c55e" },
-          { label: "6–8 strong", bg: "rgba(245,158,11,0.25)", color: "#f59e0b" },
-          { label: "4–6 solid", bg: "rgba(249,115,22,0.25)", color: "#f97316" },
-          { label: "<4 off day", bg: "rgba(239,68,68,0.25)", color: "#ef4444" },
+          { label: "8.5+ elite", bg: "rgba(34,197,94,0.25)", color: "#22c55e" },
+          { label: "7–8.5 strong", bg: "rgba(245,158,11,0.25)", color: "#f59e0b" },
+          { label: "5.5–7 solid", bg: "rgba(249,115,22,0.25)", color: "#f97316" },
+          { label: "4–5.5 rough", bg: "rgba(239,68,68,0.25)", color: "#ef4444" },
         ].map((x) => (
           <div key={x.label} className="flex items-center gap-1.5 text-xs" style={{ color: "var(--text-muted)" }}>
             <span className="inline-flex px-1.5 py-0.5 rounded-md text-xs font-black font-mono" style={{ background: x.bg, color: x.color }}>
@@ -289,7 +289,17 @@ export default function CalendarGrid({ year, todayKey, calendarData, plannedDayM
               ✕
             </button>
             <p className="text-xs" style={{ color: "var(--text-muted)" }}>{fmtDate(modalRun.dateIso)}</p>
-            <p className="text-lg font-bold text-white mt-0.5">{modalRun.name ?? "Run"}</p>
+            <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+              <p className="text-lg font-bold text-white">{modalRun.name ?? "Run"}</p>
+              {(() => {
+                try {
+                  const parsed = JSON.parse(modalRun.ratingBreakdown ?? "{}") as { personalBests?: string[] };
+                  return Array.isArray(parsed.personalBests) && parsed.personalBests.length > 0 ? (
+                    <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border" style={{ background: "rgba(250,204,21,0.15)", color: "#facc15", borderColor: "rgba(250,204,21,0.3)" }}>PB</span>
+                  ) : null;
+                } catch { return null; }
+              })()}
+            </div>
 
             <div className="flex items-center gap-3 mt-3 flex-wrap">
               <RunTypePill type={modalRun.runType} size="sm" />

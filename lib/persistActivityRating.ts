@@ -1,6 +1,7 @@
 import type { PrismaClient } from "@prisma/client";
 import {
   calculateRunRating,
+  ratingBand,
   type StatActivity,
 } from "@/lib/rating";
 import { dbSettingsToUserSettings, DEFAULT_SETTINGS, type UserSettings } from "@/lib/settings";
@@ -24,6 +25,7 @@ function toStat(a: {
   elevationGainM: number | null;
   classifiedRunType: string | null;
   splitsJson: string | null;
+  durationSecs: number;
 }): StatActivity {
   return {
     id: a.id,
@@ -37,6 +39,7 @@ function toStat(a: {
     elevationGainM: a.elevationGainM,
     classifiedRunType: a.classifiedRunType,
     splitsJson: a.splitsJson,
+    durationSecs: a.durationSecs,
   };
 }
 
@@ -128,6 +131,7 @@ export async function persistActivityRating(
       elevationGainM: true,
       classifiedRunType: true,
       splitsJson: true,
+      durationSecs: true,
     },
   });
 
@@ -141,8 +145,44 @@ export async function persistActivityRating(
     }
   }
 
+  // Most recent prior activity for fatigue context (Change 7)
+  const priorActivity = prior.length > 0 ? toStat(prior[0]) : null;
+
   const stat = toStat({ ...act, classifiedRunType: classified });
-  const ratingResult = calculateRunRating(stat, settings, recentSameType);
+  let ratingResult = calculateRunRating(stat, settings, recentSameType, priorActivity);
+
+  // PB detection and score bump (Change 8)
+  const allPriorStats = prior.map((r) => toStat(r));
+  const personalBests: string[] = [];
+
+  // Longest run PB
+  const maxPriorDistance = allPriorStats.reduce((max, r) => Math.max(max, r.distanceKm), 0);
+  if (allPriorStats.length > 0 && stat.distanceKm > maxPriorDistance) {
+    personalBests.push("longestRun");
+  }
+
+  // Fastest pace PBs (interval / tempo / easy only — long pace PBs are ambiguous)
+  if (classified === "interval" || classified === "tempo" || classified === "easy") {
+    const sameTypePriors = allPriorStats.filter(
+      (r) => effectiveType(r, settings, thresholdKm, distanceMethod) === classified,
+    );
+    const validPaces = sameTypePriors.map((r) => r.avgPaceSecKm).filter((p) => p > 0);
+    if (validPaces.length > 0 && stat.avgPaceSecKm > 0) {
+      const fastestPriorPace = Math.min(...validPaces);
+      if (stat.avgPaceSecKm < fastestPriorPace) {
+        const label = classified.charAt(0).toUpperCase() + classified.slice(1);
+        personalBests.push(`fastest${label}`);
+      }
+    }
+  }
+
+  if (personalBests.length > 0) {
+    const bumpedTotal = Math.round(Math.min(10, ratingResult.total + 0.3) * 10) / 10;
+    const originalBand = ratingBand(ratingResult.total);
+    const bumpedBand = ratingBand(bumpedTotal);
+    const finalTotal = originalBand === bumpedBand ? bumpedTotal : ratingResult.total;
+    ratingResult = { ...ratingResult, total: finalTotal, personalBests };
+  }
 
   await prisma.activity.update({
     where: { id: activityId },

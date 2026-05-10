@@ -51,7 +51,7 @@ function parseSettingsDays(trainingDaysJson: string | null): Day[] {
 // ── Style helpers ─────────────────────────────────────────────────────────────
 
 function ratingBadgeStyle(score: number): { background: string; color: string } {
-  if (score >= 9.0) return { background: "rgba(167,139,250,0.25)", color: "#a78bfa" };
+  if (score >= 8.5) return { background: "rgba(167,139,250,0.25)", color: "#a78bfa" };
   if (score >= 7.0) return { background: "rgba(74,222,128,0.25)", color: "#4ade80" };
   if (score >= 5.5) return { background: "rgba(45,212,191,0.25)", color: "var(--accent)" };
   if (score >= 4.0) return { background: "rgba(245,180,84,0.25)", color: "#f5b454" };
@@ -59,7 +59,7 @@ function ratingBadgeStyle(score: number): { background: string; color: string } 
 }
 
 function ratingStatColor(score: number): string {
-  if (score >= 9.0) return "#a78bfa";
+  if (score >= 8.5) return "#a78bfa";
   if (score >= 7.0) return "#4ade80";
   if (score >= 5.5) return "var(--accent)";
   if (score >= 4.0) return "#f5b454";
