@@ -26,8 +26,10 @@ export function getPlanWeekForDate(date: Date, planStart: Date): number {
 
 /** Returns the week anchor instant that starts a given plan week (same origin as planStart). */
 export function getWeekStartForPlanWeek(weekNumber: number, planStart: Date): Date {
-  const planStartDay = new Date(planStart);
-  const dayOfWeek = planStartDay.getUTCDay(); // 0=Sun ... 6=Sat
+  // Use Brisbane civil weekday — `planStart.getUTCDay()` is wrong when the ISO instant is
+  // "previous UTC evening" for a Brisbane calendar morning (e.g. May 13 AEST → May 12 UTC).
+  const planWall = toAEST(planStart);
+  const dayOfWeek = planWall.getUTCDay(); // 0=Sun … 6=Sat in Brisbane (UTC fields mirror wall time)
   const daysSinceSat = dayOfWeek === 6 ? 0 : (dayOfWeek + 1) % 7;
   const satAnchor = new Date(planStart.getTime() - daysSinceSat * MS_PER_DAY);
   return new Date(satAnchor.getTime() + (weekNumber - 1) * 7 * MS_PER_DAY);
