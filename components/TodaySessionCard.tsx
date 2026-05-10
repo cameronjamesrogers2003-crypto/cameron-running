@@ -1,5 +1,3 @@
-import Link from "next/link";
-import Logo from "@/components/Logo";
 import { Moon } from "lucide-react";
 import { RunTypePill } from "@/components/RunTypePill";
 
@@ -38,7 +36,7 @@ export default function TodaySessionCard({ planLoaded, todayPlanEntry }: TodaySe
   if (!todayPlanEntry) {
     return (
       <div
-        className="relative w-full overflow-hidden rounded-2xl border px-5 py-5"
+        className="relative w-full overflow-hidden rounded-2xl border px-5 py-3"
         style={{
           borderRadius: "var(--card-radius)",
           background: "#0a0a0a",
@@ -55,7 +53,7 @@ export default function TodaySessionCard({ planLoaded, todayPlanEntry }: TodaySe
     );
   }
 
-  const { session, completed } = todayPlanEntry;
+  const { session } = todayPlanEntry;
   const rgb = runTypeBloomRgb(session.type);
   const borderRgb = rgb ?? { r: 156, g: 163, b: 175 };
   const bloom =
@@ -65,7 +63,7 @@ export default function TodaySessionCard({ planLoaded, todayPlanEntry }: TodaySe
 
   return (
     <div
-      className="relative w-full min-h-[160px] max-h-[180px] overflow-hidden rounded-2xl border md:min-h-[170px]"
+      className="relative w-full overflow-hidden rounded-2xl border px-5 py-3"
       style={{
         borderRadius: "var(--card-radius)",
         background: "#0a0a0a",
@@ -80,48 +78,15 @@ export default function TodaySessionCard({ planLoaded, todayPlanEntry }: TodaySe
         />
       ) : null}
 
-      <div
-        className="pointer-events-none absolute right-0 top-1/2 z-0 w-[min(58%,320px)] -translate-y-1/2 select-none overflow-visible opacity-[0.35]"
-        aria-hidden
-      >
-        <div className="flex translate-x-[8%] justify-end">
-          <Logo size="lg" showWordmark={false} className="origin-right scale-[2.1] sm:scale-[2.35]" />
-        </div>
-      </div>
-
-      <div
-        className={`relative z-[1] flex h-full min-h-[160px] flex-col gap-3 p-4 md:min-h-[170px] md:flex-row md:items-center md:justify-between md:gap-6 md:p-5 ${
-          !completed ? "pb-[3.25rem] md:pb-5" : ""
-        }`}
-      >
-        <div className="flex min-w-0 flex-1 flex-col gap-2">
+      <div className="relative z-[1] flex min-w-0 items-center justify-between gap-4">
+        <div className="flex min-w-0 flex-1 flex-col gap-1.5">
           <RunTypePill type={session.type} size="md" />
-          <h2 className="text-2xl font-black leading-tight tracking-tight text-white">{session.description}</h2>
-          <p className="text-lg font-mono tabular-nums text-white/90 md:hidden">
-            {session.distanceLabel}
-            <span className="mx-1.5 text-white/35" aria-hidden>
-              ·
-            </span>
-            {session.paceLabel}
-          </p>
+          <h2 className="text-lg font-black leading-tight tracking-tight text-white">{session.description}</h2>
         </div>
-        <div className="hidden shrink-0 flex-col items-end gap-0.5 text-lg font-mono tabular-nums text-white/90 md:flex">
-          <span>{session.distanceLabel}</span>
-          <span>{session.paceLabel}</span>
+        <div className="flex shrink-0 flex-col items-end justify-center gap-0.5 text-right font-mono tabular-nums">
+          <span className="text-2xl font-black text-white">{session.distanceLabel}</span>
+          <span className="text-base text-zinc-400">{session.paceLabel}</span>
         </div>
-
-        {!completed ? (
-          <Link
-            href="/runs"
-            className="absolute bottom-3 right-3 z-[2] rounded-xl px-4 py-2 text-sm font-bold transition-colors hover:bg-[#14b8a6] md:bottom-4 md:right-4"
-            style={{
-              background: "var(--accent)",
-              color: "#0a0b0c",
-            }}
-          >
-            Mark Complete
-          </Link>
-        ) : null}
       </div>
     </div>
   );
