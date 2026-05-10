@@ -358,9 +358,9 @@ function getPaceTrend(priorPaces: number[]): "improving" | "stable" | "insuffici
 function hrModifierForPace(hrAboveZone: number, runType: RunType): number {
   if (runType === "tempo" || runType === "interval") return 1.0;
   if (hrAboveZone < 0.03) return 1.0;
-  if (hrAboveZone < 0.10) return 0.88;
-  if (hrAboveZone < 0.25) return 0.72;
-  return 0.47;
+  if (hrAboveZone < 0.10) return 0.80;
+  if (hrAboveZone < 0.25) return 0.60;
+  return 0.35;
 }
 
 /** Returns the VDOT distance target (km) for a run type using the nearest bracket at or below the VDOT value. */
