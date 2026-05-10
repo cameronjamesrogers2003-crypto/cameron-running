@@ -18,13 +18,31 @@ const MAX_DISTANCE = 1.5;
 const MAX_CONDITIONS = 2.0;
 const EXPECTED_ELEVATION_PER_KM = 10;
 
-/** Per-type benchmark distances and durations used when fewer than 5 prior runs exist. */
-const DISTANCE_TARGETS: Record<RunType, { distanceKm: number; durationSecs: number }> = {
-  easy:     { distanceKm: 7,  durationSecs: 3000 },
-  long:     { distanceKm: 18, durationSecs: 5400 },
-  tempo:    { distanceKm: 10, durationSecs: 2400 },
-  interval: { distanceKm: 8,  durationSecs: 2700 },
-};
+/** VDOT bracket table — distance targets (km) per run type. */
+const VDOT_DISTANCE_TABLE: Array<{ vdot: number; easy: number; long: number; tempo: number; interval: number }> = [
+  { vdot: 30, easy: 5,  long: 10, tempo: 5,  interval: 4  },
+  { vdot: 35, easy: 6,  long: 13, tempo: 6,  interval: 5  },
+  { vdot: 40, easy: 7,  long: 16, tempo: 7,  interval: 6  },
+  { vdot: 45, easy: 8,  long: 18, tempo: 9,  interval: 7  },
+  { vdot: 50, easy: 9,  long: 20, tempo: 10, interval: 8  },
+  { vdot: 55, easy: 10, long: 23, tempo: 12, interval: 9  },
+  { vdot: 60, easy: 12, long: 26, tempo: 14, interval: 10 },
+  { vdot: 65, easy: 13, long: 29, tempo: 15, interval: 11 },
+  { vdot: 70, easy: 14, long: 32, tempo: 16, interval: 12 },
+];
+
+/** VDOT bracket table — duration targets (minutes) per run type. */
+const VDOT_DURATION_TABLE: Array<{ vdot: number; easy: number; long: number; tempo: number; interval: number }> = [
+  { vdot: 30, easy: 35, long: 70,  tempo: 28, interval: 28 },
+  { vdot: 35, easy: 40, long: 80,  tempo: 32, interval: 32 },
+  { vdot: 40, easy: 45, long: 88,  tempo: 36, interval: 35 },
+  { vdot: 45, easy: 48, long: 92,  tempo: 40, interval: 38 },
+  { vdot: 50, easy: 52, long: 97,  tempo: 45, interval: 40 },
+  { vdot: 55, easy: 56, long: 105, tempo: 50, interval: 43 },
+  { vdot: 60, easy: 62, long: 115, tempo: 56, interval: 46 },
+  { vdot: 65, easy: 67, long: 120, tempo: 60, interval: 48 },
+  { vdot: 70, easy: 72, long: 128, tempo: 64, interval: 50 },
+];
 
 /** Minimal activity fields used for classification and rating. */
 export interface StatActivity {
@@ -55,6 +73,24 @@ export interface ConditionsBreakdown extends RunRatingComponentBreakdown {
   timeOfDayAdjusted?: boolean;
 }
 
+export interface DistanceSignal {
+  source: "prior" | "vdot" | "plan";
+  benchmarkKm: number;
+  benchmarkMin: number;
+  weight: number;
+}
+
+export interface DistanceBreakdown extends RunRatingComponentBreakdown {
+  benchmarkKm: number;
+  benchmarkMin: number;
+  signals: DistanceSignal[];
+  distanceRatio: number;
+  durationRatio: number;
+  combinedRatio: number;
+  neutralApplied?: boolean;
+  overshootCapped?: boolean;
+}
+
 export interface RunRatingResult {
   total: number;
   band?: "Elite" | "Strong" | "Solid" | "Rough" | "Off Day";
@@ -65,7 +101,7 @@ export interface RunRatingResult {
   components: {
     pace: RunRatingComponentBreakdown;
     effort: RunRatingComponentBreakdown;
-    distance: RunRatingComponentBreakdown;
+    distance: DistanceBreakdown;
     conditions: ConditionsBreakdown;
   };
 }
@@ -276,12 +312,33 @@ function medianSplitHr(splitsJson: string | null | undefined): number | null {
   }
 }
 
+/** Returns the VDOT distance target (km) for a run type using the nearest bracket at or below the VDOT value. */
+export function getVdotDistanceTarget(vdot: number, runType: RunType): number {
+  const clamped = Math.max(30, Math.min(70, vdot));
+  let row = VDOT_DISTANCE_TABLE[0]!;
+  for (const r of VDOT_DISTANCE_TABLE) {
+    if (r.vdot <= clamped) row = r;
+  }
+  return row[runType];
+}
+
+/** Returns the VDOT duration target (minutes) for a run type using the nearest bracket at or below the VDOT value. */
+export function getVdotDurationTarget(vdot: number, runType: RunType): number {
+  const clamped = Math.max(30, Math.min(70, vdot));
+  let row = VDOT_DURATION_TABLE[0]!;
+  for (const r of VDOT_DURATION_TABLE) {
+    if (r.vdot <= clamped) row = r;
+  }
+  return row[runType];
+}
+
 /** Calculates a 0-10 run quality score and returns component scores plus explanation text. */
 export function calculateRunRating(
   activity: StatActivity,
   settings: UserSettings,
   recentActivities: StatActivity[],
   priorActivity?: StatActivity | null,
+  planContext?: { targetDistanceKm?: number; targetDurationMin?: number },
 ): RunRatingResult {
   const s = settings;
   const runType = resolveRatingRunType(
@@ -406,42 +463,82 @@ export function calculateRunRating(
     }
   }
 
-  // ── 3. Distance (max 1.5) ──────────────────────────────────────────────────────
-  // Score vs type targets when <5 priors; vs median when ≥5 (Change 6)
+  // ── 3. Distance (max 1.5) — three-signal VDOT-based benchmark ────────────────
+  const vdot = s.currentVdot ?? 33;
+  const vdotDistKm  = getVdotDistanceTarget(vdot, runType);
+  const vdotDurMin  = getVdotDurationTarget(vdot, runType);
+
   const sameTypeActivities = recentActivities
     .filter((r) => r.id !== activity.id)
-    .filter((r) => {
-      const rType = resolveRatingRunType(r, s.intervalPaceMaxSec, s.tempoPaceMaxSec, s);
-      return rType === runType;
-    })
+    .filter((r) => resolveRatingRunType(r, s.intervalPaceMaxSec, s.tempoPaceMaxSec, s) === runType)
     .filter((r) => r.distanceKm > 0);
 
-  let distanceScoreRaw: number;
-  let distanceReason: string;
-  if (sameTypeActivities.length < 5) {
-    const target = DISTANCE_TARGETS[runType];
-    const distRatio = activity.distanceKm / target.distanceKm;
-    const hasDur = activity.durationSecs != null && activity.durationSecs > 0;
-    const durRatio = hasDur ? activity.durationSecs! / target.durationSecs : distRatio;
-    const combinedRatio = distRatio * 0.6 + durRatio * 0.4;
-    distanceScoreRaw = Math.min(MAX_DISTANCE, distanceScoreFromRatio(combinedRatio));
-    distanceReason =
-      `${classificationPreamble}Fewer than 5 prior ${runTypeLabel(runType)} runs — scored vs target ${target.distanceKm} km / ${Math.round(target.durationSecs / 60)} min (ratio ${combinedRatio.toFixed(2)}).`;
+  const hasPriorSignal = sameTypeActivities.length >= 5;
+  const hasPlanSignal  = (planContext?.targetDistanceKm ?? 0) > 0;
+
+  // Signal A: median of all-time same-type priors
+  const priorDistKm = hasPriorSignal ? median(sameTypeActivities.map((r) => r.distanceKm)) : 0;
+  const priorDurList = hasPriorSignal
+    ? sameTypeActivities.map((r) => r.durationSecs).filter((d): d is number => d != null && d > 0)
+    : [];
+  const priorDurMin = priorDurList.length > 0 ? median(priorDurList) / 60 : vdotDurMin;
+
+  // Signal C: plan session
+  const planDistKm = hasPlanSignal ? planContext!.targetDistanceKm! : 0;
+  const planDurMin = hasPlanSignal
+    ? (planContext?.targetDurationMin ?? planDistKm * (vdotDurMin / Math.max(vdotDistKm, 0.001)))
+    : 0;
+
+  // Weighted benchmark from available signals
+  const distSignals: DistanceSignal[] = [];
+  if (hasPriorSignal && hasPlanSignal) {
+    distSignals.push({ source: "prior", benchmarkKm: priorDistKm, benchmarkMin: priorDurMin, weight: 0.5 });
+    distSignals.push({ source: "vdot",  benchmarkKm: vdotDistKm,  benchmarkMin: vdotDurMin,  weight: 0.3 });
+    distSignals.push({ source: "plan",  benchmarkKm: planDistKm,  benchmarkMin: planDurMin,  weight: 0.2 });
+  } else if (hasPriorSignal) {
+    distSignals.push({ source: "prior", benchmarkKm: priorDistKm, benchmarkMin: priorDurMin, weight: 0.6 });
+    distSignals.push({ source: "vdot",  benchmarkKm: vdotDistKm,  benchmarkMin: vdotDurMin,  weight: 0.4 });
+  } else if (hasPlanSignal) {
+    distSignals.push({ source: "vdot", benchmarkKm: vdotDistKm, benchmarkMin: vdotDurMin, weight: 0.7 });
+    distSignals.push({ source: "plan", benchmarkKm: planDistKm,  benchmarkMin: planDurMin,  weight: 0.3 });
   } else {
-    const dists = sameTypeActivities.map((r) => r.distanceKm);
-    const durList = sameTypeActivities
-      .map((r) => r.durationSecs)
-      .filter((d): d is number => d != null && d > 0);
-    const bench = median(dists);
-    const benchDur = durList.length > 0 ? median(durList) : 0;
-    const distRatio = bench > 0 ? activity.distanceKm / bench : 0;
-    const hasDur = activity.durationSecs != null && activity.durationSecs > 0;
-    const durRatio = hasDur && benchDur > 0 ? activity.durationSecs! / benchDur : distRatio;
-    const combinedRatio = distRatio * 0.6 + durRatio * 0.4;
-    distanceScoreRaw = Math.min(MAX_DISTANCE, distanceScoreFromRatio(combinedRatio));
-    distanceReason =
-      `${classificationPreamble}Your ${activity.distanceKm.toFixed(2)} km vs median ${bench.toFixed(2)} km from ${sameTypeActivities.length} prior ${runTypeLabel(runType)} runs (ratio ${combinedRatio.toFixed(2)}).`;
+    distSignals.push({ source: "vdot", benchmarkKm: vdotDistKm, benchmarkMin: vdotDurMin, weight: 1.0 });
   }
+
+  const weightedBenchmarkKm  = distSignals.reduce((s, x) => s + x.benchmarkKm  * x.weight, 0);
+  const weightedBenchmarkMin = distSignals.reduce((s, x) => s + x.benchmarkMin * x.weight, 0);
+
+  const distRatio = weightedBenchmarkKm > 0 ? activity.distanceKm / weightedBenchmarkKm : 1;
+  const actDurMin = (activity.durationSecs != null && activity.durationSecs > 0)
+    ? activity.durationSecs / 60
+    : null;
+  const durRatio  = actDurMin != null && weightedBenchmarkMin > 0
+    ? actDurMin / weightedBenchmarkMin
+    : distRatio;
+  const combinedRatio = distRatio * 0.6 + durRatio * 0.4;
+
+  let distanceScoreRaw: number;
+  const neutralApplied  = distRatio < 0.6;
+  const overshootCapped = !neutralApplied && combinedRatio > 1.2;
+  if (neutralApplied) {
+    distanceScoreRaw = 0.75;
+  } else {
+    distanceScoreRaw = Math.min(MAX_DISTANCE, distanceScoreFromRatio(combinedRatio));
+  }
+
+  const signalDescs = distSignals
+    .map((sig) => {
+      const label = sig.source === "prior"
+        ? `prior median (${sameTypeActivities.length} runs)`
+        : sig.source === "plan" ? "plan session"
+        : `VDOT ${vdot}`;
+      return `${label}: ${sig.benchmarkKm.toFixed(1)} km / ${sig.benchmarkMin.toFixed(0)} min (w=${sig.weight})`;
+    })
+    .join(", ");
+  const neutralNote = neutralApplied ? " Severe undershoot (ratio < 0.6) → neutral 0.75." : "";
+  const distanceReason =
+    `${classificationPreamble}Benchmark ${weightedBenchmarkKm.toFixed(1)} km / ${weightedBenchmarkMin.toFixed(0)} min [${signalDescs}]. ` +
+    `Your ${activity.distanceKm.toFixed(2)} km, ratio ${distRatio.toFixed(2)}.${neutralNote}`;
 
   // ── 4. Conditions (max 2.0) — piecewise weather + time-of-day + elevation (Change 1) ──
   const { factor: weatherFactor, desc: weatherDesc } = weatherFactorPiecewise(
@@ -476,7 +573,19 @@ export function calculateRunRating(
     components: {
       pace:     { score: paceScoreRaw,     max: MAX_PACE,       reason: paceReason },
       effort:   { score: effortScoreRaw,   max: MAX_EFFORT,     reason: effortReason },
-      distance: { score: distanceScoreRaw, max: MAX_DISTANCE,   reason: distanceReason },
+      distance: {
+        score: distanceScoreRaw,
+        max: MAX_DISTANCE,
+        reason: distanceReason,
+        benchmarkKm: weightedBenchmarkKm,
+        benchmarkMin: weightedBenchmarkMin,
+        signals: distSignals,
+        distanceRatio: distRatio,
+        durationRatio: durRatio,
+        combinedRatio,
+        ...(neutralApplied  ? { neutralApplied: true }  : {}),
+        ...(overshootCapped ? { overshootCapped: true } : {}),
+      },
       conditions: {
         score: conditionsScoreRaw,
         max: MAX_CONDITIONS,

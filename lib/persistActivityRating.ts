@@ -2,6 +2,7 @@ import type { PrismaClient } from "@prisma/client";
 import {
   calculateRunRating,
   ratingBand,
+  resolveRunSession,
   type StatActivity,
 } from "@/lib/rating";
 import { dbSettingsToUserSettings, DEFAULT_SETTINGS, type UserSettings } from "@/lib/settings";
@@ -141,7 +142,6 @@ export async function persistActivityRating(
     const t = effectiveType(st, settings, thresholdKm, distanceMethod);
     if (t === classified) {
       recentSameType.push({ ...st, classifiedRunType: t });
-      if (recentSameType.length >= 10) break;
     }
   }
 
@@ -149,7 +149,18 @@ export async function persistActivityRating(
   const priorActivity = prior.length > 0 ? toStat(prior[0]) : null;
 
   const stat = toStat({ ...act, classifiedRunType: classified });
-  let ratingResult = calculateRunRating(stat, settings, recentSameType, priorActivity);
+
+  const matchedSession = generatedPlan
+    ? resolveRunSession(stat, generatedPlan.plan, planStart)
+    : null;
+  const ratingPlanContext = matchedSession
+    ? {
+        targetDistanceKm: matchedSession.targetDistanceKm,
+        targetDurationMin: matchedSession.targetDistanceKm * matchedSession.targetPaceMinPerKm,
+      }
+    : undefined;
+
+  let ratingResult = calculateRunRating(stat, settings, recentSameType, priorActivity, ratingPlanContext);
 
   // PB detection and score bump (Change 8)
   const allPriorStats = prior.map((r) => toStat(r));
