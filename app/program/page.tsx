@@ -1,6 +1,6 @@
 import prisma from "@/lib/db";
 import { formatPace as fmtPaceSec } from "@/lib/settings";
-import { buildTrainingPlan, type Phase, type RunType, type TrainingWeek } from "@/data/trainingPlan";
+import { buildTrainingPlan, type Day, type Phase, type RunType, type TrainingWeek } from "@/data/trainingPlan";
 import { finalizePlanDisplayCopy } from "@/lib/generatePlan";
 import {
   getEffectivePlanStart,
@@ -17,7 +17,7 @@ import PhaseOverview from "./PhaseOverview";
 import ProgramSidePanel from "./ProgramSidePanel";
 import PlanAdjustments from "./PlanAdjustments";
 import RaceFlagBanner from "./RaceFlagBanner";
-import TodayLabel from "./TodayLabel";
+import TodayLabel, { type SessionDayLabelVariant } from "./TodayLabel";
 import PlanUpdatedBanner from "./PlanUpdatedBanner";
 import PageHeading from "@/components/ui/PageHeading";
 import { RunTypePill } from "@/components/RunTypePill";
@@ -145,6 +145,32 @@ function fmtWeekStartDate(weekNumber: number, planStart: Date): string {
   return aest.toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 }
 
+/** When the plan has not started yet: the single next upcoming session (earliest sessionDate > today, on/after plan start). */
+function computeNextUpcomingSessionKey(
+  plan: TrainingWeek[],
+  planStart: Date,
+  planStartDay: Date,
+  todayMidnight: Date,
+): `${number}-${Day}` | null {
+  if (todayMidnight.getTime() >= planStartDay.getTime()) return null;
+  const tToday = todayMidnight.getTime();
+  const tPlanStart = planStartDay.getTime();
+  let bestT = Infinity;
+  let bestKey: `${number}-${Day}` | null = null;
+  for (const w of plan) {
+    for (const s of w.sessions) {
+      const sd = getSessionDate(w.week, s.day, planStart);
+      const ts = sd.getTime();
+      if (ts < tPlanStart || ts <= tToday) continue;
+      if (ts < bestT) {
+        bestT = ts;
+        bestKey = `${w.week}-${s.day}`;
+      }
+    }
+  }
+  return bestKey;
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default async function ProgramPage({
@@ -240,6 +266,12 @@ export default async function ProgramPage({
 
   const sections = groupIntoSections(planToRender);
   const lockedWeeks = new Set(storedPlan?.lockedWeeks ?? []);
+  const nextUpcomingSessionKey = computeNextUpcomingSessionKey(
+    planToRender,
+    planStart,
+    planStartDay,
+    todayMidnight,
+  );
 
   // Race date warning info
   const lastPlanWeek = planToRender[planToRender.length - 1];
@@ -496,14 +528,6 @@ export default async function ProgramPage({
                         >
                         {planWeek.sessions.map((session) => {
                           const sessionDate = getSessionDate(planWeek.week, session.day, planStart);
-                          const showSessionToday =
-                            todayMidnight.getTime() >= planStartDay.getTime()
-                            && sameDayAEST(sessionDate, todayMidnight);
-                          const startsLabelText =
-                            todayMidnight.getTime() < planStartDay.getTime()
-                            && sameDayAEST(sessionDate, planStartDay)
-                              ? `Starts ${formatAEST(planStartDay, "EEE d MMM")}`
-                              : null;
                           const isPast      = sessionDate < todayMidnight;
                           const sameDayRuns = activities.filter((a) => {
                             const d = new Date(a.date);
@@ -518,6 +542,22 @@ export default async function ProgramPage({
                           const isCompleted = !!matchedAct;
                           const runTypeMismatch =
                             !!matchedAct && matchedAct.classifiedRunType !== session.type;
+
+                          const planHasStarted = todayMidnight.getTime() >= planStartDay.getTime();
+                          const sessionKey = `${planWeek.week}-${session.day}` as const;
+                          let sessionLabelVariant: SessionDayLabelVariant | null = null;
+                          if (planHasStarted && sameDayAEST(sessionDate, todayMidnight)) {
+                            sessionLabelVariant = "today";
+                          } else if (
+                            !planHasStarted
+                            && nextUpcomingSessionKey != null
+                            && sessionKey === nextUpcomingSessionKey
+                          ) {
+                            sessionLabelVariant = "startDay";
+                          } else if (planHasStarted && sessionDate.getTime() < todayMidnight.getTime() && !isCompleted) {
+                            sessionLabelVariant = "missed";
+                          }
+
                           const showRating  = isCompleted && (isPast || isCurrentWeek);
 
                           const ratingNum =
@@ -648,8 +688,8 @@ export default async function ProgramPage({
                                 </p>
                               )}
 
-                              {/* Today label */}
-                              <TodayLabel showToday={showSessionToday} startsText={startsLabelText} />
+                              {/* Session day label (Today / Start Day / Missed) */}
+                              <TodayLabel variant={sessionLabelVariant} />
                               </div>
                             </div>
                           );
