@@ -40,6 +40,12 @@ model Activity {
   ratingBreakdown    String?
   // Pace-zone type from classifyRunByPaceZones; kept in sync with rating
   classifiedRunType  String?
+  // User-confirmed override; null = unreviewed
+  confirmedRunType   String?
+  // ID of the matched planned session
+  linkedSessionId    String?
+  // Whether the user has confirmed this run's classification
+  isConfirmed        Boolean  @default(false)
   // JSON string array of Strava per-km splits_metric entries.
   splitsJson         String?
   // Human-readable explanation of classification confidence/method.

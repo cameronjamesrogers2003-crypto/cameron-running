@@ -57,6 +57,8 @@ export interface StatActivity {
   elevationGainM?: number | null;
   rating?: number | null;
   classifiedRunType?: string | null;
+  confirmedRunType?: string | null;
+  isConfirmed?: boolean;
   splitsJson?: string | null;
   durationSecs?: number | null;
 }
@@ -259,7 +261,7 @@ function resolveRatingRunType(
   tempoPaceMaxSec: number,
   settings: UserSettings,
 ): RunType {
-  const stored = activity.classifiedRunType;
+  const stored = activity.confirmedRunType || activity.classifiedRunType;
   if (
     stored === "easy"
     || stored === "tempo"

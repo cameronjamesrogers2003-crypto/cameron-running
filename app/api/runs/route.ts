@@ -87,6 +87,7 @@ export async function GET(req: NextRequest) {
       rating,
       ratingBreakdown: row.ratingBreakdown ?? null,
       classificationMethod: row.classificationMethod ?? null,
+      isConfirmed: row.isConfirmed,
     };
   });
 

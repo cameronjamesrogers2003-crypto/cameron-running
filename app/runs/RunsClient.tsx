@@ -30,6 +30,7 @@ interface Run {
   rating: number | null;
   ratingBreakdown: string | null;
   classificationMethod: string | null;
+  isConfirmed: boolean;
 }
 
 interface RunsResponse {
@@ -432,6 +433,9 @@ export default function RunsClient() {
               >
                 <span className="ty-run-name flex-1 min-w-0 flex items-center gap-1.5 truncate">
                   <span className="truncate">{run.name ?? "Run"}</span>
+                  {!run.isConfirmed && (
+                    <span className="shrink-0 w-2 h-2 rounded-full bg-amber-500" title="Unreviewed" />
+                  )}
                   {getPersonalBests(run.ratingBreakdown).length > 0 && (
                     <span className="shrink-0 text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border" style={{ background: "rgba(250,204,21,0.15)", color: "#facc15", borderColor: "rgba(250,204,21,0.3)" }}>PB</span>
                   )}
@@ -562,6 +566,9 @@ export default function RunsClient() {
                   >
                     <p className="ty-run-name break-words flex items-center gap-1.5 flex-wrap">
                       <span>{run.name ?? "Run"}</span>
+                      {!run.isConfirmed && (
+                        <span className="shrink-0 text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border border-amber-500/30 bg-amber-500/10 text-amber-500">Unreviewed</span>
+                      )}
                       {getPersonalBests(run.ratingBreakdown).length > 0 && (
                         <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border" style={{ background: "rgba(250,204,21,0.15)", color: "#facc15", borderColor: "rgba(250,204,21,0.3)" }}>PB</span>
                       )}

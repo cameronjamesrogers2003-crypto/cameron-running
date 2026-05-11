@@ -217,6 +217,7 @@ export async function syncActivities(): Promise<{ synced: number; errors: number
   let synced = 0;
   let errors = 0;
   let playerRatingError: string | undefined;
+  const newActivityIds: string[] = [];
 
   async function refreshPlayerRating(id: string, activityType: string): Promise<void> {
     try {
@@ -398,13 +399,14 @@ export async function syncActivities(): Promise<{ synced: number; errors: number
       });
       await refreshPlayerRating(id, activityType);
 
+      newActivityIds.push(id);
       synced++;
     } catch {
       errors++;
     }
   }
 
-  return { synced, errors, ...(playerRatingError ? { playerRatingError } : {}) };
+  return { synced, errors, ...(playerRatingError ? { playerRatingError } : {}), newActivityIds };
 }
 
 export function formatPace(secPerKm: number): string {

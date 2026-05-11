@@ -25,6 +25,8 @@ function toStat(a: {
   humidityPct: number | null;
   elevationGainM: number | null;
   classifiedRunType: string | null;
+  confirmedRunType: string | null;
+  isConfirmed: boolean;
   splitsJson: string | null;
   durationSecs: number;
 }): StatActivity {
@@ -39,6 +41,8 @@ function toStat(a: {
     humidityPct: a.humidityPct,
     elevationGainM: a.elevationGainM,
     classifiedRunType: a.classifiedRunType,
+    confirmedRunType: a.confirmedRunType,
+    isConfirmed: a.isConfirmed,
     splitsJson: a.splitsJson,
     durationSecs: a.durationSecs,
   };
@@ -50,7 +54,8 @@ function effectiveType(
   longRunThresholdKm?: number,
   longRunDistanceMethod?: string,
 ): string {
-  return a.classifiedRunType
+  return a.confirmedRunType
+    ?? a.classifiedRunType
     ?? enhancedClassifyRun(
       {
         distanceKm: a.distanceKm,
@@ -110,7 +115,7 @@ export async function persistActivityRating(
     thresholdKm,
     distanceMethod,
   );
-  const classified = classification.runType;
+  const classified = act.confirmedRunType || classification.runType;
 
   const prior = await prisma.activity.findMany({
     where: {
@@ -131,6 +136,8 @@ export async function persistActivityRating(
       humidityPct: true,
       elevationGainM: true,
       classifiedRunType: true,
+      confirmedRunType: true,
+      isConfirmed: true,
       splitsJson: true,
       durationSecs: true,
     },
@@ -204,7 +211,7 @@ export async function persistActivityRating(
       rating: ratingResult.total,
       ratingBreakdown: JSON.stringify(ratingResult),
       classifiedRunType: classified,
-      classificationMethod: classification.method,
+      classificationMethod: act.confirmedRunType ? "User confirmed" : classification.method,
     },
   });
 }
