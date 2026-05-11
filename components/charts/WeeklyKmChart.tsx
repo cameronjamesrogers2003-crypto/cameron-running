@@ -74,14 +74,23 @@ export default function WeeklyKmChart({ data }: { data: WeeklyKmData[] }) {
           shape={(props: { x?: number; y?: number; width?: number; height?: number; index?: number; payload?: WeeklyKmData }) => {
             const { x = 0, y = 0, width = 0, height = 0, index = 0, payload } = props;
             const isCurrent = index === data.length - 1;
-            const isFuture = (payload?.actual ?? 0) <= 0 && (payload?.target ?? 0) > 0;
-            const fill = isFuture ? "rgba(45,212,191,0.3)" : isCurrent ? "#5eead4" : barColor;
+            const actual = payload?.actual ?? 0;
+            const isZero = actual <= 0;
+
+            const displayHeight = isZero ? 2 : height;
+            const displayY = isZero ? y - 2 : y;
+            const isFuture = isZero && (payload?.target ?? 0) > 0;
+            
+            let fill = isCurrent ? "#5eead4" : barColor;
+            if (isZero) fill = "#D3D1C7";
+            else if (isFuture) fill = "rgba(45,212,191,0.3)";
+
             return (
               <g>
-                {isCurrent && (
-                  <rect x={x - 1} y={y - 1} width={width + 2} height={height + 2} fill="rgba(45,212,191,0.16)" rx={4} />
+                {isCurrent && !isZero && (
+                  <rect x={x - 1} y={displayY - 1} width={width + 2} height={displayHeight + 2} fill="rgba(45,212,191,0.16)" rx={4} />
                 )}
-                <rect x={x} y={y} width={width} height={height} fill={fill} rx={4} />
+                <rect x={x} y={displayY} width={width} height={displayHeight} fill={fill} rx={isZero ? 1 : 4} />
               </g>
             );
           }}

@@ -27,6 +27,7 @@ export type TierCardProps = {
   pointsToNext?: number | null;
   nextTierName?: string | null;
   badge?: ReactNode;
+  isRefreshing?: boolean;
 };
 
 function tierBandProgress(rank: number, tier: TierConfig): number {
@@ -53,6 +54,7 @@ function TierCard({
   pointsToNext,
   nextTierName,
   badge,
+  isRefreshing = false,
 }: TierCardProps) {
   const [hoverShell, setHoverShell] = useState(false);
 
@@ -105,6 +107,14 @@ function TierCard({
     ) : null;
 
   const isCompact = variant === "compact";
+
+  // Skeletons
+  const rankSkeleton = (
+    <div style={{ width: 48, height: 32, borderRadius: 6, background: "rgba(255,255,255,0.08)", marginTop: 8 }} />
+  );
+  const attrSkeleton = (
+    <div style={{ width: 32, height: 20, borderRadius: 4, background: "rgba(255,255,255,0.08)" }} />
+  );
 
   // No mix-blend-screen: art panel is pure #000 so PNG black backgrounds disappear naturally.
   const imageClassCompact = [
@@ -188,6 +198,10 @@ function TierCard({
       </span>
     ) : null;
 
+  const ovrLabel = (
+    <span style={{ fontSize: "11px", color: "rgba(255,255,255,0.4)", letterSpacing: "0.08em" }}>OVR</span>
+  );
+
   // ── Compact variant ────────────────────────────────────────────────────────
 
   const compactInner = (
@@ -199,12 +213,19 @@ function TierCard({
           <p className="truncate text-sm font-black tracking-tight text-white">{name}</p>
           {tierBadgeChip}
           <div className="flex flex-wrap items-end gap-2 pt-1">
-            <span
-              className="font-black leading-none tabular-nums tracking-tight"
-              style={{ color: tier.ovrColor, fontSize: "3rem" }}
-            >
-              {showRank}
-            </span>
+            {isRefreshing ? (
+              rankSkeleton
+            ) : (
+              <div className="flex items-baseline gap-1.5">
+                <span
+                  className="font-black leading-none tabular-nums tracking-tight"
+                  style={{ color: tier.ovrColor, fontSize: "3rem" }}
+                >
+                  {showRank}
+                </span>
+                {ovrLabel}
+              </div>
+            )}
             {deltaCompact}
           </div>
         </div>
@@ -241,12 +262,19 @@ function TierCard({
             <p className="truncate text-sm font-black tracking-tight text-white">{name}</p>
             {tierBadgeChip}
             <div className="mt-1 flex flex-wrap items-end gap-2">
-              <span
-                className="font-black leading-none tabular-nums tracking-tight"
-                style={{ color: tier.ovrColor, fontSize: "3rem" }}
-              >
-                {showRank}
-              </span>
+              {isRefreshing ? (
+                rankSkeleton
+              ) : (
+                <div className="flex items-baseline gap-1.5">
+                  <span
+                    className="font-black leading-none tabular-nums tracking-tight"
+                    style={{ color: tier.ovrColor, fontSize: "3rem" }}
+                  >
+                    {showRank}
+                  </span>
+                  {ovrLabel}
+                </div>
+              )}
               {deltaCompact}
             </div>
           </div>
@@ -302,15 +330,22 @@ function TierCard({
           <p className="text-sm font-black tracking-wide text-white break-words sm:text-base">{name}</p>
 
           {/* OVR */}
-          <div>
-            <p
-              className="font-black leading-[0.95] font-mono tabular-nums tracking-tight"
-              style={{ color: tier.ovrColor, fontSize: "clamp(2.75rem,8vw,4.25rem)" }}
-            >
-              {showRank}
-            </p>
-            <p className="mt-1.5 text-[10px] font-bold tracking-[0.2em] text-[var(--text-label)]">RANK · OVR</p>
+          <div className="flex items-baseline gap-2">
+            {isRefreshing ? (
+              rankSkeleton
+            ) : (
+              <>
+                <p
+                  className="font-black leading-[0.95] font-mono tabular-nums tracking-tight"
+                  style={{ color: tier.ovrColor, fontSize: "clamp(2.75rem,8vw,4.25rem)" }}
+                >
+                  {showRank}
+                </p>
+                {ovrLabel}
+              </>
+            )}
           </div>
+          {!isRefreshing && <p className="mt-1.5 text-[10px] font-bold tracking-[0.2em] text-[var(--text-label)]">RANK · OVR</p>}
 
           {tierBadgeChip}
           {deltaFull}
@@ -325,12 +360,16 @@ function TierCard({
                 <span className="min-w-0 flex-1 text-xs font-medium tracking-wide text-white/50 uppercase">
                   {attr.fullName}
                 </span>
-                <span
-                  className="shrink-0 text-xl font-black tabular-nums font-mono leading-none"
-                  style={{ color: attr.color }}
-                >
-                  {attr.value}
-                </span>
+                {isRefreshing ? (
+                  attrSkeleton
+                ) : (
+                  <span
+                    className="shrink-0 text-xl font-black tabular-nums font-mono leading-none"
+                    style={{ color: attr.color }}
+                  >
+                    {attr.value}
+                  </span>
+                )}
               </div>
             ))}
           </div>

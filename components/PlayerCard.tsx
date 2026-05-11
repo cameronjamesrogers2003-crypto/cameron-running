@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, memo } from "react";
 import { getTier, TIERS } from "@/lib/playerCardTiers";
 import TierCard from "@/components/TierCard";
+import { useSettings } from "@/context/SettingsContext";
 
 interface PlayerCardProps {
   ovr: number;
@@ -27,6 +28,7 @@ function PlayerCard({
   prevOvr,
   mode = "dashboard",
 }: PlayerCardProps) {
+  const { isRefreshing } = useSettings();
   const tier = getTier(ovr);
   const rank = Math.round(ovr);
   const stats = useMemo(
@@ -71,6 +73,7 @@ function PlayerCard({
       variant={isDashboard ? "compact" : "full"}
       pointsToNext={pointsToNext}
       nextTierName={nextTier?.name ?? null}
+      isRefreshing={isRefreshing}
     />
   );
 }

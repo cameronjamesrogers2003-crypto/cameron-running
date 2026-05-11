@@ -5,6 +5,7 @@ import { format } from "date-fns";
 import { useRouter } from "next/navigation";
 import { useConfirmRunQueue } from "@/hooks/useConfirmRunQueue";
 import ConfirmRunModal from "@/components/ConfirmRunModal";
+import { useSettings } from "@/context/SettingsContext";
 
 interface SyncButtonProps {
   lastSynced?: string | null;
@@ -13,6 +14,7 @@ interface SyncButtonProps {
 
 export default function SyncButton({ lastSynced, stravaConnected }: SyncButtonProps) {
   const router = useRouter();
+  const { setIsRefreshing } = useSettings();
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const [warning, setWarning] = useState<string | null>(null);
@@ -53,12 +55,18 @@ export default function SyncButton({ lastSynced, stravaConnected }: SyncButtonPr
   // Refresh the page data when the queue is finished
   useEffect(() => {
     if (newIds.length > 0 && isQueueEmpty) {
+      setIsRefreshing(true);
       router.refresh();
       // Keep track of what we've already tried to confirm in this session
       setUnconfirmedIds([]); 
       setNewIds([]);
     }
-  }, [isQueueEmpty, newIds, router]);
+  }, [isQueueEmpty, newIds, router, setIsRefreshing]);
+
+  // Reset refreshing state when data arrives
+  useEffect(() => {
+    setIsRefreshing(false);
+  }, [lastSynced, setIsRefreshing]);
 
   useEffect(() => {
     const storedWarning = window.sessionStorage.getItem("syncPlayerRatingWarning");
@@ -72,7 +80,7 @@ export default function SyncButton({ lastSynced, stravaConnected }: SyncButtonPr
 
   async function handleSync() {
     if (!stravaConnected) {
-      window.location.href = "/api/strava/login";
+      router.push("/api/strava/login");
       return;
     }
     setLoading(true);
@@ -103,7 +111,8 @@ export default function SyncButton({ lastSynced, stravaConnected }: SyncButtonPr
           if (allIds.length > 0) {
             setNewIds(allIds);
           } else {
-            setTimeout(() => router.refresh(), 800);
+            setIsRefreshing(true);
+            router.refresh();
           }
         };
 

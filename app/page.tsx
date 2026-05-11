@@ -18,6 +18,7 @@ import { finalizePlanDisplayCopy, generatePlan } from "@/lib/generatePlan";
 import {
   buildPlayerRatingSummaryRows,
 } from "@/lib/playerRating";
+import { getStartOfTrainingWeek } from "@/lib/date-utils";
 import WeeklyKmChart from "@/components/charts/WeeklyKmChart";
 import AvgPaceTrendChart from "@/components/charts/AvgPaceTrendChart";
 import TrainingLoadChart from "@/components/charts/TrainingLoadChart";
@@ -218,8 +219,7 @@ export default async function Dashboard({
   const currentPhase = currentPlanWeek?.phase ?? "Base";
 
   const MS_PER_DAY = 24 * 60 * 60 * 1000;
-  const dayOfWeekAESTMonFirst = (new Date(today.getTime() + 10 * 60 * 60 * 1000).getUTCDay() + 6) % 7;
-  const weekStart = new Date(todayAESTMidnight.getTime() - dayOfWeekAESTMonFirst * MS_PER_DAY);
+  const weekStart = getStartOfTrainingWeek(today);
   const weekEnd = new Date(weekStart.getTime() + 7 * MS_PER_DAY);
 
   const chartStartWeek = Math.max(1, currentWeek - 3);
@@ -401,10 +401,10 @@ export default async function Dashboard({
       const active = isActivityOnOrAfterPlanStart(date, planStart);
       const missed = !completed && !future && active;
       return { session, date, completed, future, missed, active, dayLabel: DAY_LABEL[session.day] };
-    });
+      });
+      sessionChecklist.sort((a, b) => a.date.getTime() - b.date.getTime());
 
-  const lastWeekPlan = planToRender.find((week) => week.week === currentWeek - 1);
-  const lastWeekMisses = (lastWeekPlan?.sessions ?? []).reduce((count, session) => {
+      const lastWeekPlan = planToRender.find((week) => week.week === currentWeek - 1);  const lastWeekMisses = (lastWeekPlan?.sessions ?? []).reduce((count, session) => {
     const date = getSessionDate(currentWeek - 1, session.day, planStart);
     if (date >= todayAESTMidnight) return count;
     const completed = chartActivities.concat(weekActivities, runsPlanForward).some((a) => {
@@ -566,7 +566,6 @@ export default async function Dashboard({
           </Card>
         </div>
 
-        {/* ── Stat tiles ─────────────────────────────────────────────────── */}
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-2.5">
           {/* Weekly distance */}
           <Card className="p-4 md:p-5" style={{ animation: "fadeInUp 300ms ease-out forwards", animationDelay: "60ms", opacity: 0 }}>
@@ -577,6 +576,11 @@ export default async function Dashboard({
                 / {weekTargetKm.toFixed(1)} km
               </span>
             </p>
+            {weekActualKm === 0 && (
+              <p className="text-[11px] mt-1" style={{ color: "rgba(255,255,255,0.4)" }}>
+                week starts {formatAEST(weekStart, "EEE d MMM")}
+              </p>
+            )}
             <div className="h-1 rounded-full bg-white/[0.08] mt-3 overflow-hidden">
               <div
                 className="h-1 rounded-full bg-teal-400 transition-all duration-500"
@@ -599,6 +603,11 @@ export default async function Dashboard({
             <p className="text-xs mt-1" style={{ color: "var(--text-dim)" }}>
               this week
             </p>
+            {weekDone === 0 && (
+              <p className="text-[11px] mt-1" style={{ color: "rgba(255,255,255,0.4)" }}>
+                no runs yet this week
+              </p>
+            )}
             <div className="flex gap-1.5 mt-3">
               {Array.from({ length: weekPlanned }).map((_, i) => (
                 <div
@@ -613,7 +622,7 @@ export default async function Dashboard({
           {/* Avg rating */}
           <Card className="p-4 md:p-5">
             <SectionLabel>Avg Run Rating</SectionLabel>
-            {avgWeekRating !== null ? (
+            {avgWeekRating !== null && avgWeekRating > 0 ? (
               <>
                 <p
                   className="text-4xl font-black font-mono tabular-nums mt-2"
@@ -628,10 +637,10 @@ export default async function Dashboard({
               </>
             ) : (
               <>
-                <p className="text-xl sm:text-2xl font-bold mt-2" style={{ color: "var(--text-muted)" }}>
+                <p className="text-4xl font-black font-mono tabular-nums mt-2" style={{ color: "var(--text-muted)" }}>
                   —
                 </p>
-                <p className="text-xs mt-3" style={{ color: "var(--text-muted)" }}>
+                <p className="text-[11px] mt-1" style={{ color: "rgba(255,255,255,0.4)" }}>
                   no runs this week
                 </p>
               </>

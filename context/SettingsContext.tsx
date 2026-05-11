@@ -7,18 +7,23 @@ import { DEFAULT_SETTINGS } from "@/lib/settings";
 interface SettingsContextValue {
   settings: UserSettings;
   loading: boolean;
+  isRefreshing: boolean;
+  setIsRefreshing: (val: boolean) => void;
   updateSettings: (patch: Partial<UserSettings>) => Promise<any>;
 }
 
 const SettingsContext = createContext<SettingsContextValue>({
   settings: DEFAULT_SETTINGS,
   loading:  true,
+  isRefreshing: false,
+  setIsRefreshing: () => {},
   updateSettings: async () => ({}),
 });
 
 export function SettingsProvider({ children }: { children: React.ReactNode }) {
   const [settings, setSettings] = useState<UserSettings>(DEFAULT_SETTINGS);
   const [loading,  setLoading]  = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const token = process.env.NEXT_PUBLIC_PLANS_API_TOKEN;
 
   useEffect(() => {
@@ -54,7 +59,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <SettingsContext.Provider value={{ settings, loading, updateSettings }}>
+    <SettingsContext.Provider value={{ settings, loading, isRefreshing, setIsRefreshing, updateSettings }}>
       {children}
     </SettingsContext.Provider>
   );
