@@ -156,6 +156,7 @@ export async function persistActivityRating(
   const priorActivity = prior.length > 0 ? toStat(prior[0]) : null;
 
   const stat = toStat({ ...act, classifiedRunType: classified });
+  const allPriorStats = prior.map((r) => toStat(r));
 
   const matchedSession = generatedPlan
     ? resolveRunSession(stat, generatedPlan.plan, planStart)
@@ -168,12 +169,10 @@ export async function persistActivityRating(
     : undefined;
 
   let ratingResult = calculateRunRating(stat, settings, recentSameType, {
-    priorActivity: priorActivity ?? undefined,
+    recentActivities: allPriorStats,
     planContext: ratingPlanContext,
   });
 
-  // PB detection and score bump (Change 8)
-  const allPriorStats = prior.map((r) => toStat(r));
   const personalBests: string[] = [];
 
   // Longest run PB

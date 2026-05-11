@@ -61,18 +61,20 @@ export function getSliderBaseSecKm(
   return base;
 }
 
-export function getSessionPacesMinPerKm(vdot: number, settings: Partial<UserSettings>): {
-  easy: number;
-  tempo: number;
-  interval: number;
-  long: number;
+import { Pace } from "@/lib/domain/Pace";
+
+export function getSessionPaces(vdot: number, settings: Partial<UserSettings>): {
+  easy: Pace;
+  tempo: Pace;
+  interval: Pace;
+  long: Pace;
 } {
   const s = getSessionPacesSecKm(vdot, settings);
   return {
-    easy: s.easySecKm / 60,
-    tempo: s.tempoSecKm / 60,
-    interval: s.intervalSecKm / 60,
-    long: s.longSecKm / 60,
+    easy: Pace.fromSecondsPerKm(s.easySecKm),
+    tempo: Pace.fromSecondsPerKm(s.tempoSecKm),
+    interval: Pace.fromSecondsPerKm(s.intervalSecKm),
+    long: Pace.fromSecondsPerKm(s.longSecKm),
   };
 }
 

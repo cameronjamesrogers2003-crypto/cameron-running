@@ -392,7 +392,7 @@ export function calculateRunRating(
   recentSameType: StatActivity[],
   options?: {
     planContext?: { targetDistanceKm?: number; targetDurationMin?: number };
-    priorActivity?: StatActivity;
+    recentActivities?: StatActivity[];
   },
 ): RunRatingResult {
   const s = settings;
@@ -529,20 +529,37 @@ export function calculateRunRating(
       `${classificationPreamble}${hrSource} ${Math.round(hr)} bpm was ${vs} the ${runTypeLabel(runType)} zone midpoint (${Math.round(bpmLo)}–${Math.round(bpmHi)} bpm from max HR ${maxHR}).`;
   }
 
-  // Fatigue context bonus: +0.3 effort when running easy/long the day after a hard session (Change 7)
+  // Fatigue context bonus: Acute Training Load (ATL) proxy
   let fatigueBonusApplied = false;
-  const priorActivity = options?.priorActivity ?? null;
-  if (priorActivity != null && (runType === "easy" || runType === "long")) {
-    const priorType = priorActivity.classifiedRunType;
-    if (priorType === "interval" || priorType === "tempo") {
-      const BRISBANE_OFFSET_MS = 10 * 60 * 60 * 1000;
-      const d1 = Math.floor((new Date(priorActivity.date).getTime() + BRISBANE_OFFSET_MS) / 86400000);
-      const d2 = Math.floor((new Date(activity.date).getTime() + BRISBANE_OFFSET_MS) / 86400000);
-      if (d2 - d1 === 1) {
-        effortScoreRaw = Math.min(MAX_EFFORT, effortScoreRaw + 0.3);
-        fatigueBonusApplied = true;
-        effortReason += " [+0.3 fatigue bonus: running after a hard session]";
-      }
+  const recentActivities = options?.recentActivities ?? [];
+  if (recentActivities.length > 0) {
+    const nowMs = new Date(activity.date).getTime();
+    const dayMs = 86400000;
+    
+    let atlLoad = 0;
+    let ctlLoad = 0;
+
+    for (const r of recentActivities) {
+      const rDateMs = new Date(r.date).getTime();
+      const daysOld = (nowMs - rDateMs) / dayMs;
+      if (daysOld < 0 || daysOld > 28) continue;
+
+      const intensity = r.avgHeartRate && r.avgHeartRate > 0
+        ? r.avgHeartRate / Math.max(1, s.maxHR)
+        : 0.75;
+      const load = (r.durationSecs ?? 0) * intensity;
+
+      if (daysOld <= 7) atlLoad += load;
+      ctlLoad += load;
+    }
+
+    const atl = atlLoad / 7;
+    const ctl = ctlLoad / 28;
+
+    if (ctl > 0 && atl > ctl * 1.20 && (runType === "easy" || runType === "long")) {
+      effortScoreRaw = Math.min(MAX_EFFORT, effortScoreRaw + 0.3);
+      fatigueBonusApplied = true;
+      effortReason += " [+0.3 fatigue bonus: 7-day training load > 20% above 28-day average]";
     }
   }
 

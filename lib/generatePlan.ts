@@ -1,4 +1,4 @@
-import { getSessionPacesMinPerKm } from "@/lib/planPaces";
+import { getSessionPaces } from "@/lib/planPaces";
 import type { Day, Phase, PlanConfig, PlanPaceAdjust, RunType, Session, TrainingWeek } from "@/data/trainingPlan";
 
 const DAY_INDEX: Record<Day, number> = {
@@ -575,11 +575,11 @@ export function generatePlan(config: PlanConfig): TrainingWeek[] {
     longPaceOffsetSec: paceAdjust?.longPaceOffsetSec ?? 0,
     runningExperience: paceAdjust?.runningExperience ?? null,
   };
-  const pMin = getSessionPacesMinPerKm(config.vdot, partialAdjust);
-  const easyPace = pMin.easy;
-  const tempoPace = pMin.tempo;
-  const intervalPace = pMin.interval;
-  const longRunPace = pMin.long;
+  const pMin = getSessionPaces(config.vdot, partialAdjust);
+  const easyPace = pMin.easy.minutesPerKm;
+  const tempoPace = pMin.tempo.minutesPerKm;
+  const intervalPace = pMin.interval.minutesPerKm;
+  const longRunPace = pMin.long.minutesPerKm;
   const intervalCaps: Record<PlanConfig["level"], number> = {
     BEGINNER: 6,
     INTERMEDIATE: 8,

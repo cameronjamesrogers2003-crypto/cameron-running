@@ -1,6 +1,6 @@
 import type { UserSettings } from "@/lib/settings";
 import { generatePlan } from "@/lib/generatePlan";
-import { getSessionPacesMinPerKm } from "@/lib/planPaces";
+import { getSessionPaces } from "@/lib/planPaces";
 
 export type RunType = 'easy' | 'tempo' | 'interval' | 'long'
 export type Day = 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun'
@@ -223,17 +223,17 @@ export function buildTrainingPlan(settings: UserSettings): TrainingWeek[] {
   // Backwards compatible: fall back to the legacy hardcoded plan unless the new
   // generator inputs are present.
   if (!settings.experienceLevel || !settings.trainingDays) {
-    const pm = getSessionPacesMinPerKm(settings.currentVdot, settings);
+    const pm = getSessionPaces(settings.currentVdot, settings);
 
     return trainingPlan.map(week => ({
       ...week,
       sessions: week.sessions.map(session => ({
         ...session,
         targetPaceMinPerKm:
-          session.type === 'easy'     ? pm.easy :
-          session.type === 'long'     ? pm.long :
-          session.type === 'tempo'    ? pm.tempo :
-          session.type === 'interval' ? pm.interval :
+          session.type === 'easy'     ? pm.easy.minutesPerKm :
+          session.type === 'long'     ? pm.long.minutesPerKm :
+          session.type === 'tempo'    ? pm.tempo.minutesPerKm :
+          session.type === 'interval' ? pm.interval.minutesPerKm :
           session.targetPaceMinPerKm,
       })),
     }));

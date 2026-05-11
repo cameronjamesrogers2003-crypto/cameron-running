@@ -4,7 +4,7 @@ import { generatePlan } from "@/lib/generatePlan";
 import { dbSettingsToUserSettings, DEFAULT_SETTINGS, type UserSettings } from "@/lib/settings";
 import { loadGeneratedPlan, saveGeneratedPlan } from "@/lib/planStorage";
 import { inferRunType } from "@/lib/rating";
-import { deriveRatingPaceZones, getSessionPacesMinPerKm } from "@/lib/planPaces";
+import { deriveRatingPaceZones, getSessionPaces } from "@/lib/planPaces";
 import {
   getEffectivePlanStart,
   getPlanWeekForDate,
@@ -76,7 +76,7 @@ export function rebuildPaceTargets(
 ): TrainingWeek[] {
   const lockedSet = new Set(lockedWeeks);
   const vdot = Math.round(vdotOverride ?? settings.currentVdot);
-  const pMin = getSessionPacesMinPerKm(vdot, settings);
+  const pMin = getSessionPaces(vdot, settings);
   return plan.map((week) => {
     if (lockedSet.has(week.week)) return week;
     return {
@@ -85,12 +85,12 @@ export function rebuildPaceTargets(
         ...session,
         targetPaceMinPerKm:
           session.type === "long"
-            ? pMin.long
+            ? pMin.long.minutesPerKm
             : session.type === "tempo"
-              ? pMin.tempo
+              ? pMin.tempo.minutesPerKm
               : session.type === "interval"
-                ? pMin.interval
-                : pMin.easy,
+                ? pMin.interval.minutesPerKm
+                : pMin.easy.minutesPerKm,
       })),
     };
   });

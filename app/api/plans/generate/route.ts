@@ -108,6 +108,6 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  return NextResponse.json(plan);
+  return NextResponse.json({ plan, vdot: config.vdot });
 }
 
