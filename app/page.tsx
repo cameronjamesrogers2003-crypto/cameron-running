@@ -350,10 +350,15 @@ export default async function Dashboard({
     };
   });
 
-  const weeklyKmData = rawWeeklyKmData.map((entry, index) => ({
-    ...entry,
-    trajectoryKm: index === 0 ? entry.actualKm : rawWeeklyKmData[index - 1].actualKm,
-  }));
+  const weeklyKmData = rawWeeklyKmData.map((entry, index) => {
+    const isCurrentWeek = index === rawWeeklyKmData.length - 1;
+    return {
+      ...entry,
+      trajectoryKm: isCurrentWeek
+        ? (entry.targetKm ?? entry.actualKm)
+        : entry.actualKm,
+    };
+  });
 
   const paceData = chartWeekNums.map((wn) => {
     const idx = wn - chartStartWeek;
