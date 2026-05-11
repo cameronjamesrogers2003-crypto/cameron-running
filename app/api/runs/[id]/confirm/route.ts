@@ -5,9 +5,9 @@ import { updatePlayerRating } from "@/lib/playerRating";
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const { id } = params;
+  const { id } = await params;
   const body = await req.json();
   const { confirmedRunType, linkedSessionId } = body;
 
