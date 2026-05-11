@@ -85,12 +85,12 @@ export function rebuildPaceTargets(
         ...session,
         targetPaceMinPerKm:
           session.type === "long"
-            ? pMin.long.minutesPerKm
+            ? pMin.long.asSecondsPerKm / 60
             : session.type === "tempo"
-              ? pMin.tempo.minutesPerKm
+              ? pMin.tempo.asSecondsPerKm / 60
               : session.type === "interval"
-                ? pMin.interval.minutesPerKm
-                : pMin.easy.minutesPerKm,
+                ? pMin.interval.asSecondsPerKm / 60
+                : pMin.easy.asSecondsPerKm / 60,
       })),
     };
   });

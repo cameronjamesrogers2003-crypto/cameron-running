@@ -576,10 +576,10 @@ export function generatePlan(config: PlanConfig): TrainingWeek[] {
     runningExperience: paceAdjust?.runningExperience ?? null,
   };
   const pMin = getSessionPaces(config.vdot, partialAdjust);
-  const easyPace = pMin.easy.minutesPerKm;
-  const tempoPace = pMin.tempo.minutesPerKm;
-  const intervalPace = pMin.interval.minutesPerKm;
-  const longRunPace = pMin.long.minutesPerKm;
+  const easyPace = pMin.easy.asSecondsPerKm / 60;
+  const tempoPace = pMin.tempo.asSecondsPerKm / 60;
+  const intervalPace = pMin.interval.asSecondsPerKm / 60;
+  const longRunPace = pMin.long.asSecondsPerKm / 60;
   const intervalCaps: Record<PlanConfig["level"], number> = {
     BEGINNER: 6,
     INTERMEDIATE: 8,

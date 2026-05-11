@@ -230,10 +230,10 @@ export function buildTrainingPlan(settings: UserSettings): TrainingWeek[] {
       sessions: week.sessions.map(session => ({
         ...session,
         targetPaceMinPerKm:
-          session.type === 'easy'     ? pm.easy.minutesPerKm :
-          session.type === 'long'     ? pm.long.minutesPerKm :
-          session.type === 'tempo'    ? pm.tempo.minutesPerKm :
-          session.type === 'interval' ? pm.interval.minutesPerKm :
+          session.type === 'easy'     ? pm.easy.asSecondsPerKm / 60 :
+          session.type === 'long'     ? pm.long.asSecondsPerKm / 60 :
+          session.type === 'tempo'    ? pm.tempo.asSecondsPerKm / 60 :
+          session.type === 'interval' ? pm.interval.asSecondsPerKm / 60 :
           session.targetPaceMinPerKm,
       })),
     }));
