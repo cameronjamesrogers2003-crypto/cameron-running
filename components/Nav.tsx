@@ -5,6 +5,8 @@ import { usePathname } from "next/navigation";
 import { Activity, Calendar, CircleHelp, ClipboardList, LayoutDashboard, RefreshCw, Settings, Trophy } from "lucide-react";
 import Logo from "@/components/Logo";
 import { SidebarSubtitle } from "@/components/SidebarSubtitle";
+import { useSync } from "@/context/SyncContext";
+import { format } from "date-fns";
 
 const mainLinks = [
   { href: "/", label: "Dashboard", Icon: LayoutDashboard },
@@ -18,6 +20,7 @@ const mainLinks = [
 
 export default function Nav() {
   const pathname = usePathname();
+  const { handleSync, loading, lastSynced } = useSync();
 
   return (
     <>
@@ -30,11 +33,13 @@ export default function Nav() {
         <div className="flex items-center gap-2">
           <button
             type="button"
-            className="flex items-center justify-center w-9 h-9 rounded-full bg-white/[0.08] border border-white/[0.10] transition-colors duration-150"
+            onClick={handleSync}
+            disabled={loading}
+            className={`flex items-center justify-center w-9 h-9 rounded-full bg-white/[0.08] border border-white/[0.10] transition-colors duration-150 ${loading ? "opacity-50 animate-pulse" : ""}`}
             style={{ color: "var(--accent)" }}
             aria-label="Sync"
           >
-            <RefreshCw className="w-4 h-4" />
+            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
           </button>
         </div>
       </header>
@@ -75,14 +80,16 @@ export default function Nav() {
           <div className="flex items-center gap-2 px-4 pb-2">
             <button
               type="button"
-              className="flex-1 flex items-center justify-center gap-2 px-3 py-1.5 rounded-xl text-xs font-medium bg-[var(--card-bg)] border border-white/[0.08] hover:bg-white/[0.07] transition-colors duration-150"
+              onClick={handleSync}
+              disabled={loading}
+              className={`flex-1 flex items-center justify-center gap-2 px-3 py-1.5 rounded-xl text-xs font-medium bg-[var(--card-bg)] border border-white/[0.08] hover:bg-white/[0.07] transition-colors duration-150 ${loading ? "opacity-50" : ""}`}
             >
-              <RefreshCw className="w-4 h-4" style={{ color: "var(--accent)" }} />
-              <span className="text-white/75">Sync Strava</span>
+              <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} style={{ color: "var(--accent)" }} />
+              <span className="text-white/75">{loading ? "Syncing..." : "Sync Strava"}</span>
             </button>
           </div>
           <p className="mx-4 mb-4 text-xs" style={{ color: "var(--text-dim)" }}>
-            Last sync: —
+            Last sync: {lastSynced ? format(new Date(lastSynced), "d MMM HH:mm") : "—"}
           </p>
         </div>
       </aside>

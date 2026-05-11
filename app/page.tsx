@@ -857,10 +857,7 @@ export default async function Dashboard({
             <span className="hidden sm:inline opacity-40" aria-hidden>·</span>
             <span>Last refreshed {lastRefreshedLabel}</span>
           </div>
-          <SyncButton
-            lastSynced={lastSyncedAt}
-            stravaConnected={profile?.stravaConnected ?? false}
-          />
+          <SyncButton />
         </div>
 
       </div>
