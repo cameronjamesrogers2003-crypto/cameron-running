@@ -278,7 +278,6 @@ export default async function Dashboard({
   const chartWeekNums = Array.from({ length: 4 }, (_, i) => chartStartWeek + i);
 
   const weeklyKmData = chartWeekNums.map((wn) => {
-    const planWeek = planToRender.find((w) => w.week === wn);
     const idx = wn - chartStartWeek;
     const wStart = new Date(chartRangeStart.getTime() + idx * 7 * MS_PER_DAY);
     const wEnd = new Date(wStart.getTime() + 7 * MS_PER_DAY);
@@ -288,10 +287,29 @@ export default async function Dashboard({
         return d >= wStart && d < wEnd;
       })
       .reduce((s, a) => s + a.distanceKm, 0);
+
+    const targetSessionsInWindow = planToRender.flatMap((pw) =>
+      pw.sessions.map((s) => ({
+        ...s,
+        absDate: getSessionDate(pw.week, s.day, planStart),
+      })),
+    ).filter((s) => s.absDate >= wStart && s.absDate < wEnd);
+
+    // Deduplicate by ID
+    const uniqueSessions = Array.from(new Map(targetSessionsInWindow.map((s) => [s.id, s])).values());
+
+    if (wn === currentWeek) {
+      console.log(`[WeeklyKmChart] sessions for current week ${wn} (${formatAEST(wStart, "d MMM")}-${formatAEST(wEnd, "d MMM")}):`,
+        uniqueSessions.map((s) => `${s.day} ${s.type} ${s.targetDistanceKm}km (id: ${s.id})`),
+      );
+    }
+
+    const target = uniqueSessions.reduce((sum, s) => sum + s.targetDistanceKm, 0);
+
     return {
       week: `${formatAEST(wStart, "d MMM")}–${formatAEST(new Date(wEnd.getTime() - MS_PER_DAY), "d MMM")}`,
       actual: Math.round(actual * 10) / 10,
-      target: planWeek ? getWeeklyTargetKm(planWeek) : 0,
+      target: Math.round(target * 10) / 10,
     };
   });
 
