@@ -188,7 +188,7 @@ function sportTypeToLabel(sportType: string): string {
 
 export async function syncActivities(): Promise<{ synced: number; errors: number; playerRatingError?: string; newActivityIds: string[] }> {
   const token = await getValidToken();
-  if (!token) return { synced: 0, errors: 0 };
+  if (!token) return { synced: 0, errors: 0, newActivityIds: [] };
 
   const thirtyDaysAgo = Math.floor((Date.now() - 30 * 24 * 60 * 60 * 1000) / 1000);
   const perPage = 50;
