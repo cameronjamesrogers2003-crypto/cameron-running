@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { generatePlan } from "@/lib/generatePlan";
 import { loadGeneratedPlan, saveGeneratedPlan } from "@/lib/planStorage";
 import type { Day, PlanConfig } from "@/data/trainingPlan";
+import { prisma } from "@/lib/db";
 
 function isDay(x: unknown): x is Day {
   return x === "mon" || x === "tue" || x === "wed" || x === "thu" || x === "fri" || x === "sat" || x === "sun";
@@ -75,6 +76,37 @@ export async function POST(req: NextRequest) {
   }
 
   await saveGeneratedPlan(config, plan, lockedWeeks);
+
+  // Mark existing ACTIVE blocks as ABANDONED
+  await prisma.trainingBlock.updateMany({
+    where: { userId: 1, status: "ACTIVE" },
+    data: { status: "ABANDONED" },
+  });
+
+  const settings = await prisma.userSettings.findUnique({ where: { id: 1 } });
+  const startDate = settings?.planStartDate ? new Date(settings.planStartDate) : new Date();
+  const targetDate = new Date(startDate.getTime() + config.weeks * 7 * 24 * 60 * 60 * 1000);
+
+  // Create new stateful TrainingBlock
+  await prisma.trainingBlock.create({
+    data: {
+      userId: 1,
+      status: "ACTIVE",
+      startingVdot: config.vdot,
+      startingLevel: config.level,
+      goalDistanceKm: config.goal === "full" ? 42.2 : 21.1,
+      targetDate: targetDate,
+      weeks: {
+        create: plan.map((w) => ({
+          weekNumber: w.week,
+          isCutback: w.isCutback ?? false,
+          status: "PLANNED",
+          phase: w.phase,
+          sessionsJson: w.sessions as any, // Store JSON via Prisma
+        })),
+      },
+    },
+  });
 
   return NextResponse.json(plan);
 }

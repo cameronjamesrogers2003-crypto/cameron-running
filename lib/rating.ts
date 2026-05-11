@@ -59,7 +59,7 @@ export interface StatActivity {
   classifiedRunType?: string | null;
   confirmedRunType?: string | null;
   isConfirmed?: boolean;
-  splitsJson?: string | null;
+  splitsJson?: any | null;
   durationSecs?: number | null;
 }
 
@@ -323,11 +323,11 @@ function elevationFactorPiecewise(elevationPerKm: number | null): { factor: numb
 }
 
 /** Parses split HR values from splits JSON and returns the median, or null when insufficient data. */
-function medianSplitHr(splitsJson: string | null | undefined): number | null {
+function medianSplitHr(splitsJson: any | null | undefined): number | null {
   if (!splitsJson) return null;
   try {
-    const splits = JSON.parse(splitsJson) as Array<{ average_heartrate?: number }>;
-    const hrs = splits
+    const splits = typeof splitsJson === "string" ? JSON.parse(splitsJson) : splitsJson;
+    const hrs = (splits as Array<{ average_heartrate?: number }>)
       .map((s) => s.average_heartrate)
       .filter((v): v is number => typeof v === "number" && v > 0);
     if (hrs.length < 3) return null;

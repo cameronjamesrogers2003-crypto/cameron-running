@@ -55,10 +55,10 @@ function formatPaceSeconds(sec: number): string {
   return `${mins}:${String(secs).padStart(2, "0")}/km`;
 }
 
-function safeParseSplits(splitsJson: string | null): SplitMetric[] {
+function safeParseSplits(splitsJson: any | null): SplitMetric[] {
   if (!splitsJson) return [];
   try {
-    const parsed: unknown = JSON.parse(splitsJson);
+    const parsed: unknown = typeof splitsJson === "string" ? JSON.parse(splitsJson) : splitsJson;
     if (!Array.isArray(parsed)) return [];
     return parsed.filter((entry): entry is SplitMetric => {
       if (!entry || typeof entry !== "object") return false;
@@ -71,7 +71,7 @@ function safeParseSplits(splitsJson: string | null): SplitMetric[] {
 }
 
 export function analyzePaceVariance(
-  splitsJson: string | null,
+  splitsJson: any | null,
   intervalPaceMaxSec = 330,
 ): PaceVarianceAnalysis {
   const splitPaces = safeParseSplits(splitsJson)

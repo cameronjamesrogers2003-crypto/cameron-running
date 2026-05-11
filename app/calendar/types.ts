@@ -16,7 +16,7 @@ export interface CalendarRun {
   activityType: string;
   /** Stored 0–10 from Activity.rating */
   rating: number | null;
-  ratingBreakdown?: string | null;
+  ratingBreakdown?: any | null;
   classificationMethod?: string | null;
   runType: RunType;
   isPlanned: boolean;

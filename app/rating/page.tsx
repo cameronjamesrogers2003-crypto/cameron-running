@@ -22,7 +22,7 @@ type AttributeExplanationKey = Exclude<PlayerRatingAttribute, "overall">;
 
 type CalendarRatingActivity = StatActivity & {
   activityType: string;
-  ratingBreakdown?: string | null;
+  ratingBreakdown?: any | null;
 };
 
 function formatKm(value: number): string {

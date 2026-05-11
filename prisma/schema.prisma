@@ -13,6 +13,18 @@ enum ExperienceLevel {
   ADVANCED
 }
 
+enum BlockStatus {
+  ACTIVE
+  COMPLETED
+  ABANDONED
+}
+
+enum WeekStatus {
+  PLANNED
+  COMPLETED
+  SKIPPED
+}
+
 model Activity {
   id                 String   @id
   name               String?
@@ -37,7 +49,7 @@ model Activity {
   // 0–10 run quality score (calculateRunRating + sync/backfill only)
   rating             Float?
   // JSON: RunRatingResult (pace, effort, distance, elevation, conditions); null before backfill
-  ratingBreakdown    String?
+  ratingBreakdown    Json?
   // Pace-zone type from classifyRunByPaceZones; kept in sync with rating
   classifiedRunType  String?
   // User-confirmed override; null = unreviewed
@@ -46,8 +58,8 @@ model Activity {
   linkedSessionId    String?
   // Whether the user has confirmed this run's classification
   isConfirmed        Boolean  @default(false)
-  // JSON string array of Strava per-km splits_metric entries.
-  splitsJson         String?
+  // JSON array of Strava per-km splits_metric entries.
+  splitsJson         Json?
   // Human-readable explanation of classification confidence/method.
   classificationMethod String?
 }
@@ -161,4 +173,33 @@ model PlanAdaptation {
   reason     String
   changes    String
   dismissed  Boolean  @default(false)
+}
+
+model TrainingBlock {
+  id             String            @id @default(cuid())
+  userId         Int               @default(1)
+  status         BlockStatus       @default(ACTIVE)
+  startingVdot   Float
+  startingLevel  ExperienceLevel
+  goalDistanceKm Float
+  targetDate     DateTime
+  targetTimeSecs Int?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  weeks          TrainingWeekRecord[]
+}
+
+model TrainingWeekRecord {
+  id              String         @id @default(cuid())
+  trainingBlockId String
+  trainingBlock   TrainingBlock @relation(fields: [trainingBlockId], references: [id])
+  weekNumber      Int
+  isCutback       Boolean
+  status          WeekStatus     @default(PLANNED)
+  phase           String
+  sessionsJson    Json
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@unique([trainingBlockId, weekNumber])
 }

@@ -1,3 +1,5 @@
+import type { Activity } from "@prisma/client";
+
 export interface VdotPaces {
   easyMinSecKm: number;
   easyMaxSecKm: number;
@@ -135,3 +137,35 @@ export function suggestedLevelFromVdot(adjustedVdot: number): SuggestedTrainingL
   if (adjustedVdot < 50) return "INTERMEDIATE";
   return "ADVANCED";
 }
+
+export function calculateRollingVdot(activities: Activity[], currentVdot: number): number {
+  const now = Date.now();
+  const MS_PER_DAY = 24 * 60 * 60 * 1000;
+  
+  const recentRuns = activities.filter(a => {
+    if (a.activityType !== "running" || a.avgPaceSecKm <= 0 || a.avgHeartRate == null || a.avgHeartRate <= 0) return false;
+    const daysOld = (now - new Date(a.date).getTime()) / MS_PER_DAY;
+    return daysOld >= 0 && daysOld <= 42;
+  });
+  
+  if (recentRuns.length < 3) return currentVdot;
+
+  const paces = getVdotPaces(currentVdot);
+
+  const fastRuns = recentRuns.filter(r => {
+    const isFast = r.avgPaceSecKm < paces.easyMinSecKm;
+    const hasGoodHR = r.avgHeartRate! < 160; 
+    return isFast && hasGoodHR;
+  });
+
+  if (fastRuns.length >= 3) {
+    const earliest = Math.min(...fastRuns.map(r => new Date(r.date).getTime()));
+    const latest = Math.max(...fastRuns.map(r => new Date(r.date).getTime()));
+    if (latest - earliest > 14 * MS_PER_DAY) {
+      return currentVdot + 1;
+    }
+  }
+
+  return currentVdot;
+}
+

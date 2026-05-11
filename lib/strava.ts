@@ -351,7 +351,7 @@ export async function syncActivities(): Promise<{ synced: number; errors: number
           elevationGainM: act.total_elevation_gain ?? null,
           startLat,
           startLon,
-          splitsJson: null,
+          splitsJson: undefined,
         },
       });
 
@@ -362,7 +362,7 @@ export async function syncActivities(): Promise<{ synced: number; errors: number
         await prisma.activity.update({
           where: { id },
           data: {
-            splitsJson: splits ? JSON.stringify(splits) : null,
+            splitsJson: (splits ? JSON.stringify(splits) : null) as any,
             ...(detailElev != null ? { elevationGainM: detailElev } : {}),
           },
         });

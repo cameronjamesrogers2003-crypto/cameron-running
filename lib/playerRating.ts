@@ -54,12 +54,12 @@ export const PLAYER_RATING_ATTRIBUTES: Array<{
 
 type RatingActivity = StatActivity & {
   activityType: string;
-  ratingBreakdown?: string | null;
+  ratingBreakdown?: any | null;
 };
 
 type SummaryActivity = StatActivity & {
   activityType?: string | null;
-  ratingBreakdown?: string | null;
+  ratingBreakdown?: any | null;
 };
 
 /** Clamps a number to a closed range and returns the bounded value. */
@@ -159,8 +159,8 @@ function calculateResilience(
   for (const act of recent) {
     if (!act.splitsJson) continue;
     try {
-      const splits = JSON.parse(act.splitsJson) as Array<{ average_speed?: number; distance?: number }>;
-      const paces = splits
+      const splits = typeof act.splitsJson === "string" ? JSON.parse(act.splitsJson) : act.splitsJson;
+      const paces = (splits as Array<{ average_speed?: number; distance?: number }>)
         .filter(
           (s) =>
             typeof s.average_speed === "number" &&

@@ -27,7 +27,7 @@ function toStat(a: {
   classifiedRunType: string | null;
   confirmedRunType: string | null;
   isConfirmed: boolean;
-  splitsJson: string | null;
+  splitsJson: any | null;
   durationSecs: number;
 }): StatActivity {
   return {
