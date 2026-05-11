@@ -290,7 +290,7 @@ export default async function Dashboard({
     ? toAESTDateString(new Date(settings.planStartDate))
     : null;
 
-  const weeklyKmData = chartWeekNums.map((wn, index, arr) => {
+  const rawWeeklyKmData = chartWeekNums.map((wn, index) => {
     const idx = wn - chartStartWeek;
     const wStart = new Date(chartRangeStart.getTime() + idx * 7 * MS_PER_DAY);
     const wEnd = new Date(wStart.getTime() + 7 * MS_PER_DAY);
@@ -307,6 +307,17 @@ export default async function Dashboard({
     // Calculate targetKm
     let targetKm: number | null = null;
     if (isPlanWeek) {
+      console.log(`[Chart] Week ${wStart.toISOString()} isPlanWeek=true`);
+      console.log(`[Chart] planToRender weeks:`, planToRender.map((pw) => ({
+        week: pw.week,
+        sessions: pw.sessions.map((s) => ({
+          day: s.day,
+          targetDistanceKm: s.targetDistanceKm,
+          absDate: getSessionDate(pw.week, s.day, planStart)?.toISOString(),
+        })),
+      })));
+      console.log(`[Chart] wStart=${wStart.toISOString()} wEnd=${wEnd.toISOString()}`);
+
       const targetSessionsInWindow = planToRender.flatMap((pw) =>
         pw.sessions.map((s) => ({
           ...s,
@@ -314,10 +325,12 @@ export default async function Dashboard({
         })),
       ).filter((s) => s.absDate >= wStart && s.absDate < wEnd);
 
+      console.log(`[Chart] sessions after filter:`, targetSessionsInWindow.length);
+
       // Deduplicate by ID
       const uniqueSessions = Array.from(new Map(targetSessionsInWindow.map((s) => [s.id, s])).values());
       targetKm = Math.round(
-        uniqueSessions.reduce((sum, s) => sum + (s.targetDistanceKm ?? 0), 0) * 10
+        uniqueSessions.reduce((sum, s) => sum + (s.targetDistanceKm ?? 0), 0) * 10,
       ) / 10;
     } else {
       // Pre-plan fallback: 10% increase over previous week's actual
@@ -335,30 +348,20 @@ export default async function Dashboard({
         : null;
     }
 
-    // Trajectory: anchor at week 1's actual, then follow previous week's actual
-    let trajectoryKm = actual;
-    if (index > 0) {
-      const prevWStart = new Date(wStart.getTime() - 7 * MS_PER_DAY);
-      const prevWEnd = wStart;
-      const prevActual = chartActivities
-        .filter((a) => {
-          const d = new Date(a.date);
-          return d >= prevWStart && d < prevWEnd;
-        })
-        .reduce((s, a) => s + a.distanceKm, 0);
-      trajectoryKm = prevActual;
-    }
-
     return {
       label: `${formatAEST(wStart, "d MMM")}–${formatAEST(new Date(wEnd.getTime() - MS_PER_DAY), "d MMM")}`,
       startDate: wStart.toISOString(),
       actualKm: actual,
       actualKmDisplay: actual === 0 ? 0.5 : actual,
       targetKm,
-      trajectoryKm,
       isPlanWeek,
     };
   });
+
+  const weeklyKmData = rawWeeklyKmData.map((entry, index) => ({
+    ...entry,
+    trajectoryKm: index === 0 ? entry.actualKm : rawWeeklyKmData[index - 1].actualKm,
+  }));
 
   const paceData = chartWeekNums.map((wn) => {
     const idx = wn - chartStartWeek;
