@@ -288,28 +288,48 @@ export default async function Dashboard({
       })
       .reduce((s, a) => s + a.distanceKm, 0);
 
-    const targetSessionsInWindow = planToRender.flatMap((pw) =>
-      pw.sessions.map((s) => ({
-        ...s,
-        absDate: getSessionDate(pw.week, s.day, planStart),
-      })),
-    ).filter((s) => s.absDate >= wStart && s.absDate < wEnd);
+    // Calculate previous week's actual for fallback target logic
+    const prevWStart = new Date(wStart.getTime() - 7 * MS_PER_DAY);
+    const prevWEnd = wStart;
+    const prevActual = chartActivities
+      .filter((a) => {
+        const d = new Date(a.date);
+        return d >= prevWStart && d < prevWEnd;
+      })
+      .reduce((s, a) => s + a.distanceKm, 0);
 
-    // Deduplicate by ID
-    const uniqueSessions = Array.from(new Map(targetSessionsInWindow.map((s) => [s.id, s])).values());
+    const isPlanned = planStart && wStart >= startOfDayAEST(planStart);
+    let target: number | null = null;
+    let targetMode: "plan" | "suggested" | "none" = "none";
 
-    if (wn === currentWeek) {
-      console.log(`[WeeklyKmChart] sessions for current week ${wn} (${formatAEST(wStart, "d MMM")}-${formatAEST(wEnd, "d MMM")}):`,
-        uniqueSessions.map((s) => `${s.day} ${s.type} ${s.targetDistanceKm}km (id: ${s.id})`),
-      );
+    if (isPlanned) {
+      const targetSessionsInWindow = planToRender.flatMap((pw) =>
+        pw.sessions.map((s) => ({
+          ...s,
+          absDate: getSessionDate(pw.week, s.day, planStart),
+        })),
+      ).filter((s) => s.absDate >= wStart && s.absDate < wEnd);
+
+      // Deduplicate by ID
+      const uniqueSessions = Array.from(new Map(targetSessionsInWindow.map((s) => [s.id, s])).values());
+      target = uniqueSessions.reduce((sum, s) => sum + s.targetDistanceKm, 0);
+      targetMode = "plan";
+
+      if (wn === currentWeek) {
+        console.log(`[WeeklyKmChart] sessions for current week ${wn} (${formatAEST(wStart, "d MMM")}-${formatAEST(wEnd, "d MMM")}):`,
+          uniqueSessions.map((s) => `${s.day} ${s.type} ${s.targetDistanceKm}km (id: ${s.id})`),
+        );
+      }
+    } else if (prevActual > 0) {
+      target = Math.round(prevActual * 1.1 * 10) / 10;
+      targetMode = "suggested";
     }
-
-    const target = uniqueSessions.reduce((sum, s) => sum + s.targetDistanceKm, 0);
 
     return {
       week: `${formatAEST(wStart, "d MMM")}–${formatAEST(new Date(wEnd.getTime() - MS_PER_DAY), "d MMM")}`,
       actual: Math.round(actual * 10) / 10,
-      target: Math.round(target * 10) / 10,
+      target: target != null ? Math.round(target * 10) / 10 : null,
+      targetMode,
     };
   });
 

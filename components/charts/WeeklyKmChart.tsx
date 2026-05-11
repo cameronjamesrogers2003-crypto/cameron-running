@@ -16,7 +16,8 @@ import { useMediaQuery } from "@/lib/useMediaQuery";
 interface WeeklyKmData {
   week: string;
   actual: number;
-  target: number;
+  target: number | null;
+  targetMode: "plan" | "suggested" | "none";
 }
 
 const TOOLTIP_STYLE = {
@@ -40,8 +41,11 @@ function getBarColour(index: number, data: WeeklyKmData[]): string {
 function CustomTooltip({ active, payload, label, data }: any) {
   if (!active || !payload || !payload.length) return null;
 
-  const actual = payload[0].value;
-  const target = payload[1]?.value ?? 0;
+  const entry = payload[0].payload as WeeklyKmData;
+  const actual = entry.actual;
+  const target = entry.target;
+  const targetMode = entry.targetMode;
+
   const index = data.findIndex((d: any) => d.week === label);
   const isCurrent = index === data.length - 1;
   const previous = index > 0 ? data[index - 1].actual : 0;
@@ -60,15 +64,24 @@ function CustomTooltip({ active, payload, label, data }: any) {
     statusColor = "#38BDF8";
   }
 
+  const targetLabel =
+    targetMode === "plan"
+      ? "Target km (plan)"
+      : targetMode === "suggested"
+        ? "Target km (suggested +10%)"
+        : null;
+
   return (
     <div style={TOOLTIP_STYLE} className="p-2.5 space-y-1">
       <p className="text-white font-bold mb-1">{label}</p>
       <p style={{ color: "rgba(255,255,255,0.7)" }}>
         Actual km: <span className="text-white">{actual.toFixed(1)}</span>
       </p>
-      <p style={{ color: "rgba(255,255,255,0.7)" }}>
-        Target km: <span className="text-white">{target.toFixed(1)}</span>
-      </p>
+      {target !== null && targetLabel && (
+        <p style={{ color: "rgba(255,255,255,0.7)" }}>
+          {targetLabel}: <span className="text-white">{target.toFixed(1)}</span>
+        </p>
+      )}
       <p className="pt-1 mt-1 border-t border-white/10 text-[10px] font-bold uppercase tracking-wider" style={{ color: statusColor }}>
         {statusLine}
       </p>
@@ -149,6 +162,7 @@ export default function WeeklyKmChart({ data }: { data: WeeklyKmData[] }) {
           strokeDasharray="4 4"
           dot={false}
           name="Target km"
+          connectNulls={false}
         />
       </ComposedChart>
     </ResponsiveContainer>
