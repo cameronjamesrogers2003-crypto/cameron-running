@@ -186,7 +186,7 @@ function sportTypeToLabel(sportType: string): string {
   }
 }
 
-export async function syncActivities(): Promise<{ synced: number; errors: number; playerRatingError?: string }> {
+export async function syncActivities(): Promise<{ synced: number; errors: number; playerRatingError?: string; newActivityIds: string[] }> {
   const token = await getValidToken();
   if (!token) return { synced: 0, errors: 0 };
 
