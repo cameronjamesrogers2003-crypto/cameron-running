@@ -82,6 +82,7 @@ function buildRecoveryWeek(
   const sessions: Session[] = referenceWeek.sessions.map(s => {
     const km = Math.max(3, Math.round(s.targetDistanceKm * frac * 10) / 10);
     return {
+      id: `${weekNumber}-${s.day}`,
       day: s.day,
       type: "easy" as const,
       targetDistanceKm: km,
