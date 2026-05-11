@@ -137,4 +137,3 @@ export default function WeeklyKmChart({ data }: { data: WeekChartEntry[] }) {
     </div>
   );
 }
-

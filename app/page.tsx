@@ -18,7 +18,7 @@ import { finalizePlanDisplayCopy, generatePlan } from "@/lib/generatePlan";
 import {
   buildPlayerRatingSummaryRows,
 } from "@/lib/playerRating";
-import { getStartOfTrainingWeek } from "@/lib/date-utils";
+import { getStartOfTrainingWeek } from "@/lib/dateUtils";
 import WeeklyKmChart from "@/components/charts/WeeklyKmChart";
 import AvgPaceTrendChart from "@/components/charts/AvgPaceTrendChart";
 import TrainingLoadChart from "@/components/charts/TrainingLoadChart";
