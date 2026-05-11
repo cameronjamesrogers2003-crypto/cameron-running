@@ -4,6 +4,8 @@ import { parseInterruptionType, type PlanInterruption } from "@/lib/interruption
 import { inferRunType, parseRatingBreakdown, type StatActivity } from "@/lib/rating";
 import { dbSettingsToUserSettings, DEFAULT_SETTINGS, type UserSettings } from "@/lib/settings";
 import { loadGeneratedPlan } from "@/lib/planStorage";
+import { sameDayAEST } from "@/lib/dateUtils";
+import { getSessionDate } from "@/lib/planUtils";
 
 const RUNNING_TYPES = ["running", "trail_running"];
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -283,11 +285,60 @@ function calculateOverall(scores: Omit<PlayerRatingScores, "overall">): number {
 function calculateScores(
   activities: RatingActivity[],
   settings: UserSettings,
-  _plan: TrainingWeek[],
+  plan: TrainingWeek[],
   _interruptions: PlanInterruption[],
   now = new Date(),
 ): PlayerRatingScores {
   const runningActivities = activities.filter(isRunningActivity);
+
+  if (settings.experienceLevel === "NOVICE") {
+    // Novice protective bypass: speed is irrelevant, focus is on consistency and controlled effort.
+    const since30 = new Date(now.getTime() - 30 * MS_PER_DAY);
+    const recent = runningActivities.filter((a) => new Date(a.date) >= since30);
+
+    if (recent.length === 0) {
+      return { overall: 25, speed: 33, endurance: 1, resilience: 1, hrEfficiency: 1, toughness: 1 };
+    }
+
+    // Consistency: did they complete the prescribed distance?
+    let completionRatioSum = 0;
+    let completionCount = 0;
+    const planStart = new Date(settings.planStartDate ?? now);
+
+    for (const act of recent) {
+      const weekNum = Math.ceil((new Date(act.date).getTime() - planStart.getTime()) / (7 * MS_PER_DAY));
+      const planWeek = plan.find((w) => w.week === weekNum);
+      const session = planWeek?.sessions.find((s) => sameDayAEST(new Date(act.date), getSessionDate(weekNum, s.day, planStart)));
+      if (session) {
+        completionRatioSum += clamp(act.distanceKm / session.targetDistanceKm, 0, 1.1);
+        completionCount++;
+      }
+    }
+    const consistencyScore = scoreFromRaw(completionCount > 0 ? completionRatioSum / completionCount : 0.5);
+
+    // HR Efficiency for Novice: did they stay in a conversational/easy zone?
+    const maxHR = Math.max(1, settings.maxHR);
+    const hrRatios = recent
+      .filter((a) => (a.avgHeartRate ?? 0) > 0)
+      .map((a) => (a.avgHeartRate! / maxHR));
+    const avgHrFrac = hrRatios.length > 0 ? hrRatios.reduce((s, r) => s + r, 0) / hrRatios.length : 0.75;
+    // Lower HR frac (closer to 0.65) is better efficiency for novice base building
+    const hrEffScore = scoreFromRaw(clamp(1.5 * (0.85 - avgHrFrac), 0, 1));
+
+    const noviceScores = {
+      speed: 33, // Locked neutral baseline
+      endurance: calculateEndurance(recent, now),
+      resilience: scoreFromRaw(clamp(completionCount / 12, 0, 1)), // Frequency-based resilience
+      hrEfficiency: hrEffScore,
+      toughness: calculateToughness(recent, now),
+    };
+
+    return {
+      overall: calculateOverall(noviceScores),
+      ...noviceScores,
+    };
+  }
+
   const scores = {
     speed: calculateSpeed(runningActivities, settings, now),
     endurance: calculateEndurance(runningActivities, now),

@@ -746,6 +746,13 @@ export function inferRunType(run: StatActivity, settings: UserSettings = DEFAULT
     || run.classifiedRunType === "interval" || run.classifiedRunType === "long") {
     return run.classifiedRunType;
   }
+
+  if (settings.experienceLevel === "NOVICE") {
+    // Novice short-circuit: ignore pace zones. 
+    // If it's a long distance, call it long, otherwise it's just 'easy' base building.
+    return run.distanceKm >= 5.0 ? "long" : "easy";
+  }
+
   return classifyRunByPaceZones(
     run.avgPaceSecKm,
     run.distanceKm,

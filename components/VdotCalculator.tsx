@@ -168,10 +168,81 @@ export default function VdotCalculator({
     >
       {isNovice ? (
         <div className="py-4 px-2">
+          {/* Graduation Bridge: Celebration banner for 5k completion */}
+          {((result && result.adjustedVdot > 0) || (seedRaceDistance === "5" && seedRaceMinutes && seedRaceMinutes > 0)) && (
+            <div className="mb-6 p-4 rounded-2xl bg-teal-500/10 border border-teal-500/30 animate-in fade-in slide-in-from-top-4 duration-500">
+              <div className="flex items-center gap-3 mb-2">
+                <span className="text-2xl">🎉</span>
+                <p className="text-base font-bold text-white">Graduation Milestone!</p>
+              </div>
+              <p className="text-sm text-teal-100/80 leading-relaxed mb-4">
+                Congratulations on completing 5km! You have officially built the foundation needed for structured training. 
+                You are ready to graduate to the <strong>Beginner</strong> tier to unlock pace-based targets and VDOT metrics.
+              </p>
+              <button
+                type="button"
+                onClick={async () => {
+                  await onFitnessSave?.({
+                    vdot: result?.adjustedVdot ?? 30,
+                    maxHR: parsedMaxHr > 0 ? parsedMaxHr : initialMaxHr,
+                    vdotRaceDistance: "5",
+                    vdotRaceMinutes: parseInt(fiveKm.minutes, 10) || 0,
+                    vdotRaceSeconds: parseInt(fiveKm.seconds, 10) || 0,
+                    age,
+                    gender,
+                    weightKg,
+                    runningExperience: runningExperience,
+                  });
+                  // Trigger settings update to Beginner tier
+                  const res = await fetch("/api/settings", {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ experienceLevel: "BEGINNER" }),
+                  });
+                  if (res.ok) window.location.reload();
+                }}
+                className="w-full py-2 px-4 rounded-xl bg-teal-500 text-black text-sm font-bold hover:bg-teal-400 transition-colors"
+              >
+                Upgrade to Beginner Tier
+              </button>
+            </div>
+          )}
+
           <p className="text-sm leading-relaxed" style={{ color: "var(--text-muted)" }}>
             As a <span className="text-white font-semibold">Novice</span> runner, your plan focuses on time-on-feet and run/walk intervals. Pace and VDOT metrics are disabled so you can focus purely on effort (RPE).
           </p>
-          <div className="mt-6">
+
+          <div className="mt-6 space-y-6">
+            <div>
+              <p className="text-xs uppercase tracking-wider mb-3" style={{ color: "var(--text-muted)" }}>
+                Log a 5km milestone (optional)
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    value={fiveKm.minutes}
+                    onChange={(e) => setFiveKm({ ...fiveKm, minutes: e.target.value })}
+                    className={`px-3 py-2.5 rounded-xl text-sm text-center font-mono bg-white/[0.06] border border-white/[0.10] text-white focus:border-teal-500/50 outline-none transition-colors ${FORM_CONTROL_TW}`}
+                    placeholder="Min"
+                  />
+                </div>
+                <div>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    value={fiveKm.seconds}
+                    onChange={(e) => setFiveKm({ ...fiveKm, seconds: e.target.value })}
+                    className={`px-3 py-2.5 rounded-xl text-sm text-center font-mono bg-white/[0.06] border border-white/[0.10] text-white focus:border-teal-500/50 outline-none transition-colors ${FORM_CONTROL_TW}`}
+                    placeholder="Sec"
+                  />
+                </div>
+              </div>
+            </div>
+
             <label className="text-xs block space-y-1 mb-4">
                 <span style={{ color: "var(--text-muted)" }}>Max HR (bpm) - optional</span>
                 <input
@@ -208,8 +279,8 @@ export default function VdotCalculator({
                   vdot: 30, // Default for novice
                   maxHR: parsedMaxHr > 0 ? parsedMaxHr : initialMaxHr,
                   vdotRaceDistance: "5",
-                  vdotRaceMinutes: 0,
-                  vdotRaceSeconds: 0,
+                  vdotRaceMinutes: parseInt(fiveKm.minutes, 10) || 0,
+                  vdotRaceSeconds: parseInt(fiveKm.seconds, 10) || 0,
                   age: parsed.age,
                   gender: parsed.gender,
                   weightKg: parsed.weightKg,
