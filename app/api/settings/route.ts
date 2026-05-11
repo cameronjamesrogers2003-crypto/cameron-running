@@ -3,6 +3,9 @@ import prisma from "@/lib/db";
 import { brisbaneMidnightUtcForYmd, toBrisbaneYmd } from "@/lib/dateUtils";
 import { dbSettingsToUserSettings, DEFAULT_SETTINGS } from "@/lib/settings";
 import type { Day } from "@/data/trainingPlan";
+import { getDynamicLongRunThresholdKm } from "@/lib/longRunThreshold";
+import { persistActivityRating } from "@/lib/persistActivityRating";
+import { recalculatePlayerRating } from "@/lib/playerRating";
 
 type SettingsUpdate = {
   planStartDate?: Date | null;
@@ -299,7 +302,45 @@ export async function PATCH(req: NextRequest) {
       } as never,
     });
 
-    return NextResponse.json(dbSettingsToUserSettings(row));
+    const settings = dbSettingsToUserSettings(row);
+
+    // Auto-reclassify and re-rate all unconfirmed activities
+    const unconfirmedActivities = await prisma.activity.findMany({
+      where: {
+        isConfirmed: false,
+        activityType: { in: ["running", "trail_running"] },
+      },
+      select: { id: true },
+    });
+
+    if (unconfirmedActivities.length > 0) {
+      const { thresholdKm, distanceLongMethod } = await getDynamicLongRunThresholdKm(
+        settings,
+        prisma,
+      );
+
+      // Re-rate in parallel as requested
+      await Promise.all(
+        unconfirmedActivities.map((act) =>
+          persistActivityRating(
+            prisma,
+            act.id,
+            thresholdKm,
+            distanceLongMethod,
+          ).catch((err) => {
+            console.error(`[settings] auto-reclassify failed for ${act.id}:`, err);
+          })
+        )
+      );
+
+      await recalculatePlayerRating(prisma);
+    }
+
+    return NextResponse.json({
+      ...settings,
+      success: true,
+      reclassified: unconfirmedActivities.length,
+    });
   } catch (err) {
     console.error("[settings] update failed:", err);
     return NextResponse.json({ error: "Failed to update settings" }, { status: 500 });

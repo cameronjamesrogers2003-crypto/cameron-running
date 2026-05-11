@@ -7,13 +7,13 @@ import { DEFAULT_SETTINGS } from "@/lib/settings";
 interface SettingsContextValue {
   settings: UserSettings;
   loading: boolean;
-  updateSettings: (patch: Partial<UserSettings>) => Promise<void>;
+  updateSettings: (patch: Partial<UserSettings>) => Promise<any>;
 }
 
 const SettingsContext = createContext<SettingsContextValue>({
   settings: DEFAULT_SETTINGS,
   loading:  true,
-  updateSettings: async () => {},
+  updateSettings: async () => ({}),
 });
 
 export function SettingsProvider({ children }: { children: React.ReactNode }) {
@@ -50,6 +50,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     const updated = await res.json();
     console.log("[SettingsContext] updateSettings response:", { planStartDate: updated.planStartDate, vdot: updated.currentVdot });
     setSettings(updated);
+    return updated;
   }, []);
 
   return (

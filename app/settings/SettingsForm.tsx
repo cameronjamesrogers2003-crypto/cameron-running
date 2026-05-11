@@ -123,6 +123,7 @@ export default function SettingsForm() {
   const syncedRef = useRef(false);
 
   const [vdotUpdatedMsg, setVdotUpdatedMsg] = useState<string | null>(null);
+  const [reclassifiedMsg, setReclassifiedMsg] = useState<string | null>(null);
   const [suggestedLevel, setSuggestedLevel] = useState<"BEGINNER" | "INTERMEDIATE" | "ADVANCED" | null>(null);
   const [showTooManyDaysWarning, setShowTooManyDaysWarning] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -257,7 +258,7 @@ export default function SettingsForm() {
     });
     const zones = deriveRatingPaceZones(draft);
     try {
-      await updateSettings({
+      const res = await updateSettings({
         currentVdot: payload.vdot,
         maxHR: payload.maxHR,
         vdotRaceDistance: payload.vdotRaceDistance,
@@ -283,6 +284,10 @@ export default function SettingsForm() {
       setIntervalOff(0);
       setLongOff(0);
       setVdotUpdatedMsg(`VDOT updated to ${payload.vdot}`);
+      if (res.reclassified > 0) {
+        setReclassifiedMsg(`${res.reclassified} runs reclassified automatically.`);
+        setTimeout(() => setReclassifiedMsg(null), 3000);
+      }
     } catch {
       setSaveError("Failed to save VDOT. Please try again.");
     }
@@ -290,6 +295,7 @@ export default function SettingsForm() {
 
   async function handleMainSave() {
     setSaveError(null);
+    setReclassifiedMsg(null);
     setSaveStatus("saving");
     console.log("[settings] saving:", {
       planStartDateIsoYmd,
@@ -347,7 +353,7 @@ export default function SettingsForm() {
       });
       const zones = deriveRatingPaceZones(draft);
 
-      await updateSettings({
+      const updateRes = await updateSettings({
         planStartDate: planIso,
         experienceLevel,
         goalRace,
@@ -385,20 +391,15 @@ export default function SettingsForm() {
       });
       if (!rebuildRes.ok) throw new Error("Rebuild paces failed");
 
-      try {
-        const backfillRes = await fetch("/api/runs/backfill-ratings", {
-          method: "POST",
-        });
-        if (!backfillRes.ok) {
-          console.error("Backfill failed — ratings may be stale", backfillRes.status);
-        }
-      } catch (backfillErr) {
-        console.error("Backfill failed — ratings may be stale", backfillErr);
+      if (updateRes.reclassified > 0) {
+        setReclassifiedMsg(`${updateRes.reclassified} runs reclassified automatically.`);
       }
 
       setSaveStatus("saved");
-      setTimeout(() => setSaveStatus("idle"), 2000);
-      window.location.href = "/program";
+      setTimeout(() => {
+        setSaveStatus("idle");
+        window.location.href = "/program";
+      }, 2000);
     } catch (e) {
       console.error(e);
       setSaveStatus("error");
@@ -680,6 +681,7 @@ export default function SettingsForm() {
           Saves your plan, fitness, and pace zones. Regenerates your program and refreshes run ratings.
         </p>
         <SaveButton status={saveStatus} onClick={() => { void handleMainSave(); }} />
+        {reclassifiedMsg && <p className="text-xs text-emerald-400 mt-2 animate-fadeInUp">{reclassifiedMsg}</p>}
         {saveError && <p className="text-xs text-red-300 mt-2">{saveError}</p>}
       </Panel>
     </div>
