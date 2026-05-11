@@ -11,9 +11,9 @@ type SettingsUpdate = {
   planStartDate?: Date | null;
   currentWeekOverride?: number | null;
   phaseOverride?: string | null;
-  experienceLevel?: "BEGINNER" | "INTERMEDIATE" | "ADVANCED" | null;
-  goalRace?: "HALF" | "FULL" | null;
-  planLengthWeeks?: 12 | 16 | 20 | null;
+  experienceLevel?: "NOVICE" | "BEGINNER" | "INTERMEDIATE" | "ADVANCED" | "ELITE" | null;
+  goalRace?: "5K" | "10K" | "HALF" | "FULL" | null;
+  planLengthWeeks?: 8 | 12 | 16 | 20 | null;
   trainingDays?: string | null;
   longRunDay?: Day | null;
   targetFinishTime?: number | null;
@@ -134,15 +134,17 @@ function applySetting(update: SettingsUpdate, key: string, value: unknown): void
       if (typeof value === "string" || value === null) update.phaseOverride = value;
       return;
     case "experienceLevel":
-      if (value === "BEGINNER" || value === "INTERMEDIATE" || value === "ADVANCED" || value === null) {
+      if (value === "NOVICE" || value === "BEGINNER" || value === "INTERMEDIATE" || value === "ADVANCED" || value === "ELITE" || value === null) {
         update.experienceLevel = value;
       }
       return;
     case "goalRace":
-      if (value === "HALF" || value === "FULL" || value === null) update.goalRace = value;
+      if (value === "5K" || value === "10K" || value === "HALF" || value === "FULL" || value === null) {
+        update.goalRace = value;
+      }
       return;
     case "planLengthWeeks":
-      if (value === 12 || value === 16 || value === 20 || value === null) {
+      if (value === 8 || value === 12 || value === 16 || value === 20 || value === null) {
         update.planLengthWeeks = value;
       }
       return;

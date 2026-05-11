@@ -63,18 +63,20 @@ function parsePersonal(
 export default function VdotCalculator({
   onApply,
   onLevelSuggested,
+  isNovice,
   onFitnessSave,
   maxHR: maxHRControlled,
   onMaxHRChange,
-  initialMaxHr = 198,
+  initialMaxHr = 190,
   personal: personalControlled,
   onPersonalChange,
   seedRaceDistance = null,
   seedRaceMinutes = null,
   seedRaceSeconds = null,
-}: {
+  }: {
   onApply?: (vdot: number) => void;
   onLevelSuggested?: (level: VdotLevel) => void;
+  isNovice?: boolean;
   onFitnessSave?: (payload: {
     vdot: number;
     maxHR: number;
@@ -164,10 +166,68 @@ export default function VdotCalculator({
       className="rounded-[10px] p-4 space-y-5"
       style={{ background: "#141414", border: "1px solid rgba(255,255,255,0.08)" }}
     >
-      <div>
-        <p className="text-xs uppercase tracking-wider mb-2" style={{ color: "var(--text-muted)" }}>
-          Personal details (optional)
-        </p>
+      {isNovice ? (
+        <div className="py-4 px-2">
+          <p className="text-sm leading-relaxed" style={{ color: "var(--text-muted)" }}>
+            As a <span className="text-white font-semibold">Novice</span> runner, your plan focuses on time-on-feet and run/walk intervals. Pace and VDOT metrics are disabled so you can focus purely on effort (RPE).
+          </p>
+          <div className="mt-6">
+            <label className="text-xs block space-y-1 mb-4">
+                <span style={{ color: "var(--text-muted)" }}>Max HR (bpm) - optional</span>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  value={maxHrInput}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    setMaxHrInput(next);
+                    const n = parseInt(next, 10) || 0;
+                    if (n > 0) setMaxHR(n);
+                  }}
+                  onBlur={() => {
+                    if (maxHrInput.trim() === "") {
+                      setMaxHrInput(String(maxHR));
+                    }
+                  }}
+                  className={controlCls}
+                  placeholder="0"
+                />
+            </label>
+            <button
+              type="button"
+              className="w-full py-2.5 rounded-xl text-sm font-semibold transition-all hover:bg-teal-400/20"
+              style={{
+                background: "rgba(45,212,191,0.15)",
+                border: "1px solid rgba(45,212,191,0.35)",
+                color: "var(--accent)",
+              }}
+              onClick={async () => {
+                const parsed = parsePersonal(personal);
+                await onFitnessSave?.({
+                  vdot: 30, // Default for novice
+                  maxHR: parsedMaxHr > 0 ? parsedMaxHr : initialMaxHr,
+                  vdotRaceDistance: "5",
+                  vdotRaceMinutes: 0,
+                  vdotRaceSeconds: 0,
+                  age: parsed.age,
+                  gender: parsed.gender,
+                  weightKg: parsed.weightKg,
+                  runningExperience: parsed.runningExperience,
+                });
+                onApply?.(30);
+              }}
+            >
+              Update Profile
+            </button>
+          </div>
+        </div>
+      ) : (
+        <>
+          <div>
+            <p className="text-xs uppercase tracking-wider mb-2" style={{ color: "var(--text-muted)" }}>
+              Personal details (optional)
+            </p>
         <div className="grid grid-cols-2 gap-3 mb-3">
           <label className="text-xs block space-y-1">
             <span style={{ color: "var(--text-muted)" }}>Age (years)</span>
@@ -407,6 +467,8 @@ export default function VdotCalculator({
             Apply
           </button>
         </div>
+      )}
+        </>
       )}
     </div>
   );

@@ -9,8 +9,8 @@ import { toBrisbaneYmd } from "@/lib/dateUtils";
 import VdotCalculator, { type VdotPersonalFields } from "@/components/VdotCalculator";
 import { FORM_CONTROL_TW } from "@/lib/formControlClasses";
 
-type Level = "BEGINNER" | "INTERMEDIATE" | "ADVANCED";
-type GoalRace = "HALF" | "FULL";
+type Level = "NOVICE" | "BEGINNER" | "INTERMEDIATE" | "ADVANCED" | "ELITE";
+type GoalRace = "5K" | "10K" | "HALF" | "FULL";
 
 const DAYS: Day[] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 const DAY_LABEL: Record<Day, string> = {
@@ -24,9 +24,11 @@ const DAY_LABEL: Record<Day, string> = {
 };
 
 const LEVEL_COPY: Record<Level, string> = {
+  NOVICE: "Just starting out. Focus on consistency and walk-runs.",
   BEGINNER: "0–12 months running. Conservative progression.",
   INTERMEDIATE: "1–3 years running. Balanced mix of sessions.",
   ADVANCED: "3+ years running. High intensity from week 1.",
+  ELITE: "Competitive athlete. High volume and specificity.",
 };
 
 function CardOption({
@@ -202,7 +204,10 @@ export default function OnboardingPage() {
     };
     const planConfig: PlanConfig = {
       level,
-      goal: goalRace === "FULL" ? "full" : "hm",
+      goal: 
+        goalRace === "FULL" ? "full" : 
+        goalRace === "HALF" ? "hm" : 
+        goalRace === "10K" ? "10k" : "5k",
       weeks: planLengthWeeks,
       days: sortedTrainingDays,
       longRunDay: effectiveLongRunDay ?? undefined,
@@ -294,7 +299,9 @@ export default function OnboardingPage() {
       {step === 1 && (
         <section className="space-y-3">
           <h1 className="text-2xl font-bold text-white">What are you training for?</h1>
-          <div className="grid sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <CardOption selected={goalRace === "5K"} title="5KM" subtitle="5.0 km" onClick={() => setGoalRace("5K")} />
+            <CardOption selected={goalRace === "10K"} title="10KM" subtitle="10.0 km" onClick={() => setGoalRace("10K")} />
             <CardOption selected={goalRace === "HALF"} title="HALF MARATHON" subtitle="21.1 km" onClick={() => setGoalRace("HALF")} />
             <CardOption selected={goalRace === "FULL"} title="FULL MARATHON" subtitle="42.2 km" onClick={() => setGoalRace("FULL")} />
           </div>
@@ -303,8 +310,8 @@ export default function OnboardingPage() {
       {step === 2 && (
         <section className="space-y-3">
           <h1 className="text-2xl font-bold text-white">How long have you been running?</h1>
-          <div className="grid sm:grid-cols-3 gap-3">
-            {(["BEGINNER", "INTERMEDIATE", "ADVANCED"] as const).map((opt) => (
+          <div className="grid sm:grid-cols-5 gap-3">
+            {(["NOVICE", "BEGINNER", "INTERMEDIATE", "ADVANCED", "ELITE"] as const).map((opt) => (
               <CardOption key={opt} selected={level === opt} title={opt} subtitle={LEVEL_COPY[opt]} onClick={() => setLevel(opt)} />
             ))}
           </div>
@@ -313,15 +320,15 @@ export default function OnboardingPage() {
       {step === 3 && (
         <section className="space-y-3">
           <h1 className="text-2xl font-bold text-white">How many weeks do you have?</h1>
-          <div className="grid sm:grid-cols-3 gap-3">
-            {([12, 16, 20] as const).map((weeks) => (
+          <div className="grid sm:grid-cols-4 gap-3">
+            {([8, 12, 16, 20] as const).map((weeks) => (
               <CardOption
                 key={weeks}
                 selected={planLengthWeeks === weeks}
                 title={`${weeks} WEEKS`}
-                subtitle={weeks === 12 ? "For runners with a race soon or a strong base." : weeks === 16 ? "Standard plan length. Recommended for most runners." : "Extra base building time. Ideal for beginners."}
+                subtitle={weeks === 8 ? "Crash course for an upcoming race." : weeks === 12 ? "For runners with a race soon or a strong base." : weeks === 16 ? "Standard plan length. Recommended for most runners." : "Extra base building time. Ideal for beginners."}
                 badge={recommendedLength === weeks ? "Recommended" : undefined}
-                onClick={() => setPlanLengthWeeks(weeks)}
+                onClick={() => setPlanLengthWeeks(weeks as any)}
               />
             ))}
           </div>
@@ -473,7 +480,7 @@ export default function OnboardingPage() {
         <section className="space-y-3">
           <h1 className="text-2xl font-bold text-white">Your plan is ready.</h1>
           <div className="rounded-xl border border-white/10 bg-white/5 p-4 text-sm space-y-1">
-            <p><span style={{ color: "var(--text-muted)" }}>Goal race:</span> {goalRace === "FULL" ? "FULL MARATHON" : "HALF MARATHON"}</p>
+            <p><span style={{ color: "var(--text-muted)" }}>Goal race:</span> {goalRace === "FULL" ? "FULL MARATHON" : goalRace === "HALF" ? "HALF MARATHON" : goalRace === "10K" ? "10KM" : "5KM"}</p>
             <p><span style={{ color: "var(--text-muted)" }}>Experience level:</span> {level}</p>
             <p><span style={{ color: "var(--text-muted)" }}>Plan length:</span> {planLengthWeeks} weeks</p>
             <p><span style={{ color: "var(--text-muted)" }}>Training days:</span> {sortedTrainingDays.map((d) => DAY_LABEL[d]).join(", ")}</p>
@@ -495,7 +502,13 @@ export default function OnboardingPage() {
       <div className="flex flex-col sm:flex-row justify-between gap-2 pt-3">
         <button
           type="button"
-          onClick={() => setStep((s) => Math.max(0, s - 1))}
+          onClick={() => {
+            let prevStep = step - 1;
+            if ((prevStep === 5 || prevStep === 4) && level === "NOVICE") {
+              prevStep = 3;
+            }
+            setStep(Math.max(0, prevStep));
+          }}
           disabled={step === 0}
           className="rounded-md min-h-11 px-4 py-2 border border-white/15 text-sm disabled:opacity-50 w-full sm:w-auto"
         >
@@ -508,7 +521,11 @@ export default function OnboardingPage() {
               setNameError("First name is required.");
               return;
             }
-            setStep((s) => Math.min(8, s + 1));
+            let nextStep = step + 1;
+            if ((nextStep === 4 || nextStep === 5) && level === "NOVICE") {
+              nextStep = 6;
+            }
+            setStep(Math.min(8, nextStep));
           }}
           disabled={(step === 0 ? false : !canNext) || step > 7}
           className="rounded-md min-h-11 px-4 py-2 bg-white/10 text-sm disabled:opacity-50 w-full sm:w-auto"

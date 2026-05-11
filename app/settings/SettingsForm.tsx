@@ -493,54 +493,28 @@ export default function SettingsForm() {
           <div>
             <p className="text-sm font-medium text-white mb-2">Goal race</p>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-              <button
-                type="button"
-                onClick={() => setGoalRace("5K")}
-                className="p-3.5 rounded-xl border cursor-pointer transition-all text-left hover:bg-white/[0.07]"
-                style={{
-                  background: goalRace === "5K" ? "rgba(45,212,191,0.08)" : "var(--card-bg)",
-                  border: goalRace === "5K" ? "2px solid rgba(45,212,191,0.60)" : "1px solid rgba(255,255,255,0.08)",
-                }}
-              >
-                <p className="text-sm font-bold text-white mb-1">5KM</p>
-                <p className="text-xs" style={{ color: "var(--text-muted)" }}>5.0 km</p>
-              </button>
-              <button
-                type="button"
-                onClick={() => setGoalRace("10K")}
-                className="p-3.5 rounded-xl border cursor-pointer transition-all text-left hover:bg-white/[0.07]"
-                style={{
-                  background: goalRace === "10K" ? "rgba(45,212,191,0.08)" : "var(--card-bg)",
-                  border: goalRace === "10K" ? "2px solid rgba(45,212,191,0.60)" : "1px solid rgba(255,255,255,0.08)",
-                }}
-              >
-                <p className="text-sm font-bold text-white mb-1">10KM</p>
-                <p className="text-xs" style={{ color: "var(--text-muted)" }}>10.0 km</p>
-              </button>
-              <button
-                type="button"
-                onClick={() => setGoalRace("HALF")}
-                className="p-3.5 rounded-xl border cursor-pointer transition-all text-left hover:bg-white/[0.07]"
-                style={{
-                  background: goalRace === "HALF" ? "rgba(45,212,191,0.08)" : "var(--card-bg)",
-                  border: goalRace === "HALF" ? "2px solid rgba(45,212,191,0.60)" : "1px solid rgba(255,255,255,0.08)",
-                }}
-              >
-                <p className="text-sm font-bold text-white mb-1">HALF MARATHON</p>
-                <p className="text-xs" style={{ color: "var(--text-muted)" }}>21.1 km</p>
-              </button>
-              <button
-                type="button"
-                onClick={() => setGoalRace("FULL")}
-                className="p-3.5 rounded-xl border cursor-pointer transition-all text-left hover:bg-white/[0.07]"
-                style={{
-                  background: goalRace === "FULL" ? "rgba(45,212,191,0.08)" : "var(--card-bg)",
-                  border: goalRace === "FULL" ? "2px solid rgba(45,212,191,0.60)" : "1px solid rgba(255,255,255,0.08)",
-                }}
-              >
-                <p className="text-sm font-bold text-white mb-1">FULL MARATHON</p>
-                <p className="text-xs" style={{ color: "var(--text-muted)" }}>42.2 km</p>
-              </button>
+              {([
+                ["5K", "5.0 km"],
+                ["10K", "10.0 km"],
+                ["HALF", "21.1 km"],
+                ["FULL", "42.2 km"],
+              ] as const).map(([goal, dist]) => (
+                <button
+                  key={goal}
+                  type="button"
+                  onClick={() => setGoalRace(goal)}
+                  className="p-3.5 rounded-xl border cursor-pointer transition-all text-left hover:bg-white/[0.07]"
+                  style={{
+                    background: goalRace === goal ? "rgba(45,212,191,0.08)" : "var(--card-bg)",
+                    border: goalRace === goal ? "2px solid rgba(45,212,191,0.60)" : "1px solid rgba(255,255,255,0.08)",
+                  }}
+                >
+                  <p className="text-sm font-bold text-white mb-1">
+                    {goal === "HALF" ? "HALF MARATHON" : goal === "FULL" ? "FULL MARATHON" : goal}
+                  </p>
+                  <p className="text-xs" style={{ color: "var(--text-muted)" }}>{dist}</p>
+                </button>
+              ))}
             </div>
           </div>
 
@@ -647,6 +621,7 @@ export default function SettingsForm() {
           maxHR={maxHR}
           onMaxHRChange={setMaxHR}
           personal={vdotPersonal}
+          isNovice={experienceLevel === "NOVICE"}
           onPersonalChange={setVdotPersonal}
           seedRaceDistance={vdotRaceDistance}
           seedRaceMinutes={vdotRaceMinutes}
