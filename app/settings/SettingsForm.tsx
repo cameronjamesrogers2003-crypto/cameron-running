@@ -13,20 +13,21 @@ import PaceZoneOffsetSlider from "@/components/PaceZoneOffsetSlider";
 import { FORM_CONTROL_TW } from "@/lib/formControlClasses";
 
 type SaveStatus = "idle" | "saving" | "saved" | "error";
+type Tab = "goal" | "schedule" | "fitness";
 
 function SaveButton({ status, onClick }: { status: SaveStatus; onClick: () => void }) {
   const label =
     status === "saving" ? "Saving..."
     : status === "saved" ? "Saved"
     : status === "error" ? "Error"
-    : "Save";
+    : "Save Changes";
   const isSaving = status === "saving";
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={isSaving}
-      className="px-8 py-3 rounded-xl text-sm font-bold transition-all w-full sm:w-auto hover:bg-[#14b8a6]"
+      className="px-8 py-3 rounded-xl text-sm font-bold transition-all w-full sm:w-auto hover:bg-[#14b8a6] shadow-lg shadow-teal-500/10"
       style={{
         background: "var(--accent)",
         color: "#0a0b0c",
@@ -38,16 +39,18 @@ function SaveButton({ status, onClick }: { status: SaveStatus; onClick: () => vo
   );
 }
 
-function Panel({ number, title, children }: { number: string; title: string; children: React.ReactNode }) {
+function Panel({ title, children, badge }: { title: string; children: React.ReactNode; badge?: string }) {
   return (
     <div
-      className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-5 mb-3.5 space-y-3.5"
+      className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-5 mb-5 space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-500"
     >
-      <div className="flex items-center gap-3 pb-2 mb-2.5 border-b border-white/[0.08]">
-        <span className="text-xs font-bold tracking-widest uppercase" style={{ color: "var(--accent)" }}>
-          {number}
-        </span>
-        <h2 className="text-base font-semibold text-white">{title}</h2>
+      <div className="flex items-center justify-between pb-3 mb-1 border-b border-white/[0.08]">
+        <h2 className="text-base font-bold text-white uppercase tracking-tight">{title}</h2>
+        {badge && (
+          <span className="text-[10px] font-black px-2 py-0.5 rounded bg-white/10 text-white/40 tracking-widest uppercase">
+            {badge}
+          </span>
+        )}
       </div>
       {children}
     </div>
@@ -56,10 +59,10 @@ function Panel({ number, title, children }: { number: string; title: string; chi
 
 function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
-    <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:gap-3.5">
+    <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:gap-6 py-1">
       <div className="w-full sm:w-48 shrink-0">
-        <p className="text-sm font-medium text-white mb-1.5">{label}</p>
-        {hint && <p className="text-xs mt-1.5" style={{ color: "var(--text-dim)" }}>{hint}</p>}
+        <p className="text-sm font-semibold text-white/90 mb-1">{label}</p>
+        {hint && <p className="text-xs leading-relaxed" style={{ color: "var(--text-dim)" }}>{hint}</p>}
       </div>
       <div className="flex-1 w-full min-w-0">{children}</div>
     </div>
@@ -109,6 +112,7 @@ export default function SettingsForm() {
   const authJsonHeaders: Record<string, string> = { "Content-Type": "application/json" };
   if (token) authJsonHeaders.Authorization = `Bearer ${token}`;
 
+  const [activeTab, setActiveTab] = useState<Tab>("goal");
   const [planStartDateIsoYmd, setPlanStartDateIsoYmd] = useState(() =>
     settings.planStartDate ? toBrisbaneYmd(new Date(settings.planStartDate)) : ""
   );
@@ -169,28 +173,24 @@ export default function SettingsForm() {
     });
   }
 
+  // Progressive Disclosure: Auto-switch tab if NOVICE views fitness
+  useEffect(() => {
+    if (experienceLevel === "NOVICE" && activeTab === "fitness") {
+      setActiveTab("goal");
+    }
+  }, [experienceLevel, activeTab]);
+
   // One-time hydration from DB — guard prevents re-running on every updateSettings call.
-  /* eslint-disable react-hooks/set-state-in-effect -- single batch hydrate from API */
   useEffect(() => {
     if (loading) return;
     if (syncedRef.current) return;
     syncedRef.current = true;
 
     const loaded = settings.planStartDate ? toBrisbaneYmd(new Date(settings.planStartDate)) : "";
-    console.log("[settings] hydrating form from DB:", {
-      planStartDate: loaded,
-      experienceLevel: settings.experienceLevel,
-      goalRace: settings.goalRace,
-      planLengthWeeks: settings.planLengthWeeks,
-      trainingDays: settings.trainingDays,
-      longRunDay: settings.longRunDay,
-      vdot: settings.currentVdot,
-    });
-
     setPlanStartDateIsoYmd(loaded);
     setExperienceLevel(settings.experienceLevel ?? "BEGINNER");
     setGoalRace(settings.goalRace ?? "HALF");
-    setPlanLengthWeeks((settings.planLengthWeeks ?? 16) as 12 | 16 | 20);
+    setPlanLengthWeeks((settings.planLengthWeeks ?? 16) as 8 | 12 | 16 | 20);
     setTrainingDays(parseTrainingDaysValue(settings.trainingDays));
     setSelectedLongRunDay(parseLongRunDayValue(settings.longRunDay));
     setMaxHR(settings.maxHR);
@@ -211,7 +211,6 @@ export default function SettingsForm() {
     setFirstName(settings.firstName ?? "");
     setNickname(settings.nickname ?? "");
   }, [loading, settings]);
-  /* eslint-enable react-hooks/set-state-in-effect */
 
   const effectiveLongRunDay = useMemo<Day | null>(() => {
     if (sortedTrainingDays.length < 2) return null;
@@ -297,15 +296,6 @@ export default function SettingsForm() {
     setSaveError(null);
     setReclassifiedMsg(null);
     setSaveStatus("saving");
-    console.log("[settings] saving:", {
-      planStartDateIsoYmd,
-      experienceLevel,
-      goalRace,
-      planLengthWeeks,
-      trainingDays: sortedTrainingDays,
-      longRunDay: effectiveLongRunDay,
-      vdot,
-    });
     try {
       const trimmedIsoYmd = planStartDateIsoYmd.trim();
       let planIso: string | null = null;
@@ -416,275 +406,329 @@ export default function SettingsForm() {
     );
   }
 
+  const tabs: Array<{ id: Tab; label: string }> = [
+    { id: "goal", label: "Goal & Level" },
+    { id: "schedule", label: "Schedule" },
+  ];
+  if (experienceLevel !== "NOVICE") {
+    tabs.push({ id: "fitness", label: "Fitness & Pacing" });
+  }
+
   return (
-    <div className="space-y-4.5 w-full max-w-2xl min-w-0">
-      <Panel number="0." title="YOUR PROFILE">
-        <Field label="First name">
-          <input
-            type="text"
-            value={firstName}
-            onChange={(e) => setFirstName(e.target.value)}
-            className={`w-full px-4 py-2.5 rounded-xl text-sm outline-none transition-colors ${FORM_CONTROL_TW}`}
-            placeholder="First name"
-          />
-        </Field>
-        <Field label="Nickname" hint="If set, we'll use this instead of your first name throughout the app.">
-          <input
-            type="text"
-            value={nickname}
-            onChange={(e) => setNickname(e.target.value)}
-            className={`w-full px-4 py-2.5 rounded-xl text-sm outline-none transition-colors ${FORM_CONTROL_TW}`}
-            placeholder="Nickname (optional)"
-          />
-        </Field>
-        <p className="text-xs mt-3" style={{ color: "var(--text-dim)" }}>
-          The app will address you as{" "}
-          <span style={{ color: "var(--accent)" }} className="font-semibold">
-            {nickname || firstName || "Runner"}
-          </span>
-        </p>
-      </Panel>
-      <Panel number="1." title="Training plan configuration">
-        <Field label="Plan start date" hint="First day your program counts (Brisbane calendar)">
-          <div className="flex flex-col gap-2">
-            <input
-              type="date"
-              value={planStartDateIsoYmd}
-              min={minPlanStartIsoYmd}
-              onChange={(e) => setPlanStartDateIsoYmd(e.target.value)}
-              className={`w-full px-4 py-2.5 rounded-xl text-sm bg-white/[0.06] border border-white/[0.10] text-white outline-none focus:border-teal-400 transition-colors ${FORM_CONTROL_TW}`}
-            />
-            {planStartDateIsoYmd ? (
-              <p className="text-xs mt-1.5" style={{ color: "var(--text-dim)" }}>
-                {planStartIsoYmdToAusDisplay(planStartDateIsoYmd)}
-              </p>
-            ) : null}
-          </div>
-        </Field>
+    <div className="w-full max-w-2xl min-w-0">
+      {/* ── Tab Navigation ───────────────────────────────────────────── */}
+      <div className="flex border-b border-white/[0.08] mb-6 overflow-x-auto no-scrollbar">
+        {tabs.map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            onClick={() => setActiveTab(tab.id)}
+            className="px-6 py-4 text-sm font-bold transition-all border-b-2 whitespace-nowrap"
+            style={{
+              borderColor: activeTab === tab.id ? "var(--accent)" : "transparent",
+              color: activeTab === tab.id ? "var(--accent)" : "rgba(255,255,255,0.45)",
+            }}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
 
-        <div className="space-y-3.5">
-          <div>
-            <p className="text-sm font-medium text-white mb-2">Experience level</p>
-            <div className="grid grid-cols-1 sm:grid-cols-5 gap-2">
-              {([
-                ["NOVICE", "Just starting out. Focus on consistency and walk-runs."],
-                ["BEGINNER", "0–12 months running. Conservative progression."],
-                ["INTERMEDIATE", "1–3 years running. Balanced mix of sessions."],
-                ["ADVANCED", "3+ years running. High intensity from week 1."],
-                ["ELITE", "Competitive athlete. High volume and specificity."],
-              ] as const).map(([lvl, copy]) => (
-                <button
-                  key={lvl}
-                  type="button"
-                  onClick={() => setExperienceLevel(lvl)}
-                  className="p-3.5 rounded-xl border cursor-pointer transition-all text-left hover:bg-white/[0.07]"
-                  style={{
-                    background: experienceLevel === lvl ? "rgba(45,212,191,0.08)" : "var(--card-bg)",
-                    border: experienceLevel === lvl ? "2px solid rgba(45,212,191,0.60)" : "1px solid rgba(255,255,255,0.08)",
-                  }}
-                >
-                  <p className="text-sm font-bold text-white mb-1">{lvl}</p>
-                  <p className="text-xs" style={{ color: "var(--text-muted)" }}>{copy}</p>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <p className="text-sm font-medium text-white mb-2">Goal race</p>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-              {([
-                ["5K", "5.0 km"],
-                ["10K", "10.0 km"],
-                ["HALF", "21.1 km"],
-                ["FULL", "42.2 km"],
-              ] as const).map(([goal, dist]) => (
-                <button
-                  key={goal}
-                  type="button"
-                  onClick={() => setGoalRace(goal)}
-                  className="p-3.5 rounded-xl border cursor-pointer transition-all text-left hover:bg-white/[0.07]"
-                  style={{
-                    background: goalRace === goal ? "rgba(45,212,191,0.08)" : "var(--card-bg)",
-                    border: goalRace === goal ? "2px solid rgba(45,212,191,0.60)" : "1px solid rgba(255,255,255,0.08)",
-                  }}
-                >
-                  <p className="text-sm font-bold text-white mb-1">
-                    {goal === "HALF" ? "HALF MARATHON" : goal === "FULL" ? "FULL MARATHON" : goal}
-                  </p>
-                  <p className="text-xs" style={{ color: "var(--text-muted)" }}>{dist}</p>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <p className="text-sm font-medium text-white mb-2">Plan length</p>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-              {([8, 12, 16, 20] as const).map((weeks) => (
-                <button
-                  key={weeks}
-                  type="button"
-                  onClick={() => setPlanLengthWeeks(weeks)}
-                  className="p-3.5 rounded-xl border cursor-pointer transition-all text-left hover:bg-white/[0.07]"
-                  style={{
-                    background: planLengthWeeks === weeks ? "rgba(45,212,191,0.08)" : "var(--card-bg)",
-                    border: planLengthWeeks === weeks ? "2px solid rgba(45,212,191,0.60)" : "1px solid rgba(255,255,255,0.08)",
-                  }}
-                >
-                  <p className="text-sm font-bold text-white mb-1">{weeks} WEEKS</p>
-                  <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-                    {weeks === 8 ? "Crash course for an upcoming race." : weeks === 12 ? "For runners with a race soon or a strong base." : weeks === 16 ? "Standard plan length. Recommended for most runners." : "Extra base building time. Ideal for beginners."}
-                  </p>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <p className="text-sm font-medium text-white mb-2">Training days</p>
-            <div className="grid grid-cols-7 gap-1.5 sm:gap-2">
-              {DAYS.map((day) => {
-                const selected = trainingDays.includes(day);
-                return (
-                  <button
-                    key={day}
-                    type="button"
-                    onClick={() => toggleTrainingDay(day)}
-                    className="px-4 py-2.5 rounded-xl text-sm font-semibold cursor-pointer transition-all"
-                    style={{
-                      background: selected ? "rgba(45,212,191,0.12)" : "rgba(255,255,255,0.05)",
-                      border: selected ? "2px solid rgba(45,212,191,0.60)" : "1px solid rgba(255,255,255,0.08)",
-                      color: selected ? "var(--accent)" : "rgba(255,255,255,0.45)",
-                    }}
-                  >
-                    {DAY_LABEL[day]}
-                  </button>
-                );
-              })}
-            </div>
-            {trainingDays.length < 2 && <p className="text-xs mt-1 text-orange-300">Select at least 2 training days.</p>}
-            {showTooManyDaysWarning && (
-              <p className="text-xs mt-1 text-orange-300">
-                Running every day increases injury risk. Maximum 6 days recommended.
-              </p>
-            )}
-          </div>
-
-          {trainingDays.length >= 2 && (
-            <div>
-              <p className="text-sm text-white mb-1">Long run day</p>
-              <p className="text-xs mb-3" style={{ color: "var(--text-muted)" }}>
-                Which day do you want to do your long run?
-              </p>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                {sortedTrainingDays.map((day) => (
-                  <button
-                    key={day}
-                    type="button"
-                    onClick={() => setSelectedLongRunDay(day)}
-                    className="px-4 py-2.5 rounded-xl text-sm font-semibold cursor-pointer transition-all"
-                    style={{
-                      background: effectiveLongRunDay === day ? "rgba(45,212,191,0.12)" : "rgba(255,255,255,0.05)",
-                      border: effectiveLongRunDay === day ? "2px solid rgba(45,212,191,0.60)" : "1px solid rgba(255,255,255,0.08)",
-                      color: effectiveLongRunDay === day ? "var(--accent)" : "rgba(255,255,255,0.45)",
-                    }}
-                  >
-                    {DAY_LABEL[day]}
-                  </button>
-                ))}
+      <div className="space-y-4">
+        {/* ── Tab 1: Goal & Level ────────────────────────────────────── */}
+        {activeTab === "goal" && (
+          <div className="animate-in fade-in slide-in-from-bottom-2 duration-500">
+            {experienceLevel === "NOVICE" && (
+              <div className="p-4 rounded-2xl bg-blue-500/10 border border-blue-500/20 mb-6 flex items-start gap-3">
+                <span className="text-xl">ℹ️</span>
+                <p className="text-sm text-blue-200/90 leading-relaxed">
+                  Novice plans focus purely on time-on-feet and effort (RPE). Advanced pace metrics are disabled to keep your foundation-building simple and stress-free.
+                </p>
               </div>
-              {scheduleWarnings.length > 0 && (
-                <div className="mt-3 space-y-1">
-                  {scheduleWarnings.map((warning) => (
-                    <p key={warning} className="flex items-center gap-2 text-xs mt-2" style={{ color: "#f5b454" }}>
-                      {warning}
+            )}
+
+            <Panel title="Profile" badge="Profile">
+              <Field label="First name">
+                <input
+                  type="text"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  className={`w-full px-4 py-2.5 rounded-xl text-sm outline-none transition-colors ${FORM_CONTROL_TW}`}
+                  placeholder="First name"
+                />
+              </Field>
+              <Field label="Nickname" hint="We'll use this throughout the app.">
+                <input
+                  type="text"
+                  value={nickname}
+                  onChange={(e) => setNickname(e.target.value)}
+                  className={`w-full px-4 py-2.5 rounded-xl text-sm outline-none transition-colors ${FORM_CONTROL_TW}`}
+                  placeholder="Nickname (optional)"
+                />
+              </Field>
+            </Panel>
+
+            <Panel title="Configuration" badge="Goal">
+              <Field label="Plan start date" hint="First day your program counts.">
+                <div className="flex flex-col gap-2">
+                  <input
+                    type="date"
+                    value={planStartDateIsoYmd}
+                    min={minPlanStartIsoYmd}
+                    onChange={(e) => setPlanStartDateIsoYmd(e.target.value)}
+                    className={`w-full px-4 py-2.5 rounded-xl text-sm bg-white/[0.06] border border-white/[0.10] text-white outline-none focus:border-teal-400 transition-colors ${FORM_CONTROL_TW}`}
+                  />
+                  {planStartDateIsoYmd && (
+                    <p className="text-xs mt-1.5" style={{ color: "var(--text-dim)" }}>
+                      {planStartIsoYmdToAusDisplay(planStartDateIsoYmd)}
                     </p>
-                  ))}
+                  )}
+                </div>
+              </Field>
+
+              <div className="pt-4 space-y-6">
+                <div>
+                  <p className="text-sm font-semibold text-white/90 mb-3">Experience level</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-5 gap-2">
+                    {([
+                      ["NOVICE", "Just starting out. Focus on consistency."],
+                      ["BEGINNER", "0–12 months. Conservative progression."],
+                      ["INTERMEDIATE", "1–3 years. Balanced mix."],
+                      ["ADVANCED", "3+ years. High intensity focus."],
+                      ["ELITE", "Competitive. High volume/intensity."],
+                    ] as const).map(([lvl, copy]) => (
+                      <button
+                        key={lvl}
+                        type="button"
+                        onClick={() => setExperienceLevel(lvl)}
+                        className="p-3.5 rounded-xl border cursor-pointer transition-all text-left hover:bg-white/[0.07]"
+                        style={{
+                          background: experienceLevel === lvl ? "rgba(45,212,191,0.08)" : "var(--card-bg)",
+                          border: experienceLevel === lvl ? "2px solid rgba(45,212,191,0.60)" : "1px solid rgba(255,255,255,0.08)",
+                        }}
+                      >
+                        <p className="text-xs font-black text-white mb-1">{lvl}</p>
+                        <p className="text-[10px] leading-tight" style={{ color: "var(--text-muted)" }}>{copy}</p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <p className="text-sm font-semibold text-white/90 mb-3">Goal race</p>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {([
+                      ["5K", "5.0 km"],
+                      ["10K", "10.0 km"],
+                      ["HALF", "21.1 km"],
+                      ["FULL", "42.2 km"],
+                    ] as const).map(([goal, dist]) => (
+                      <button
+                        key={goal}
+                        type="button"
+                        onClick={() => setGoalRace(goal)}
+                        className="p-3.5 rounded-xl border cursor-pointer transition-all text-left hover:bg-white/[0.07]"
+                        style={{
+                          background: goalRace === goal ? "rgba(45,212,191,0.08)" : "var(--card-bg)",
+                          border: goalRace === goal ? "2px solid rgba(45,212,191,0.60)" : "1px solid rgba(255,255,255,0.08)",
+                        }}
+                      >
+                        <p className="text-xs font-black text-white mb-1">
+                          {goal === "HALF" ? "HALF MAR" : goal === "FULL" ? "MARATHON" : goal}
+                        </p>
+                        <p className="text-[10px]" style={{ color: "var(--text-muted)" }}>{dist}</p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <p className="text-sm font-semibold text-white/90 mb-3">Plan length</p>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {([8, 12, 16, 20] as const).map((weeks) => (
+                      <button
+                        key={weeks}
+                        type="button"
+                        onClick={() => setPlanLengthWeeks(weeks)}
+                        className="p-3.5 rounded-xl border cursor-pointer transition-all text-left hover:bg-white/[0.07]"
+                        style={{
+                          background: planLengthWeeks === weeks ? "rgba(45,212,191,0.08)" : "var(--card-bg)",
+                          border: planLengthWeeks === weeks ? "2px solid rgba(45,212,191,0.60)" : "1px solid rgba(255,255,255,0.08)",
+                        }}
+                      >
+                        <p className="text-xs font-black text-white mb-1">{weeks} WEEKS</p>
+                        <p className="text-[10px] leading-tight" style={{ color: "var(--text-muted)" }}>
+                          {weeks === 8 ? "Crash course." : weeks === 12 ? "Strong base." : weeks === 16 ? "Standard." : "Extra base."}
+                        </p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </Panel>
+          </div>
+        )}
+
+        {/* ── Tab 2: Schedule ────────────────────────────────────────── */}
+        {activeTab === "schedule" && (
+          <div className="animate-in fade-in slide-in-from-bottom-2 duration-500">
+            <Panel title="Training Schedule" badge="Weekly">
+              <div>
+                <p className="text-sm font-semibold text-white/90 mb-4">Select training days</p>
+                <div className="grid grid-cols-7 gap-1.5 sm:gap-2">
+                  {DAYS.map((day) => {
+                    const selected = trainingDays.includes(day);
+                    return (
+                      <button
+                        key={day}
+                        type="button"
+                        onClick={() => toggleTrainingDay(day)}
+                        className="px-2 py-3 rounded-xl text-[11px] font-black cursor-pointer transition-all"
+                        style={{
+                          background: selected ? "rgba(45,212,191,0.12)" : "rgba(255,255,255,0.05)",
+                          border: selected ? "2px solid rgba(45,212,191,0.60)" : "1px solid rgba(255,255,255,0.08)",
+                          color: selected ? "var(--accent)" : "rgba(255,255,255,0.45)",
+                        }}
+                      >
+                        {DAY_LABEL[day].toUpperCase()}
+                      </button>
+                    );
+                  })}
+                </div>
+                {trainingDays.length < 2 && <p className="text-xs mt-2 text-orange-300">Select at least 2 training days.</p>}
+                {showTooManyDaysWarning && (
+                  <p className="text-xs mt-2 text-orange-300">
+                    Running every day increases injury risk. Maximum 6 days recommended.
+                  </p>
+                )}
+              </div>
+
+              {trainingDays.length >= 2 && (
+                <div className="pt-4 border-t border-white/[0.06]">
+                  <p className="text-sm font-semibold text-white/90 mb-1">Long run day</p>
+                  <p className="text-xs mb-4" style={{ color: "var(--text-muted)" }}>
+                    Which day do you want to do your sustained weekly effort?
+                  </p>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {sortedTrainingDays.map((day) => (
+                      <button
+                        key={day}
+                        type="button"
+                        onClick={() => setSelectedLongRunDay(day)}
+                        className="px-4 py-2.5 rounded-xl text-xs font-black cursor-pointer transition-all"
+                        style={{
+                          background: effectiveLongRunDay === day ? "rgba(45,212,191,0.12)" : "rgba(255,255,255,0.05)",
+                          border: effectiveLongRunDay === day ? "2px solid rgba(45,212,191,0.60)" : "1px solid rgba(255,255,255,0.08)",
+                          color: effectiveLongRunDay === day ? "var(--accent)" : "rgba(255,255,255,0.45)",
+                        }}
+                      >
+                        {DAY_LABEL[day].toUpperCase()}
+                      </button>
+                    ))}
+                  </div>
+                  {scheduleWarnings.length > 0 && (
+                    <div className="mt-4 space-y-1">
+                      {scheduleWarnings.map((warning) => (
+                        <p key={warning} className="flex items-center gap-2 text-xs text-orange-300/80">
+                          <span>⚠️</span> {warning}
+                        </p>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
-            </div>
-          )}
+            </Panel>
+          </div>
+        )}
+
+        {/* ── Tab 3: Fitness & Pacing ─────────────────────────────────── */}
+        {activeTab === "fitness" && experienceLevel !== "NOVICE" && (
+          <div className="animate-in fade-in slide-in-from-bottom-2 duration-500">
+            <Panel title="Advanced Fitness" badge="VDOT">
+              <div className="mb-4">
+                <p className="text-xs font-medium text-white/40 uppercase tracking-widest mb-1">Current Metric</p>
+                <p className="text-2xl font-black font-mono text-white tracking-tighter">VDOT {vdot}</p>
+                {settings.lastEstimatedVdot != null && settings.lastEstimatedVdot === settings.currentVdot && (
+                  <p className="text-xs mt-1.5 text-teal-400 font-medium">
+                    ✨ Automatically updated from recent activities.
+                  </p>
+                )}
+              </div>
+              
+              <VdotCalculator
+                maxHR={maxHR}
+                onMaxHRChange={setMaxHR}
+                personal={vdotPersonal}
+                isNovice={false}
+                onPersonalChange={setVdotPersonal}
+                seedRaceDistance={vdotRaceDistance}
+                seedRaceMinutes={vdotRaceMinutes}
+                seedRaceSeconds={vdotRaceSeconds ?? 0}
+                onApply={(nextVdot) => {
+                  setVdot(nextVdot);
+                  setVdotUpdatedMsg(`VDOT updated to ${nextVdot}`);
+                }}
+                onFitnessSave={applyVdotCalculatorPatch}
+                onLevelSuggested={(lvl) => setSuggestedLevel(lvl)}
+              />
+              {vdotUpdatedMsg && (
+                <p className="text-xs mt-3 text-teal-300 font-medium">{vdotUpdatedMsg}</p>
+              )}
+              {suggestedLevel && suggestedLevel !== experienceLevel && (
+                <div
+                  className="mt-4 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
+                  style={{ background: "rgba(45,212,191,0.05)", border: "1px solid rgba(45,212,191,0.15)" }}
+                >
+                  <p className="text-xs text-teal-100/80 leading-relaxed">
+                    Based on your recent performance, we suggest moving to the <strong className="text-white">{suggestedLevel}</strong> tier.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setExperienceLevel(suggestedLevel)}
+                    className="whitespace-nowrap rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest"
+                    style={{ background: "rgba(45,212,191,0.15)", color: "var(--accent)", border: "1px solid rgba(45,212,191,0.30)" }}
+                  >
+                    Apply Level
+                  </button>
+                </div>
+              )}
+            </Panel>
+
+            <Panel title="Pace Calibration" badge="Zones">
+              <p className="text-xs leading-relaxed text-white/40 mb-6">
+                Fine-tune your targets. Moving the sliders adjusts your planned paces relative to your VDOT baseline. These offsets persist even when your VDOT changes.
+              </p>
+              <div className="space-y-2">
+                <div className="py-2">
+                  <PaceZoneOffsetSlider zone="easy" label="Easy" vdot={vdot} runningExperience={runningExperienceForPaces} offsetSec={easyOff} onOffsetChange={setEasyOff} />
+                </div>
+                <div className="py-2">
+                  <PaceZoneOffsetSlider zone="tempo" label="Tempo" vdot={vdot} runningExperience={runningExperienceForPaces} offsetSec={tempoOff} onOffsetChange={setTempoOff} />
+                </div>
+                <div className="py-2">
+                  <PaceZoneOffsetSlider zone="interval" label="Interval" vdot={vdot} runningExperience={runningExperienceForPaces} offsetSec={intervalOff} onOffsetChange={setIntervalOff} />
+                </div>
+                <div className="py-2">
+                  <PaceZoneOffsetSlider zone="long" label="Long Run" vdot={vdot} runningExperience={runningExperienceForPaces} offsetSec={longOff} onOffsetChange={setLongOff} />
+                </div>
+              </div>
+            </Panel>
+          </div>
+        )}
+
+        {/* ── Save Bar ────────────────────────────────────────────────── */}
+        <div className="sticky bottom-4 z-10 mt-8 p-4 rounded-2xl border border-white/[0.12] bg-zinc-900/90 backdrop-blur-xl shadow-2xl flex flex-col sm:flex-row items-center justify-between gap-4 animate-in fade-in slide-in-from-bottom-4 duration-700">
+          <div className="text-center sm:text-left">
+            <p className="text-xs font-black text-white/90 uppercase tracking-widest mb-1">Finalise Changes</p>
+            <p className="text-[10px] text-white/40">Program will regenerate upon saving.</p>
+          </div>
+          <div className="w-full sm:w-auto flex flex-col items-end">
+            <SaveButton status={saveStatus} onClick={() => { void handleMainSave(); }} />
+            {reclassifiedMsg && <p className="text-[10px] text-teal-400 mt-2 font-bold uppercase tracking-tighter">{reclassifiedMsg}</p>}
+            {saveError && <p className="text-[10px] text-red-400 mt-2 font-bold uppercase tracking-tighter">{saveError}</p>}
+          </div>
         </div>
-      </Panel>
-
-      <Panel number="2." title="Your fitness">
-        <p className="text-xs mb-2" style={{ color: "var(--text-muted)" }}>
-          Current VDOT: <span className="font-semibold text-white">{vdot}</span>
-        </p>
-        {settings.lastEstimatedVdot != null && settings.lastEstimatedVdot === settings.currentVdot && (
-          <p className="text-xs mb-2" style={{ color: "#5eead4" }}>
-            Your VDOT was automatically updated to {settings.currentVdot} based on your recent runs.
-          </p>
-        )}
-        <VdotCalculator
-          maxHR={maxHR}
-          onMaxHRChange={setMaxHR}
-          personal={vdotPersonal}
-          isNovice={experienceLevel === "NOVICE"}
-          onPersonalChange={setVdotPersonal}
-          seedRaceDistance={vdotRaceDistance}
-          seedRaceMinutes={vdotRaceMinutes}
-          seedRaceSeconds={vdotRaceSeconds ?? 0}
-          onApply={(nextVdot) => {
-            setVdot(nextVdot);
-            setVdotUpdatedMsg(`VDOT updated to ${nextVdot}`);
-          }}
-          onFitnessSave={applyVdotCalculatorPatch}
-          onLevelSuggested={(lvl) => setSuggestedLevel(lvl)}
-        />
-        {vdotUpdatedMsg && (
-          <p className="text-xs mt-2" style={{ color: "#5eead4" }}>{vdotUpdatedMsg}</p>
-        )}
-        {suggestedLevel && suggestedLevel !== experienceLevel && (
-          <div
-            className="mt-2 rounded-md p-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2"
-            style={{ background: "rgba(45,212,191,0.08)", border: "1px solid rgba(45,212,191,0.22)" }}
-          >
-            <p className="text-xs" style={{ color: "#99f6e4" }}>
-              Based on your VDOT, we suggest: {suggestedLevel === "BEGINNER" ? "Beginner" : suggestedLevel === "INTERMEDIATE" ? "Intermediate" : "Advanced"}
-            </p>
-            <button
-              type="button"
-              onClick={() => setExperienceLevel(suggestedLevel)}
-              className="min-h-11 rounded-md px-3 py-2 text-xs font-medium"
-              style={{ background: "rgba(45,212,191,0.18)", color: "#5eead4", border: "1px solid rgba(45,212,191,0.32)" }}
-            >
-              Apply suggestion
-            </button>
-          </div>
-        )}
-        {saveError && <p className="text-xs text-red-300 mt-2">{saveError}</p>}
-      </Panel>
-
-      <Panel number="3." title="Your pace zones">
-        <p className="text-xs mb-4" style={{ color: "var(--text-muted)" }}>
-          Adjust how your planned paces relate to your VDOT. Offsets stay fixed when VDOT changes so your feel preference carries over.
-        </p>
-        <div>
-          <div className="py-4 border-b border-white/[0.06] last:border-0">
-            <PaceZoneOffsetSlider zone="easy" label="Easy" vdot={vdot} runningExperience={runningExperienceForPaces} offsetSec={easyOff} onOffsetChange={setEasyOff} />
-          </div>
-          <div className="py-4 border-b border-white/[0.06] last:border-0">
-            <PaceZoneOffsetSlider zone="tempo" label="Tempo" vdot={vdot} runningExperience={runningExperienceForPaces} offsetSec={tempoOff} onOffsetChange={setTempoOff} />
-          </div>
-          <div className="py-4 border-b border-white/[0.06] last:border-0">
-            <PaceZoneOffsetSlider zone="interval" label="Interval" vdot={vdot} runningExperience={runningExperienceForPaces} offsetSec={intervalOff} onOffsetChange={setIntervalOff} />
-          </div>
-          <div className="py-4 border-b border-white/[0.06] last:border-0">
-            <PaceZoneOffsetSlider zone="long" label="Long run" vdot={vdot} runningExperience={runningExperienceForPaces} offsetSec={longOff} onOffsetChange={setLongOff} />
-          </div>
-        </div>
-      </Panel>
-
-      <Panel number="4." title="Save">
-        <p className="text-xs mb-3" style={{ color: "var(--text-muted)" }}>
-          Saves your plan, fitness, and pace zones. Regenerates your program and refreshes run ratings.
-        </p>
-        <SaveButton status={saveStatus} onClick={() => { void handleMainSave(); }} />
-        {reclassifiedMsg && <p className="text-xs text-emerald-400 mt-2 animate-fadeInUp">{reclassifiedMsg}</p>}
-        {saveError && <p className="text-xs text-red-300 mt-2">{saveError}</p>}
-      </Panel>
+      </div>
     </div>
   );
 }
