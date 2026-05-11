@@ -302,37 +302,27 @@ export default async function Dashboard({
       .reduce((s, a) => s + a.distanceKm, 0);
 
     const weekStartStr = toAESTDateString(wStart);
-    const isPlanWeek = planStartStr !== null && weekStartStr >= planStartStr;
+    const planStartStr = settings.planStartDate ? toAESTDateString(new Date(settings.planStartDate)) : null;
+
+    // A week is a plan week if it ends after the plan starts
+    const isPlanWeek = planStart !== null && wEnd > planStart;
+
+    // Find the plan week that corresponds to this chart bar (Monday-anchored)
+    const planWeek = planToRender.find((pw) => {
+      // Find the Monday of the week that contains the first session of this plan week
+      if (pw.sessions.length === 0) return false;
+      const firstSess = getSessionDate(pw.week, pw.sessions[0].day, planStart);
+      const pwMonday = getStartOfTrainingWeek(firstSess);
+      
+      const pwMondayStr = toAESTDateString(pwMonday);
+      return pwMondayStr === weekStartStr;
+    });
 
     // Calculate targetKm
     let targetKm: number | null = null;
-    if (isPlanWeek) {
-      console.log(`[Chart] Week ${wStart.toISOString()} isPlanWeek=true`);
-      console.log(`[Chart] planToRender weeks:`, planToRender.map((pw) => ({
-        week: pw.week,
-        sessions: pw.sessions.map((s) => ({
-          day: s.day,
-          targetDistanceKm: s.targetDistanceKm,
-          absDate: getSessionDate(pw.week, s.day, planStart)?.toISOString(),
-        })),
-      })));
-      console.log(`[Chart] wStart=${wStart.toISOString()} wEnd=${wEnd.toISOString()}`);
-
-      const targetSessionsInWindow = planToRender.flatMap((pw) =>
-        pw.sessions.map((s) => ({
-          ...s,
-          absDate: getSessionDate(pw.week, s.day, planStart),
-        })),
-      ).filter((s) => s.absDate >= wStart && s.absDate < wEnd);
-
-      console.log(`[Chart] sessions after filter:`, targetSessionsInWindow.length);
-
-      // Deduplicate by ID
-      const uniqueSessions = Array.from(new Map(targetSessionsInWindow.map((s) => [s.id, s])).values());
-      targetKm = Math.round(
-        uniqueSessions.reduce((sum, s) => sum + (s.targetDistanceKm ?? 0), 0) * 10,
-      ) / 10;
-    } else {
+    if (isPlanWeek && planWeek) {
+      targetKm = Math.round(getWeeklyTargetKm(planWeek) * 10) / 10;
+    } else if (!isPlanWeek) {
       // Pre-plan fallback: 10% increase over previous week's actual
       const prevWStart = new Date(wStart.getTime() - 7 * MS_PER_DAY);
       const prevWEnd = wStart;
@@ -347,6 +337,8 @@ export default async function Dashboard({
         ? Math.round(prevActual * 1.1 * 10) / 10
         : null;
     }
+
+    console.log(`[chart] week=${weekStartStr} isPlanWeek=${isPlanWeek} planWeekFound=${!!planWeek} targetKm=${targetKm}`);
 
     return {
       label: `${formatAEST(wStart, "d MMM")}–${formatAEST(new Date(wEnd.getTime() - MS_PER_DAY), "d MMM")}`,
