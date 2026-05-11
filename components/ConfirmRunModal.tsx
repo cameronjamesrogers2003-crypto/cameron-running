@@ -33,11 +33,11 @@ export default function ConfirmRunModal({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           confirmedRunType: selectedType,
-          linkedSessionId: isPlanned ? "linked" : null, // ID not available on Session interface, using placeholder as linkedSessionId
+          linkedSessionId: isPlanned && plannedSession ? plannedSession.id : null,
         }),
       });
       if (response.ok) {
-        onConfirm(selectedType, isPlanned ? "linked" : undefined);
+        onConfirm(selectedType, isPlanned && plannedSession ? plannedSession.id : undefined);
       }
     } catch (err) {
       console.error("Failed to confirm run:", err);

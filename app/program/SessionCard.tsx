@@ -31,6 +31,7 @@ export interface SessionCardProps {
   zoneBadge: { label: string; color: string } | null;
   actualKm?: number;
   actualPaceStr?: string;
+  isCompleted: boolean;
 
   runTypeMismatch: boolean;
   mismatchNote?: string;
@@ -58,6 +59,7 @@ export default function SessionCard(props: SessionCardProps) {
     zoneBadge,
     actualKm,
     actualPaceStr,
+    isCompleted,
     runTypeMismatch,
     sessionLabelVariant,
   } = props;
@@ -98,12 +100,21 @@ export default function SessionCard(props: SessionCardProps) {
         <div className="p-3.5">
           {/* Day · badges row */}
           <div className="flex items-start justify-between gap-1 mb-2">
-            <span
-              className="text-xs font-semibold uppercase tracking-wider"
-              style={{ color: "var(--text-muted)" }}
-            >
-              {dayLabel}
-            </span>
+            <div className="flex items-center gap-1.5">
+              <span
+                className="text-xs font-semibold uppercase tracking-wider"
+                style={{ color: "var(--text-muted)" }}
+              >
+                {dayLabel}
+              </span>
+              {isCompleted && (
+                <span className="flex items-center justify-center w-3.5 h-3.5 rounded-full bg-emerald-500/20 text-emerald-500">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" className="w-2 h-2">
+                    <path d="M20 6L9 17l-5-5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </span>
+              )}
+            </div>
             <div className="flex items-center gap-1 flex-wrap justify-end shrink-0">
               {ratingNum != null && ratingBadgeStyle && (
                 <span

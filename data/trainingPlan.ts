@@ -35,6 +35,7 @@ export interface PlanConfig {
 }
 
 export interface Session {
+  id: string
   day: Day
   type: RunType
   targetDistanceKm: number
@@ -71,49 +72,49 @@ export const trainingPlan: TrainingWeek[] = [ // legacy fallback
   {
     week: 1, phase: 'Base', isCutback: false,
     sessions: [
-      { day: 'wed', type: 'interval', targetDistanceKm: 4,  targetPaceMinPerKm: PACE_ZONES.interval, description: '4×400m @ interval pace' },
-      { day: 'sat', type: 'long',     targetDistanceKm: 10, targetPaceMinPerKm: PACE_ZONES.long,     description: '10 km long' },
-      { day: 'sun', type: 'easy',     targetDistanceKm: 6,  targetPaceMinPerKm: PACE_ZONES.easy,     description: '6 km easy' },
+      { id: '1-wed', day: 'wed', type: 'interval', targetDistanceKm: 4,  targetPaceMinPerKm: PACE_ZONES.interval, description: '4×400m @ interval pace' },
+      { id: '1-sat', day: 'sat', type: 'long',     targetDistanceKm: 10, targetPaceMinPerKm: PACE_ZONES.long,     description: '10 km long' },
+      { id: '1-sun', day: 'sun', type: 'easy',     targetDistanceKm: 6,  targetPaceMinPerKm: PACE_ZONES.easy,     description: '6 km easy' },
     ]
   },
   {
     week: 2, phase: 'Base', isCutback: false,
     sessions: [
-      { day: 'wed', type: 'easy',     targetDistanceKm: 5,  targetPaceMinPerKm: PACE_ZONES.easy,     description: '5 km easy' },
-      { day: 'sat', type: 'long',     targetDistanceKm: 12, targetPaceMinPerKm: PACE_ZONES.long,     description: '12 km long' },
-      { day: 'sun', type: 'easy',     targetDistanceKm: 6,  targetPaceMinPerKm: PACE_ZONES.easy,     description: '6 km easy' },
+      { id: '2-wed', day: 'wed', type: 'easy',     targetDistanceKm: 5,  targetPaceMinPerKm: PACE_ZONES.easy,     description: '5 km easy' },
+      { id: '2-sat', day: 'sat', type: 'long',     targetDistanceKm: 12, targetPaceMinPerKm: PACE_ZONES.long,     description: '12 km long' },
+      { id: '2-sun', day: 'sun', type: 'easy',     targetDistanceKm: 6,  targetPaceMinPerKm: PACE_ZONES.easy,     description: '6 km easy' },
     ]
   },
   {
     week: 3, phase: 'Base', isCutback: false,
     sessions: [
-      { day: 'wed', type: 'interval', targetDistanceKm: 5,  targetPaceMinPerKm: PACE_ZONES.interval, description: '5×400m @ interval pace' },
-      { day: 'sat', type: 'long',     targetDistanceKm: 13, targetPaceMinPerKm: PACE_ZONES.long,     description: '13 km long' },
-      { day: 'sun', type: 'tempo',    targetDistanceKm: 6,  targetPaceMinPerKm: PACE_ZONES.tempo,    description: '20 min tempo' },
+      { id: '3-wed', day: 'wed', type: 'interval', targetDistanceKm: 5,  targetPaceMinPerKm: PACE_ZONES.interval, description: '5×400m @ interval pace' },
+      { id: '3-sat', day: 'sat', type: 'long',     targetDistanceKm: 13, targetPaceMinPerKm: PACE_ZONES.long,     description: '13 km long' },
+      { id: '3-sun', day: 'sun', type: 'tempo',    targetDistanceKm: 6,  targetPaceMinPerKm: PACE_ZONES.tempo,    description: '20 min tempo' },
     ]
   },
   {
     week: 4, phase: 'Base', isCutback: true,
     sessions: [
-      { day: 'wed', type: 'easy',     targetDistanceKm: 5,  targetPaceMinPerKm: PACE_ZONES.easy,     description: '5 km easy' },
-      { day: 'sat', type: 'long',     targetDistanceKm: 10, targetPaceMinPerKm: PACE_ZONES.long,     description: '10 km long' },
-      { day: 'sun', type: 'easy',     targetDistanceKm: 6,  targetPaceMinPerKm: PACE_ZONES.easy,     description: '6 km easy' },
+      { id: '4-wed', day: 'wed', type: 'easy',     targetDistanceKm: 5,  targetPaceMinPerKm: PACE_ZONES.easy,     description: '5 km easy' },
+      { id: '4-sat', day: 'sat', type: 'long',     targetDistanceKm: 10, targetPaceMinPerKm: PACE_ZONES.long,     description: '10 km long' },
+      { id: '4-sun', day: 'sun', type: 'easy',     targetDistanceKm: 6,  targetPaceMinPerKm: PACE_ZONES.easy,     description: '6 km easy' },
     ]
   },
   {
     week: 5, phase: 'Base', isCutback: false,
     sessions: [
-      { day: 'wed', type: 'interval', targetDistanceKm: 5,  targetPaceMinPerKm: PACE_ZONES.interval, description: '5×400m @ interval pace' },
-      { day: 'sat', type: 'long',     targetDistanceKm: 14, targetPaceMinPerKm: PACE_ZONES.long,     description: '14 km long' },
-      { day: 'sun', type: 'tempo',    targetDistanceKm: 6,  targetPaceMinPerKm: PACE_ZONES.tempo,    description: '22 min tempo' },
+      { id: '5-wed', day: 'wed', type: 'interval', targetDistanceKm: 5,  targetPaceMinPerKm: PACE_ZONES.interval, description: '5×400m @ interval pace' },
+      { id: '5-sat', day: 'sat', type: 'long',     targetDistanceKm: 14, targetPaceMinPerKm: PACE_ZONES.long,     description: '14 km long' },
+      { id: '5-sun', day: 'sun', type: 'tempo',    targetDistanceKm: 6,  targetPaceMinPerKm: PACE_ZONES.tempo,    description: '22 min tempo' },
     ]
   },
   {
     week: 6, phase: 'Base', isCutback: false,
     sessions: [
-      { day: 'wed', type: 'interval', targetDistanceKm: 6,  targetPaceMinPerKm: PACE_ZONES.interval, description: '4×800m @ interval pace' },
-      { day: 'sat', type: 'long',     targetDistanceKm: 16, targetPaceMinPerKm: PACE_ZONES.long,     description: '16 km long' },
-      { day: 'sun', type: 'tempo',    targetDistanceKm: 7,  targetPaceMinPerKm: PACE_ZONES.tempo,    description: '25 min tempo' },
+      { id: '6-wed', day: 'wed', type: 'interval', targetDistanceKm: 6,  targetPaceMinPerKm: PACE_ZONES.interval, description: '4×800m @ interval pace' },
+      { id: '6-sat', day: 'sat', type: 'long',     targetDistanceKm: 16, targetPaceMinPerKm: PACE_ZONES.long,     description: '16 km long' },
+      { id: '6-sun', day: 'sun', type: 'tempo',    targetDistanceKm: 7,  targetPaceMinPerKm: PACE_ZONES.tempo,    description: '25 min tempo' },
     ]
   },
 
@@ -121,65 +122,65 @@ export const trainingPlan: TrainingWeek[] = [ // legacy fallback
   {
     week: 7, phase: 'Half Marathon Build', isCutback: false,
     sessions: [
-      { day: 'wed', type: 'interval', targetDistanceKm: 6,  targetPaceMinPerKm: PACE_ZONES.interval, description: '4×800m @ interval pace' },
-      { day: 'sat', type: 'long',     targetDistanceKm: 17, targetPaceMinPerKm: PACE_ZONES.long,     description: '17 km long' },
-      { day: 'sun', type: 'tempo',    targetDistanceKm: 7,  targetPaceMinPerKm: PACE_ZONES.tempo,    description: '28 min tempo' },
+      { id: '7-wed', day: 'wed', type: 'interval', targetDistanceKm: 6,  targetPaceMinPerKm: PACE_ZONES.interval, description: '4×800m @ interval pace' },
+      { id: '7-sat', day: 'sat', type: 'long',     targetDistanceKm: 17, targetPaceMinPerKm: PACE_ZONES.long,     description: '17 km long' },
+      { id: '7-sun', day: 'sun', type: 'tempo',    targetDistanceKm: 7,  targetPaceMinPerKm: PACE_ZONES.tempo,    description: '28 min tempo' },
     ]
   },
   {
     week: 8, phase: 'Half Marathon Build', isCutback: true,
     sessions: [
-      { day: 'wed', type: 'interval', targetDistanceKm: 5,  targetPaceMinPerKm: PACE_ZONES.interval, description: '5×400m @ interval pace' },
-      { day: 'sat', type: 'long',     targetDistanceKm: 13, targetPaceMinPerKm: PACE_ZONES.long,     description: '13 km long' },
-      { day: 'sun', type: 'easy',     targetDistanceKm: 6,  targetPaceMinPerKm: PACE_ZONES.easy,     description: '6 km easy' },
+      { id: '8-wed', day: 'wed', type: 'interval', targetDistanceKm: 5,  targetPaceMinPerKm: PACE_ZONES.interval, description: '5×400m @ interval pace' },
+      { id: '8-sat', day: 'sat', type: 'long',     targetDistanceKm: 13, targetPaceMinPerKm: PACE_ZONES.long,     description: '13 km long' },
+      { id: '8-sun', day: 'sun', type: 'easy',     targetDistanceKm: 6,  targetPaceMinPerKm: PACE_ZONES.easy,     description: '6 km easy' },
     ]
   },
   {
     week: 9, phase: 'Half Marathon Build', isCutback: false,
     sessions: [
-      { day: 'wed', type: 'interval', targetDistanceKm: 6,  targetPaceMinPerKm: PACE_ZONES.interval, description: '4×800m @ interval pace' },
-      { day: 'sat', type: 'long',     targetDistanceKm: 18, targetPaceMinPerKm: PACE_ZONES.long,     description: '18 km long' },
-      { day: 'sun', type: 'tempo',    targetDistanceKm: 7,  targetPaceMinPerKm: PACE_ZONES.tempo,    description: '30 min tempo' },
+      { id: '9-wed', day: 'wed', type: 'interval', targetDistanceKm: 6,  targetPaceMinPerKm: PACE_ZONES.interval, description: '4×800m @ interval pace' },
+      { id: '9-sat', day: 'sat', type: 'long',     targetDistanceKm: 18, targetPaceMinPerKm: PACE_ZONES.long,     description: '18 km long' },
+      { id: '9-sun', day: 'sun', type: 'tempo',    targetDistanceKm: 7,  targetPaceMinPerKm: PACE_ZONES.tempo,    description: '30 min tempo' },
     ]
   },
   {
     week: 10, phase: 'Half Marathon Build', isCutback: false,
     sessions: [
-      { day: 'wed', type: 'interval', targetDistanceKm: 6,  targetPaceMinPerKm: PACE_ZONES.interval, description: '6×400m @ interval pace' },
-      { day: 'sat', type: 'long',     targetDistanceKm: 19, targetPaceMinPerKm: PACE_ZONES.long,     description: '19 km long' },
-      { day: 'sun', type: 'tempo',    targetDistanceKm: 8,  targetPaceMinPerKm: PACE_ZONES.tempo,    description: '32 min tempo' },
+      { id: '10-wed', day: 'wed', type: 'interval', targetDistanceKm: 6,  targetPaceMinPerKm: PACE_ZONES.interval, description: '6×400m @ interval pace' },
+      { id: '10-sat', day: 'sat', type: 'long',     targetDistanceKm: 19, targetPaceMinPerKm: PACE_ZONES.long,     description: '19 km long' },
+      { id: '10-sun', day: 'sun', type: 'tempo',    targetDistanceKm: 8,  targetPaceMinPerKm: PACE_ZONES.tempo,    description: '32 min tempo' },
     ]
   },
   {
     week: 11, phase: 'Half Marathon Build', isCutback: false,
     sessions: [
-      { day: 'wed', type: 'interval', targetDistanceKm: 7,  targetPaceMinPerKm: PACE_ZONES.interval, description: '3×1200m @ interval pace' },
-      { day: 'sat', type: 'long',     targetDistanceKm: 21, targetPaceMinPerKm: PACE_ZONES.long,     description: '21 km long' },
-      { day: 'sun', type: 'tempo',    targetDistanceKm: 8,  targetPaceMinPerKm: PACE_ZONES.tempo,    description: '35 min tempo' },
+      { id: '11-wed', day: 'wed', type: 'interval', targetDistanceKm: 7,  targetPaceMinPerKm: PACE_ZONES.interval, description: '3×1200m @ interval pace' },
+      { id: '11-sat', day: 'sat', type: 'long',     targetDistanceKm: 21, targetPaceMinPerKm: PACE_ZONES.long,     description: '21 km long' },
+      { id: '11-sun', day: 'sun', type: 'tempo',    targetDistanceKm: 8,  targetPaceMinPerKm: PACE_ZONES.tempo,    description: '35 min tempo' },
     ]
   },
   {
     week: 12, phase: 'Half Marathon Build', isCutback: true,
     sessions: [
-      { day: 'wed', type: 'interval', targetDistanceKm: 5,  targetPaceMinPerKm: PACE_ZONES.interval, description: '4×800m @ interval pace' },
-      { day: 'sat', type: 'long',     targetDistanceKm: 15, targetPaceMinPerKm: PACE_ZONES.long,     description: '15 km long' },
-      { day: 'sun', type: 'easy',     targetDistanceKm: 6,  targetPaceMinPerKm: PACE_ZONES.easy,     description: '6 km easy' },
+      { id: '12-wed', day: 'wed', type: 'interval', targetDistanceKm: 5,  targetPaceMinPerKm: PACE_ZONES.interval, description: '4×800m @ interval pace' },
+      { id: '12-sat', day: 'sat', type: 'long',     targetDistanceKm: 15, targetPaceMinPerKm: PACE_ZONES.long,     description: '15 km long' },
+      { id: '12-sun', day: 'sun', type: 'easy',     targetDistanceKm: 6,  targetPaceMinPerKm: PACE_ZONES.easy,     description: '6 km easy' },
     ]
   },
   {
     week: 13, phase: 'Half Marathon Build', isCutback: false,
     sessions: [
-      { day: 'wed', type: 'interval', targetDistanceKm: 7,  targetPaceMinPerKm: PACE_ZONES.interval, description: '3×1200m @ interval pace' },
-      { day: 'sat', type: 'long',     targetDistanceKm: 20, targetPaceMinPerKm: PACE_ZONES.long,     description: '20 km long' },
-      { day: 'sun', type: 'tempo',    targetDistanceKm: 9,  targetPaceMinPerKm: PACE_ZONES.tempo,    description: '38 min tempo' },
+      { id: '13-wed', day: 'wed', type: 'interval', targetDistanceKm: 7,  targetPaceMinPerKm: PACE_ZONES.interval, description: '3×1200m @ interval pace' },
+      { id: '13-sat', day: 'sat', type: 'long',     targetDistanceKm: 20, targetPaceMinPerKm: PACE_ZONES.long,     description: '20 km long' },
+      { id: '13-sun', day: 'sun', type: 'tempo',    targetDistanceKm: 9,  targetPaceMinPerKm: PACE_ZONES.tempo,    description: '38 min tempo' },
     ]
   },
   {
     week: 14, phase: 'Half Marathon Build', isCutback: false,
     sessions: [
-      { day: 'wed', type: 'interval', targetDistanceKm: 7,  targetPaceMinPerKm: PACE_ZONES.interval, description: '5×800m @ interval pace' },
-      { day: 'sat', type: 'long',     targetDistanceKm: 21, targetPaceMinPerKm: PACE_ZONES.long,     description: '21 km long' },
-      { day: 'sun', type: 'tempo',    targetDistanceKm: 9,  targetPaceMinPerKm: PACE_ZONES.tempo,    description: '40 min tempo' },
+      { id: '14-wed', day: 'wed', type: 'interval', targetDistanceKm: 7,  targetPaceMinPerKm: PACE_ZONES.interval, description: '5×800m @ interval pace' },
+      { id: '14-sat', day: 'sat', type: 'long',     targetDistanceKm: 21, targetPaceMinPerKm: PACE_ZONES.long,     description: '21 km long' },
+      { id: '14-sun', day: 'sun', type: 'tempo',    targetDistanceKm: 9,  targetPaceMinPerKm: PACE_ZONES.tempo,    description: '40 min tempo' },
     ]
   },
 
@@ -187,33 +188,33 @@ export const trainingPlan: TrainingWeek[] = [ // legacy fallback
   {
     week: 15, phase: 'Marathon Build', isCutback: false,
     sessions: [
-      { day: 'wed', type: 'interval', targetDistanceKm: 8,  targetPaceMinPerKm: PACE_ZONES.interval, description: '6×800m @ interval pace' },
-      { day: 'sat', type: 'long',     targetDistanceKm: 21, targetPaceMinPerKm: PACE_ZONES.long,     description: '21 km long' },
-      { day: 'sun', type: 'tempo',    targetDistanceKm: 9,  targetPaceMinPerKm: PACE_ZONES.tempo,    description: '40 min tempo' },
+      { id: '15-wed', day: 'wed', type: 'interval', targetDistanceKm: 8,  targetPaceMinPerKm: PACE_ZONES.interval, description: '6×800m @ interval pace' },
+      { id: '15-sat', day: 'sat', type: 'long',     targetDistanceKm: 21, targetPaceMinPerKm: PACE_ZONES.long,     description: '21 km long' },
+      { id: '15-sun', day: 'sun', type: 'tempo',    targetDistanceKm: 9,  targetPaceMinPerKm: PACE_ZONES.tempo,    description: '40 min tempo' },
     ]
   },
   {
     week: 16, phase: 'Marathon Build', isCutback: true,
     sessions: [
-      { day: 'wed', type: 'interval', targetDistanceKm: 5,  targetPaceMinPerKm: PACE_ZONES.interval, description: '5×400m @ interval pace' },
-      { day: 'sat', type: 'long',     targetDistanceKm: 16, targetPaceMinPerKm: PACE_ZONES.long,     description: '16 km long' },
-      { day: 'sun', type: 'easy',     targetDistanceKm: 6,  targetPaceMinPerKm: PACE_ZONES.easy,     description: '6 km easy' },
+      { id: '16-wed', day: 'wed', type: 'interval', targetDistanceKm: 5,  targetPaceMinPerKm: PACE_ZONES.interval, description: '5×400m @ interval pace' },
+      { id: '16-sat', day: 'sat', type: 'long',     targetDistanceKm: 16, targetPaceMinPerKm: PACE_ZONES.long,     description: '16 km long' },
+      { id: '16-sun', day: 'sun', type: 'easy',     targetDistanceKm: 6,  targetPaceMinPerKm: PACE_ZONES.easy,     description: '6 km easy' },
     ]
   },
   {
     week: 17, phase: 'Marathon Build', isCutback: false,
     sessions: [
-      { day: 'wed', type: 'interval', targetDistanceKm: 7,  targetPaceMinPerKm: PACE_ZONES.interval, description: '4×800m @ interval pace' },
-      { day: 'sat', type: 'long',     targetDistanceKm: 21, targetPaceMinPerKm: PACE_ZONES.long,     description: '21 km long' },
-      { day: 'sun', type: 'tempo',    targetDistanceKm: 9,  targetPaceMinPerKm: PACE_ZONES.tempo,    description: '45 min tempo' },
+      { id: '17-wed', day: 'wed', type: 'interval', targetDistanceKm: 7,  targetPaceMinPerKm: PACE_ZONES.interval, description: '4×800m @ interval pace' },
+      { id: '17-sat', day: 'sat', type: 'long',     targetDistanceKm: 21, targetPaceMinPerKm: PACE_ZONES.long,     description: '21 km long' },
+      { id: '17-sun', day: 'sun', type: 'tempo',    targetDistanceKm: 9,  targetPaceMinPerKm: PACE_ZONES.tempo,    description: '45 min tempo' },
     ]
   },
   {
     week: 18, phase: 'Marathon Build', isCutback: true,
     sessions: [
-      { day: 'wed', type: 'interval', targetDistanceKm: 4,  targetPaceMinPerKm: PACE_ZONES.interval, description: '3×400m @ interval pace' },
-      { day: 'sat', type: 'long',     targetDistanceKm: 12, targetPaceMinPerKm: PACE_ZONES.long,     description: '12 km long' },
-      { day: 'sun', type: 'easy',     targetDistanceKm: 10, targetPaceMinPerKm: PACE_ZONES.easy,     description: '10 km easy' },
+      { id: '18-wed', day: 'wed', type: 'interval', targetDistanceKm: 4,  targetPaceMinPerKm: PACE_ZONES.interval, description: '3×400m @ interval pace' },
+      { id: '18-sat', day: 'sat', type: 'long',     targetDistanceKm: 12, targetPaceMinPerKm: PACE_ZONES.long,     description: '12 km long' },
+      { id: '18-sun', day: 'sun', type: 'easy',     targetDistanceKm: 10, targetPaceMinPerKm: PACE_ZONES.easy,     description: '10 km easy' },
     ]
   },
 ]

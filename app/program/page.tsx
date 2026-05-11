@@ -546,7 +546,8 @@ export default async function ProgramPage({
                             );
                           });
                           const matchedAct =
-                            sameDayRuns.find((a) => a.classifiedRunType === session.type)
+                            activities.find((a) => a.linkedSessionId === session.id && a.isConfirmed)
+                            ?? sameDayRuns.find((a) => a.classifiedRunType === session.type)
                             ?? sameDayRuns[0];
                           const isCompleted = !!matchedAct;
                           const runTypeMismatch =
@@ -628,6 +629,7 @@ export default async function ProgramPage({
                             zoneBadge,
                             actualKm: showRating && matchedAct ? matchedAct.distanceKm : undefined,
                             actualPaceStr: showRating && matchedAct ? fmtPaceSec(matchedAct.avgPaceSecKm) : undefined,
+                            isCompleted,
                             runTypeMismatch,
                             mismatchNote: runTypeMismatch && matchedAct
                               ? `⚠️ Run type mismatch — planned: ${formatRunTypeWord(session.type)}, actual: ${formatRunTypeWord(matchedAct.classifiedRunType)}`

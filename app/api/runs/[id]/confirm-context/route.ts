@@ -34,7 +34,7 @@ export async function GET(
       ? resolveRunSession(
           {
             id: activity.id,
-            date: activity.date,
+            date: new Date(activity.date), // activity.date from Prisma is UTC
             distanceKm: activity.distanceKm,
             avgPaceSecKm: activity.avgPaceSecKm,
           },

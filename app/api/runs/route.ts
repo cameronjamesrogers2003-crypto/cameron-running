@@ -22,10 +22,12 @@ export async function GET(req: NextRequest) {
   const paceMax  = parseInt(sp.get("paceMax") ?? "", 10);
   const sortBy   = sp.get("sort")  ?? "date";
   const order    = sp.get("order") === "asc" ? "asc" : "desc";
+  const unconfirmedOnly = sp.get("unconfirmedOnly") === "true";
 
   const where: Prisma.ActivityWhereInput = {
     activityType: { in: ["running", "trail_running"] },
   };
+  if (unconfirmedOnly) where.isConfirmed = false;
   const dateFilter: Prisma.DateTimeFilter = {};
   const distanceFilter: Prisma.FloatFilter = {};
   const paceFilter: Prisma.IntFilter = {};
@@ -56,10 +58,13 @@ export async function GET(req: NextRequest) {
   const sortField: SortField = (validSortFields as readonly string[]).includes(sortBy) ? (sortBy as SortField) : "date";
   const orderBy = { [sortField]: order } as Record<SortField, "asc" | "desc">;
 
-  const [settingsRow, total, activities] = await Promise.all([
+  const [settingsRow, total, activities, totalUnconfirmed] = await Promise.all([
     prisma.userSettings.findUnique({ where: { id: 1 } }),
     prisma.activity.count({ where: whereWithTypes }),
     prisma.activity.findMany({ where: whereWithTypes, orderBy, skip, take: perPage }),
+    prisma.activity.count({
+      where: { isConfirmed: false, activityType: { in: ["running", "trail_running"] } },
+    }),
   ]);
 
   const settings = settingsRow ? dbSettingsToUserSettings(settingsRow) : DEFAULT_SETTINGS;
@@ -96,6 +101,7 @@ export async function GET(req: NextRequest) {
     page,
     perPage,
     total,
+    totalUnconfirmed,
     totalPages: Math.ceil(total / perPage),
   });
 }

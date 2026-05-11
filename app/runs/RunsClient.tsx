@@ -9,7 +9,9 @@ import { FORM_CONTROL_TW } from "@/lib/formControlClasses";
 import { RunTypePill } from "@/components/RunTypePill";
 import { runTypeColor } from "@/lib/runTypeStyles";
 import { EmptyState } from "@/components/EmptyState";
-import { Activity, ArrowUp, ArrowDown } from "lucide-react";
+import { Activity, ArrowUp, ArrowDown, Sparkles } from "lucide-react";
+import { useConfirmRunQueue } from "@/hooks/useConfirmRunQueue";
+import ConfirmRunModal from "@/components/ConfirmRunModal";
 
 interface Run {
   id: string;
@@ -38,10 +40,12 @@ interface RunsResponse {
   page: number;
   perPage: number;
   total: number;
+  totalUnconfirmed: number;
   totalPages: number;
 }
 
 const RUN_TYPES: RunType[] = ["easy", "tempo", "interval", "long"];
+const UNREVIEWED_THRESHOLD = 5;
 
 function ratingColor(score: number): string {
   if (score >= 8.5) return "#a78bfa";
@@ -170,6 +174,7 @@ function SortIcon({ active, dir }: { active: boolean; dir: "asc" | "desc" }) {
 export default function RunsClient() {
   const [runs,      setRuns]      = useState<Run[]>([]);
   const [total,     setTotal]     = useState(0);
+  const [totalUnconfirmed, setTotalUnconfirmed] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [page,      setPage]      = useState(1);
   const [loading,   setLoading]   = useState(true);
@@ -188,6 +193,16 @@ export default function RunsClient() {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [ratingBreakdownOpen, setRatingBreakdownOpen] = useState<Set<string>>(new Set());
 
+  // Unreviewed queue trigger
+  const [reviewTriggerIds, setReviewTriggerIds] = useState<string[]>([]);
+  const {
+    currentRun,
+    currentPlannedSession,
+    handleConfirm,
+    handleDismiss,
+    isQueueEmpty,
+  } = useConfirmRunQueue(reviewTriggerIds);
+
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchRuns = useCallback(async (pg: number) => {
@@ -203,6 +218,7 @@ export default function RunsClient() {
     const res: RunsResponse = await fetch(`/api/runs?${params}`).then(r => r.json());
     setRuns(res.data);
     setTotal(res.total);
+    setTotalUnconfirmed(res.totalUnconfirmed);
     setTotalPages(res.totalPages);
     setPage(pg);
     setLoading(false);
@@ -213,6 +229,14 @@ export default function RunsClient() {
     debounceRef.current = setTimeout(() => fetchRuns(1), 300);
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
   }, [fetchRuns]);
+
+  // Refresh data when queue finishes
+  useEffect(() => {
+    if (reviewTriggerIds.length > 0 && isQueueEmpty) {
+      fetchRuns(page);
+      setReviewTriggerIds([]);
+    }
+  }, [isQueueEmpty, reviewTriggerIds, fetchRuns, page]);
 
   function toggleType(t: RunType) {
     setTypes(prev => prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t]);
@@ -243,6 +267,21 @@ export default function RunsClient() {
     window.location.href = "/api/strava/sync";
   }, []);
 
+  const handleStartReview = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/runs?unconfirmedOnly=true&perPage=100");
+      const data = await res.json();
+      if (data.data) {
+        setReviewTriggerIds(data.data.map((r: any) => r.id));
+      }
+    } catch (err) {
+      console.error("Failed to fetch unconfirmed runs:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   function formatDateAest(iso: string): string {
     const d = new Date(iso);
     return d.toLocaleDateString("en-AU", {
@@ -253,8 +292,35 @@ export default function RunsClient() {
 
   const filterControlBase = `px-3 py-2 rounded-xl text-sm bg-white/[0.06] border border-white/[0.10] text-white outline-none focus:border-teal-500/50 transition-colors ${FORM_CONTROL_TW}`;
 
+  const showBanner = totalUnconfirmed > UNREVIEWED_THRESHOLD;
+
   return (
     <div className="space-y-3.5">
+      {/* Unreviewed Banner */}
+      {showBanner && (
+        <div className="rounded-2xl bg-amber-500/10 border border-amber-500/20 p-4 flex items-center justify-between gap-4 animate-fadeInUp">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center shrink-0">
+              <Sparkles className="w-5 h-5 text-amber-500" />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-white">
+                You have {totalUnconfirmed} unreviewed runs
+              </p>
+              <p className="text-xs text-white/60">
+                Confirm them to keep your OVR and training stats accurate.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={handleStartReview}
+            className="px-4 py-2 bg-amber-500 text-black text-xs font-black rounded-lg hover:bg-amber-400 transition-colors shrink-0"
+          >
+            Review All
+          </button>
+        </div>
+      )}
+
       {/* ── Filter panel ───────────────────────────────────────────────── */}
       <div className="rounded-2xl border bg-[var(--card-bg)] border-white/[0.08] backdrop-blur-sm p-3.5 space-y-2.5">
         {/* Search */}
@@ -433,7 +499,7 @@ export default function RunsClient() {
               >
                 <span className="ty-run-name flex-1 min-w-0 flex items-center gap-1.5 truncate">
                   <span className="truncate">{run.name ?? "Run"}</span>
-                  {!run.isConfirmed && (
+                  {!run.isConfirmed && !showBanner && (
                     <span className="shrink-0 w-2 h-2 rounded-full bg-amber-500" title="Unreviewed" />
                   )}
                   {getPersonalBests(run.ratingBreakdown).length > 0 && (
@@ -566,7 +632,7 @@ export default function RunsClient() {
                   >
                     <p className="ty-run-name break-words flex items-center gap-1.5 flex-wrap">
                       <span>{run.name ?? "Run"}</span>
-                      {!run.isConfirmed && (
+                      {!run.isConfirmed && !showBanner && (
                         <span className="shrink-0 text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border border-amber-500/30 bg-amber-500/10 text-amber-500">Unreviewed</span>
                       )}
                       {getPersonalBests(run.ratingBreakdown).length > 0 && (
@@ -713,6 +779,15 @@ export default function RunsClient() {
             Next
           </button>
         </div>
+      )}
+
+      {currentRun && (
+        <ConfirmRunModal
+          activity={currentRun as any} // Cast to any because of minor type differences in the component vs local interface
+          plannedSession={currentPlannedSession}
+          onConfirm={handleConfirm}
+          onDismiss={handleDismiss}
+        />
       )}
     </div>
   );

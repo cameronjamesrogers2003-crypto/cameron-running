@@ -662,6 +662,7 @@ export function generatePlan(config: PlanConfig): TrainingWeek[] {
       }
 
       return {
+        id: `${w}-${day}`,
         day,
         type,
         targetDistanceKm: round1(km),
