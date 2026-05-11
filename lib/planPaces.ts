@@ -29,17 +29,17 @@ export function getSessionPacesSecKm(vdot: number, settings: Partial<UserSetting
   const intOff = settings.intervalPaceOffsetSec ?? 0;
   const longOff = settings.longPaceOffsetSec ?? 0;
 
-  const easySecKm = p.easyMaxSecKm + easyOff;
+  const easySecKm = p.easyMaxSecKm.asSecondsPerKm + easyOff;
   let tempoSecKm: number;
   let intervalSecKm: number;
   if (isBeginnerRunningExperience(settings.runningExperience)) {
-    tempoSecKm = Math.round(p.tempoSecKm * 1.05 + tempoOff);
-    intervalSecKm = Math.round(p.intervalSecKm * 1.05 + intOff);
+    tempoSecKm = Math.round(p.tempoSecKm.asSecondsPerKm * 1.05 + tempoOff);
+    intervalSecKm = Math.round(p.intervalSecKm.asSecondsPerKm * 1.05 + intOff);
   } else {
-    tempoSecKm = p.tempoSecKm + tempoOff;
-    intervalSecKm = p.intervalSecKm + intOff;
+    tempoSecKm = p.tempoSecKm.asSecondsPerKm + tempoOff;
+    intervalSecKm = p.intervalSecKm.asSecondsPerKm + intOff;
   }
-  const longBase = Math.round(p.easyMaxSecKm * 1.1);
+  const longBase = Math.round(p.easyMaxSecKm.asSecondsPerKm * 1.1);
   const longSecKm = longBase + longOff;
 
   return { easySecKm, tempoSecKm, intervalSecKm, longSecKm };
@@ -52,9 +52,9 @@ export function getSliderBaseSecKm(
   runningExperience: string | null | undefined,
 ): number {
   const p = getVdotPaces(vdot);
-  if (zone === "easy") return p.easyMaxSecKm;
-  if (zone === "long") return Math.round(p.easyMaxSecKm * 1.1);
-  const base = zone === "tempo" ? p.tempoSecKm : p.intervalSecKm;
+  if (zone === "easy") return p.easyMaxSecKm.asSecondsPerKm;
+  if (zone === "long") return Math.round(p.easyMaxSecKm.asSecondsPerKm * 1.1);
+  const base = zone === "tempo" ? p.tempoSecKm.asSecondsPerKm : p.intervalSecKm.asSecondsPerKm;
   if (isBeginnerRunningExperience(runningExperience)) {
     return Math.round(base * 1.05);
   }
@@ -99,28 +99,28 @@ export function deriveRatingPaceZones(settings: UserSettings): Pick<
   const intOff = settings.intervalPaceOffsetSec ?? 0;
   const longOff = settings.longPaceOffsetSec ?? 0;
 
-  const easyMin = p.easyMinSecKm + easyOff;
-  const easyMax = p.easyMaxSecKm + easyOff;
+  const easyMin = p.easyMinSecKm.asSecondsPerKm + easyOff;
+  const easyMax = p.easyMaxSecKm.asSecondsPerKm + easyOff;
 
   let tempoPaceMaxSec: number;
   let tempoPaceMinSec: number;
   let intervalPaceMaxSec: number;
   let intervalPaceMinSec: number;
   if (isBeginnerRunningExperience(settings.runningExperience)) {
-    tempoPaceMaxSec = Math.round(p.tempoSecKm * 1.05 + tempoOff);
-    intervalPaceMaxSec = Math.round(p.intervalSecKm * 1.05 + intOff);
+    tempoPaceMaxSec = Math.round(p.tempoSecKm.asSecondsPerKm * 1.05 + tempoOff);
+    intervalPaceMaxSec = Math.round(p.intervalSecKm.asSecondsPerKm * 1.05 + intOff);
     tempoPaceMinSec = Math.max(120, tempoPaceMaxSec - 60);
     intervalPaceMinSec = Math.max(120, intervalPaceMaxSec - 30);
   } else {
-    const tempoMid = p.tempoSecKm + tempoOff;
-    const intMid = p.intervalSecKm + intOff;
+    const tempoMid = p.tempoSecKm.asSecondsPerKm + tempoOff;
+    const intMid = p.intervalSecKm.asSecondsPerKm + intOff;
     tempoPaceMaxSec = tempoMid + 30;
     tempoPaceMinSec = Math.max(120, tempoMid - 30);
     intervalPaceMaxSec = intMid + 15;
     intervalPaceMinSec = Math.max(120, intMid - 15);
   }
 
-  const longMid = Math.round(p.easyMaxSecKm * 1.1) + longOff;
+  const longMid = Math.round(p.easyMaxSecKm.asSecondsPerKm * 1.1) + longOff;
 
   return {
     easyPaceMinSec: easyMin,

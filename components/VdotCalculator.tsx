@@ -344,7 +344,7 @@ export default function VdotCalculator({
             <div>
               <p className="text-xs" style={{ color: "var(--text-dim)" }}>Easy</p>
               <p className="text-sm font-mono font-semibold text-white">
-                {formatPace(previewPaces.easyMinSecKm)} – {formatPace(previewPaces.easyMaxSecKm)} /km
+                {formatPace(previewPaces.easyMinSecKm.asSecondsPerKm)} – {formatPace(previewPaces.easyMaxSecKm.asSecondsPerKm)} /km
               </p>
             </div>
             <div>

@@ -409,11 +409,11 @@ export async function syncActivities(): Promise<{ synced: number; errors: number
   return { synced, errors, ...(playerRatingError ? { playerRatingError } : {}), newActivityIds };
 }
 
+import { Pace } from "@/lib/domain/Pace";
+
 export function formatPace(secPerKm: number): string {
   if (!secPerKm || secPerKm <= 0) return "—";
-  const mins = Math.floor(secPerKm / 60);
-  const secs = secPerKm % 60;
-  return `${mins}:${secs.toString().padStart(2, "0")} /km`;
+  return Pace.fromSecondsPerKm(secPerKm).formattedMinPerKm.replace("/km", " /km");
 }
 
 export function formatDuration(secs: number): string {

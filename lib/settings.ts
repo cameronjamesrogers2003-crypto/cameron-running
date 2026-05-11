@@ -155,10 +155,10 @@ export function getDisplayName(settings: UserSettings): string {
   return settings.nickname ?? settings.firstName ?? "Runner";
 }
 
+import { Pace } from "@/lib/domain/Pace";
+
 export function formatPace(secPerKm: number): string {
-  const mins = Math.floor(secPerKm / 60);
-  const secs = Math.round(secPerKm % 60);
-  return `${mins}:${String(secs).padStart(2, "0")}`;
+  return Pace.fromSecondsPerKm(secPerKm).formattedMinPerKm.replace("/km", "");
 }
 
 export function parsePace(str: string): number | null {

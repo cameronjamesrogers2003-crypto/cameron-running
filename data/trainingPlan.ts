@@ -40,6 +40,7 @@ export interface Session {
   type: RunType
   targetDistanceKm: number
   targetPaceMinPerKm: number
+  targetPaceFormatted?: string
   description: string
 }
 

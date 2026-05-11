@@ -1,16 +1,17 @@
 import type { Activity } from "@prisma/client";
+import { Pace } from "@/lib/domain/Pace";
 
 export interface VdotPaces {
-  easyMinSecKm: number;
-  easyMaxSecKm: number;
-  tempoSecKm: number;
-  intervalSecKm: number;
-  marathonSecKm: number;
+  easyMinSecKm: Pace;
+  easyMaxSecKm: Pace;
+  tempoSecKm: Pace;
+  intervalSecKm: Pace;
+  marathonSecKm: Pace;
 }
 
 // Anchor points from Jack Daniels' Running Formula VDOT table
 // All values in sec/km
-const ANCHORS: Array<[number, VdotPaces]> = [
+const ANCHORS: Array<[number, { easyMinSecKm: number; easyMaxSecKm: number; tempoSecKm: number; intervalSecKm: number; marathonSecKm: number }]> = [
   [28, { easyMinSecKm: 430, easyMaxSecKm: 484, tempoSecKm: 362, intervalSecKm: 330, marathonSecKm: 401 }],
   [30, { easyMinSecKm: 413, easyMaxSecKm: 464, tempoSecKm: 346, intervalSecKm: 314, marathonSecKm: 381 }],
   [33, { easyMinSecKm: 390, easyMaxSecKm: 435, tempoSecKm: 322, intervalSecKm: 292, marathonSecKm: 357 }],
@@ -31,16 +32,23 @@ export function getVdotPaces(vdot: number): VdotPaces {
     if (clamped >= v0 && clamped <= v1) {
       const t = (clamped - v0) / (v1 - v0);
       return {
-        easyMinSecKm:  Math.round(p0.easyMinSecKm  + t * (p1.easyMinSecKm  - p0.easyMinSecKm)),
-        easyMaxSecKm:  Math.round(p0.easyMaxSecKm  + t * (p1.easyMaxSecKm  - p0.easyMaxSecKm)),
-        tempoSecKm:    Math.round(p0.tempoSecKm    + t * (p1.tempoSecKm    - p0.tempoSecKm)),
-        intervalSecKm: Math.round(p0.intervalSecKm + t * (p1.intervalSecKm - p0.intervalSecKm)),
-        marathonSecKm: Math.round(p0.marathonSecKm + t * (p1.marathonSecKm - p0.marathonSecKm)),
+        easyMinSecKm:  Pace.fromSecondsPerKm(Math.round(p0.easyMinSecKm  + t * (p1.easyMinSecKm  - p0.easyMinSecKm))),
+        easyMaxSecKm:  Pace.fromSecondsPerKm(Math.round(p0.easyMaxSecKm  + t * (p1.easyMaxSecKm  - p0.easyMaxSecKm))),
+        tempoSecKm:    Pace.fromSecondsPerKm(Math.round(p0.tempoSecKm    + t * (p1.tempoSecKm    - p0.tempoSecKm))),
+        intervalSecKm: Pace.fromSecondsPerKm(Math.round(p0.intervalSecKm + t * (p1.intervalSecKm - p0.intervalSecKm))),
+        marathonSecKm: Pace.fromSecondsPerKm(Math.round(p0.marathonSecKm + t * (p1.marathonSecKm - p0.marathonSecKm))),
       };
     }
   }
 
-  return ANCHORS[ANCHORS.length - 1][1];
+  const last = ANCHORS[ANCHORS.length - 1]![1];
+  return {
+    easyMinSecKm: Pace.fromSecondsPerKm(last.easyMinSecKm),
+    easyMaxSecKm: Pace.fromSecondsPerKm(last.easyMaxSecKm),
+    tempoSecKm: Pace.fromSecondsPerKm(last.tempoSecKm),
+    intervalSecKm: Pace.fromSecondsPerKm(last.intervalSecKm),
+    marathonSecKm: Pace.fromSecondsPerKm(last.marathonSecKm),
+  };
 }
 
 /** Jack Daniels / Daniels formula: VO₂ from race velocity and duration (minutes). */
@@ -153,7 +161,7 @@ export function calculateRollingVdot(activities: Activity[], currentVdot: number
   const paces = getVdotPaces(currentVdot);
 
   const fastRuns = recentRuns.filter(r => {
-    const isFast = r.avgPaceSecKm < paces.easyMinSecKm;
+    const isFast = r.avgPaceSecKm < paces.easyMinSecKm.asSecondsPerKm;
     const hasGoodHR = r.avgHeartRate! < 160; 
     return isFast && hasGoodHR;
   });

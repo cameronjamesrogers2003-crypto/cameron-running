@@ -652,21 +652,20 @@ export function generatePlan(config: PlanConfig): TrainingWeek[] {
             ? round1(clamp(eachOther, 3, Math.min(intervalCap, nonLongCap)))
           : round1(clamp(eachOther, 3, Math.max(3, nonLongCap)));
 
-      let pace =
-        type === "long" ? longRunPace :
-        type === "easy" ? easyPace :
-        type === "tempo" ? tempoPace :
-        intervalPace;
-      if (!Number.isFinite(pace) || pace <= 0) {
-        pace = 6.0;
-      }
+      const paceObj =
+        type === "long" ? pMin.long :
+        type === "easy" ? pMin.easy :
+        type === "tempo" ? pMin.tempo :
+        pMin.interval;
 
       return {
         id: `${w}-${day}`,
         day,
         type,
         targetDistanceKm: round1(km),
-        targetPaceMinPerKm: round1(pace),
+        targetPaceMinPerKm: round1(paceObj.asSecondsPerKm / 60),
+        // Adding the pre-formatted pace string here will drastically simplify UI formatting downstream.
+        targetPaceFormatted: paceObj.formattedMinPerKm,
         description: "",
       };
     });
