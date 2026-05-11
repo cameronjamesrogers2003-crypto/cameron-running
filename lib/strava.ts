@@ -201,7 +201,7 @@ export async function syncActivities(): Promise<{ synced: number; errors: number
       { headers: { Authorization: `Bearer ${token}` } }
     );
 
-    if (!res.ok) return { synced: 0, errors: 1 };
+    if (!res.ok) return { synced: 0, errors: 1, newActivityIds: [] };
 
     const batch: StravaActivity[] = await res.json();
     if (batch.length === 0) break;
