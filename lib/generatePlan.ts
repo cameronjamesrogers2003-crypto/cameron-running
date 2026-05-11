@@ -82,11 +82,15 @@ export function hasConsecutiveHardSessions(
 
 function basePhaseForLevel(level: PlanConfig["level"]): Phase {
   switch (level) {
+    case "NOVICE":
+      return "Beginner Base";
     case "BEGINNER":
       return "Beginner Base";
     case "INTERMEDIATE":
       return "Intermediate Base";
     case "ADVANCED":
+      return "Advanced Base";
+    case "ELITE":
       return "Advanced Base";
     default:
       return "Beginner Base";
@@ -99,18 +103,21 @@ function phaseForWeek(config: PlanConfig, week: number): Phase {
 
   // Derive base/build/taper boundaries from the prompt.
   const structure = (() => {
+    if (weeks === 8) {
+      return { baseEnd: 3, buildEnd: 6, taperStart: 7, taperWeeks: 2 };
+    }
     if (weeks === 12) {
-      return goal === "hm"
+      return goal === "hm" || goal === "10k" || goal === "5k"
         ? { baseEnd: 4, buildEnd: 9, taperStart: 10, taperWeeks: 3 } // weeks 10–12 are taper/race block
         : { baseEnd: 4, buildEnd: 9, taperStart: 10, taperWeeks: 3 };
     }
     if (weeks === 16) {
-      return goal === "hm"
+      return goal === "hm" || goal === "10k" || goal === "5k"
         ? { baseEnd: 6, buildEnd: 14, taperStart: 15, taperWeeks: 2 }
         : { baseEnd: 6, buildEnd: 13, taperStart: 14, taperWeeks: 3 };
     }
     // 20
-    return goal === "hm"
+    return goal === "hm" || goal === "10k" || goal === "5k"
       ? { baseEnd: 8, buildEnd: 18, taperStart: 19, taperWeeks: 2 }
       : { baseEnd: 8, buildEnd: 17, taperStart: 18, taperWeeks: 3 };
   })();
@@ -121,26 +128,46 @@ function phaseForWeek(config: PlanConfig, week: number): Phase {
 }
 
 function getCutbackConfig(level: PlanConfig["level"]) {
+  if (level === "NOVICE") return { every: 3, reduce: 0.15, maxIncrease: 0.08 };
   if (level === "BEGINNER") return { every: 3, reduce: 0.20, maxIncrease: 0.10 };
   if (level === "INTERMEDIATE") return { every: 4, reduce: 0.25, maxIncrease: 0.15 };
-  return { every: 4, reduce: 0.30, maxIncrease: 0.20 };
+  if (level === "ADVANCED") return { every: 4, reduce: 0.30, maxIncrease: 0.20 };
+  return { every: 4, reduce: 0.25, maxIncrease: 0.25 }; // ELITE
 }
 
 function getPeakWeeklyKm(level: PlanConfig["level"], goal: PlanConfig["goal"]): number {
   const key = `${level}-${goal}`;
   switch (key) {
+    case "NOVICE-5k": return 25;
+    case "NOVICE-10k": return 35;
+    case "NOVICE-hm": return 40;
+    case "NOVICE-full": return 55;
+    case "BEGINNER-5k": return 30;
+    case "BEGINNER-10k": return 40;
     case "BEGINNER-hm": return 45;
     case "BEGINNER-full": return 64;
+    case "INTERMEDIATE-5k": return 45;
+    case "INTERMEDIATE-10k": return 55;
     case "INTERMEDIATE-hm": return 65;
     case "INTERMEDIATE-full": return 84;
+    case "ADVANCED-5k": return 65;
+    case "ADVANCED-10k": return 75;
     case "ADVANCED-hm": return 90;
     case "ADVANCED-full": return 100;
+    case "ELITE-5k": return 90;
+    case "ELITE-10k": return 110;
+    case "ELITE-hm": return 130;
+    case "ELITE-full": return 160;
     default: return 45;
   }
 }
 
 function getStartWeeklyKm(level: PlanConfig["level"], peak: number): number {
-  const frac = level === "BEGINNER" ? 0.70 : level === "INTERMEDIATE" ? 0.75 : 0.80;
+  const frac = 
+    level === "NOVICE" ? 0.65 :
+    level === "BEGINNER" ? 0.70 : 
+    level === "INTERMEDIATE" ? 0.75 : 
+    level === "ADVANCED" ? 0.80 : 0.85; // ELITE
   return peak * frac;
 }
 
@@ -444,12 +471,26 @@ export function finalizePlanDisplayCopy(
 function getLongRunKm(config: PlanConfig, goal: PlanConfig["goal"]) {
   const key = `${config.level}-${goal}`;
   switch (key) {
+    case "NOVICE-5k": return { start: 3, peak: 6 };
+    case "NOVICE-10k": return { start: 5, peak: 10 };
+    case "NOVICE-hm": return { start: 6, peak: 14 };
+    case "NOVICE-full": return { start: 8, peak: 24 };
+    case "BEGINNER-5k": return { start: 4, peak: 8 };
+    case "BEGINNER-10k": return { start: 6, peak: 12 };
     case "BEGINNER-hm": return { start: 7, peak: 18 };
     case "BEGINNER-full": return { start: 10, peak: 29 };
+    case "INTERMEDIATE-5k": return { start: 6, peak: 12 };
+    case "INTERMEDIATE-10k": return { start: 8, peak: 16 };
     case "INTERMEDIATE-hm": return { start: 9, peak: 20 };
     case "INTERMEDIATE-full": return { start: 13, peak: 32 };
+    case "ADVANCED-5k": return { start: 8, peak: 15 };
+    case "ADVANCED-10k": return { start: 10, peak: 18 };
     case "ADVANCED-hm": return { start: 11, peak: 22 };
     case "ADVANCED-full": return { start: 16, peak: 35 };
+    case "ELITE-5k": return { start: 10, peak: 20 };
+    case "ELITE-10k": return { start: 12, peak: 24 };
+    case "ELITE-hm": return { start: 14, peak: 28 };
+    case "ELITE-full": return { start: 18, peak: 40 };
     default: return { start: 7, peak: 18 };
   }
 }
@@ -581,9 +622,11 @@ export function generatePlan(config: PlanConfig): TrainingWeek[] {
   const intervalPace = pMin.interval.asSecondsPerKm / 60;
   const longRunPace = pMin.long.asSecondsPerKm / 60;
   const intervalCaps: Record<PlanConfig["level"], number> = {
+    NOVICE: 4,
     BEGINNER: 6,
     INTERMEDIATE: 8,
     ADVANCED: 10,
+    ELITE: 14,
   };
   const intervalCap = intervalCaps[config.level] ?? 8;
 
@@ -621,6 +664,7 @@ export function generatePlan(config: PlanConfig): TrainingWeek[] {
     // For 4+ day plans, protect easy-day minimums so frequency plans don't degrade into very short runs.
     const easySessionCount = otherDays.filter((day) => typesForWeek[day] === "easy").length;
     const minEasyKm = (
+      config.level === "NOVICE" ? 2 :
       config.level === "BEGINNER" ? 3 :
       config.level === "INTERMEDIATE" ? 4 :
       5

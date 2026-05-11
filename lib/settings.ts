@@ -5,13 +5,13 @@ export interface UserSettings {
   planStartDate: string | null;
   currentWeekOverride: number | null;
   phaseOverride: string | null;
-  experienceLevel: "BEGINNER" | "INTERMEDIATE" | "ADVANCED" | null;
-  planLengthWeeks: 12 | 16 | 20 | null;
+  experienceLevel: "NOVICE" | "BEGINNER" | "INTERMEDIATE" | "ADVANCED" | "ELITE" | null;
+  planLengthWeeks: 8 | 12 | 16 | 20 | null;
   /** JSON array string, e.g. ["mon","wed","sat"] */
   trainingDays: string | null;
   /** day string, e.g. "sat" */
   longRunDay: string | null;
-  goalRace: "HALF" | "FULL" | null;
+  goalRace: "5K" | "10K" | "HALF" | "FULL" | null;
   targetFinishTime: number | null;
   maxHR: number;
   startingTempoPaceSec: number;

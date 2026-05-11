@@ -112,11 +112,11 @@ export default function SettingsForm() {
   const [planStartDateIsoYmd, setPlanStartDateIsoYmd] = useState(() =>
     settings.planStartDate ? toBrisbaneYmd(new Date(settings.planStartDate)) : ""
   );
-  const [experienceLevel, setExperienceLevel] = useState<"BEGINNER" | "INTERMEDIATE" | "ADVANCED">(
-    settings.experienceLevel ?? "BEGINNER",
+  const [experienceLevel, setExperienceLevel] = useState<"NOVICE" | "BEGINNER" | "INTERMEDIATE" | "ADVANCED" | "ELITE">(
+    (settings.experienceLevel as any) ?? "BEGINNER",
   );
-  const [goalRace, setGoalRace] = useState<"HALF" | "FULL">(settings.goalRace ?? "HALF");
-  const [planLengthWeeks, setPlanLengthWeeks] = useState<12 | 16 | 20>((settings.planLengthWeeks ?? 16) as 12 | 16 | 20);
+  const [goalRace, setGoalRace] = useState<"5K" | "10K" | "HALF" | "FULL">((settings.goalRace as any) ?? "HALF");
+  const [planLengthWeeks, setPlanLengthWeeks] = useState<8 | 12 | 16 | 20>((settings.planLengthWeeks ?? 16) as 8 | 12 | 16 | 20);
   const [trainingDays, setTrainingDays] = useState<Day[]>(() => parseTrainingDaysValue(settings.trainingDays));
   const [selectedLongRunDay, setSelectedLongRunDay] = useState<Day | null>(() => parseLongRunDayValue(settings.longRunDay));
 
@@ -465,11 +465,13 @@ export default function SettingsForm() {
         <div className="space-y-3.5">
           <div>
             <p className="text-sm font-medium text-white mb-2">Experience level</p>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-5 gap-2">
               {([
+                ["NOVICE", "Just starting out. Focus on consistency and walk-runs."],
                 ["BEGINNER", "0–12 months running. Conservative progression."],
                 ["INTERMEDIATE", "1–3 years running. Balanced mix of sessions."],
                 ["ADVANCED", "3+ years running. High intensity from week 1."],
+                ["ELITE", "Competitive athlete. High volume and specificity."],
               ] as const).map(([lvl, copy]) => (
                 <button
                   key={lvl}
@@ -490,7 +492,31 @@ export default function SettingsForm() {
 
           <div>
             <p className="text-sm font-medium text-white mb-2">Goal race</p>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <button
+                type="button"
+                onClick={() => setGoalRace("5K")}
+                className="p-3.5 rounded-xl border cursor-pointer transition-all text-left hover:bg-white/[0.07]"
+                style={{
+                  background: goalRace === "5K" ? "rgba(45,212,191,0.08)" : "var(--card-bg)",
+                  border: goalRace === "5K" ? "2px solid rgba(45,212,191,0.60)" : "1px solid rgba(255,255,255,0.08)",
+                }}
+              >
+                <p className="text-sm font-bold text-white mb-1">5KM</p>
+                <p className="text-xs" style={{ color: "var(--text-muted)" }}>5.0 km</p>
+              </button>
+              <button
+                type="button"
+                onClick={() => setGoalRace("10K")}
+                className="p-3.5 rounded-xl border cursor-pointer transition-all text-left hover:bg-white/[0.07]"
+                style={{
+                  background: goalRace === "10K" ? "rgba(45,212,191,0.08)" : "var(--card-bg)",
+                  border: goalRace === "10K" ? "2px solid rgba(45,212,191,0.60)" : "1px solid rgba(255,255,255,0.08)",
+                }}
+              >
+                <p className="text-sm font-bold text-white mb-1">10KM</p>
+                <p className="text-xs" style={{ color: "var(--text-muted)" }}>10.0 km</p>
+              </button>
               <button
                 type="button"
                 onClick={() => setGoalRace("HALF")}
@@ -520,8 +546,8 @@ export default function SettingsForm() {
 
           <div>
             <p className="text-sm font-medium text-white mb-2">Plan length</p>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-              {([12, 16, 20] as const).map((weeks) => (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {([8, 12, 16, 20] as const).map((weeks) => (
                 <button
                   key={weeks}
                   type="button"
@@ -534,7 +560,7 @@ export default function SettingsForm() {
                 >
                   <p className="text-sm font-bold text-white mb-1">{weeks} WEEKS</p>
                   <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-                    {weeks === 12 ? "For runners with a race soon or a strong base." : weeks === 16 ? "Standard plan length. Recommended for most runners." : "Extra base building time. Ideal for beginners."}
+                    {weeks === 8 ? "Crash course for an upcoming race." : weeks === 12 ? "For runners with a race soon or a strong base." : weeks === 16 ? "Standard plan length. Recommended for most runners." : "Extra base building time. Ideal for beginners."}
                   </p>
                 </button>
               ))}

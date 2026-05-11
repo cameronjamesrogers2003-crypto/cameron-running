@@ -26,8 +26,8 @@ export interface WorkoutContext {
   totalWeeks: number;
   isCutback: boolean;
   isRecovery: boolean;
-  level: "BEGINNER" | "INTERMEDIATE" | "ADVANCED";
-  goal: "hm" | "full";
+  level: "NOVICE" | "BEGINNER" | "INTERMEDIATE" | "ADVANCED" | "ELITE";
+  goal: "5k" | "10k" | "hm" | "full";
   vdot: number;
   targetDistanceKm: number;
   targetPaceMinPerKm: number;

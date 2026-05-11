@@ -603,8 +603,11 @@ export default async function ProgramPage({
                             totalWeeks: planToRender.length,
                             isCutback: planWeek.isCutback,
                             isRecovery: planWeek.isRecovery ?? false,
-                            level: settings.experienceLevel ?? "BEGINNER",
-                            goal: settings.goalRace === "FULL" ? "full" : "hm",
+                            level: (settings.experienceLevel as WorkoutContext["level"]) ?? "BEGINNER",
+                            goal: 
+                              settings.goalRace === "5K" ? "5k" :
+                              settings.goalRace === "10K" ? "10k" :
+                              settings.goalRace === "FULL" ? "full" : "hm",
                             vdot: settings.currentVdot,
                             targetDistanceKm: session.targetDistanceKm,
                             targetPaceMinPerKm: session.targetPaceMinPerKm,

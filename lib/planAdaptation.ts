@@ -114,8 +114,9 @@ function weekAverageRating(
   return { avg: round1(avg), count: qualifying.length };
 }
 
-function getSessionMinKm(level: "BEGINNER" | "INTERMEDIATE" | "ADVANCED", type: RunType): number {
+function getSessionMinKm(level: PlanConfig["level"], type: RunType): number {
   if (type === "long") return 5;
+  if (level === "NOVICE") return 2;
   if (level === "BEGINNER") return 3;
   if (level === "INTERMEDIATE") return 4;
   return 5;

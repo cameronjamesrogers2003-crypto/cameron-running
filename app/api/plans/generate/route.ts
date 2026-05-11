@@ -19,9 +19,9 @@ function parseConfig(body: unknown): PlanConfig | null {
   const longRunDay = b.longRunDay;
   const vdot = b.vdot;
 
-  if (level !== "BEGINNER" && level !== "INTERMEDIATE" && level !== "ADVANCED") return null;
-  if (goal !== "hm" && goal !== "full") return null;
-  if (weeks !== 12 && weeks !== 16 && weeks !== 20) return null;
+  if (level !== "NOVICE" && level !== "BEGINNER" && level !== "INTERMEDIATE" && level !== "ADVANCED" && level !== "ELITE") return null;
+  if (goal !== "5k" && goal !== "10k" && goal !== "hm" && goal !== "full") return null;
+  if (weeks !== 8 && weeks !== 12 && weeks !== 16 && weeks !== 20) return null;
   if (typeof vdot !== "number" || !Number.isFinite(vdot)) return null;
   if (!Array.isArray(days) || days.length < 2 || days.length > 7 || !days.every(isDay)) return null;
   if (longRunDay != null && !isDay(longRunDay)) return null;
@@ -94,7 +94,10 @@ export async function POST(req: NextRequest) {
       status: "ACTIVE",
       startingVdot: config.vdot,
       startingLevel: config.level,
-      goalDistanceKm: config.goal === "full" ? 42.2 : 21.1,
+      goalDistanceKm: 
+        config.goal === "full" ? 42.2 : 
+        config.goal === "hm" ? 21.1 : 
+        config.goal === "10k" ? 10.0 : 5.0,
       targetDate: targetDate,
       weeks: {
         create: plan.map((w) => ({

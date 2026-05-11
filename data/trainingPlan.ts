@@ -25,9 +25,9 @@ export interface PlanPaceAdjust {
 }
 
 export interface PlanConfig {
-  level: 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED'
-  goal: 'hm' | 'full'
-  weeks: 12 | 16 | 20
+  level: 'NOVICE' | 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED' | 'ELITE'
+  goal: '5k' | '10k' | 'hm' | 'full'
+  weeks: 8 | 12 | 16 | 20
   days: Day[]
   longRunDay?: Day
   vdot: number
@@ -263,8 +263,11 @@ export function buildTrainingPlan(settings: UserSettings): TrainingWeek[] {
   // Best-effort config coercion; generator handles missing/incomplete assignment.
   const config: PlanConfig = {
     level: settings.experienceLevel,
-    goal: settings.goalRace === "FULL" ? "full" : "hm",
-    weeks: (settings.planLengthWeeks ?? 16) as 12 | 16 | 20,
+    goal: 
+      settings.goalRace === "5K" ? "5k" :
+      settings.goalRace === "10K" ? "10k" :
+      settings.goalRace === "FULL" ? "full" : "hm",
+    weeks: (settings.planLengthWeeks ?? 16) as 8 | 12 | 16 | 20,
     days: days ?? ["wed", "sat", "sun"], // default fallback
     longRunDay,
     vdot: settings.currentVdot,

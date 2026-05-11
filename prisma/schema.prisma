@@ -8,9 +8,11 @@ datasource db {
 }
 
 enum ExperienceLevel {
+  NOVICE
   BEGINNER
   INTERMEDIATE
   ADVANCED
+  ELITE
 }
 
 enum BlockStatus {
