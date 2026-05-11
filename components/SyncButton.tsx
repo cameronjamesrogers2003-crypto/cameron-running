@@ -17,6 +17,9 @@ export default function SyncButton({ lastSynced, stravaConnected }: SyncButtonPr
   const [result, setResult] = useState<string | null>(null);
   const [warning, setWarning] = useState<string | null>(null);
   const [newIds, setNewIds] = useState<string[]>([]);
+  const [unconfirmedIds, setUnconfirmedIds] = useState<string[]>([]);
+  const [unconfirmedLoaded, setUnconfirmedLoaded] = useState(false);
+  const mountQueueInitialised = useRef(false);
 
   const {
     currentRun,
@@ -26,11 +29,34 @@ export default function SyncButton({ lastSynced, stravaConnected }: SyncButtonPr
     isQueueEmpty,
   } = useConfirmRunQueue(newIds);
 
+  // Fetch unconfirmed runs on mount
+  useEffect(() => {
+    if (mountQueueInitialised.current) return;
+    mountQueueInitialised.current = true;
+
+    fetch("/api/runs/unconfirmed")
+      .then((res) => res.json())
+      .then((data) => {
+        const ids = data.unconfirmedIds || [];
+        setUnconfirmedIds(ids);
+        setUnconfirmedLoaded(true);
+        if (ids.length > 0) {
+          setNewIds(ids);
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to fetch unconfirmed runs:", err);
+        setUnconfirmedLoaded(true);
+      });
+  }, []);
+
   // Refresh the page data when the queue is finished
   useEffect(() => {
     if (newIds.length > 0 && isQueueEmpty) {
       router.refresh();
-      setNewIds([]); // Clear the trigger
+      // Keep track of what we've already tried to confirm in this session
+      setUnconfirmedIds([]); 
+      setNewIds([]);
     }
   }, [isQueueEmpty, newIds, router]);
 
@@ -69,10 +95,29 @@ export default function SyncButton({ lastSynced, stravaConnected }: SyncButtonPr
           window.sessionStorage.removeItem("syncPlayerRatingWarning");
         }
         
-        if (data.newActivityIds && data.newActivityIds.length > 0) {
-          setNewIds(data.newActivityIds);
+        const syncIds = data.newActivityIds || [];
+        
+        // Ensure we have finished the mount fetch before merging
+        const triggerSync = () => {
+          const allIds = [...new Set([...syncIds, ...unconfirmedIds])];
+          if (allIds.length > 0) {
+            setNewIds(allIds);
+          } else {
+            setTimeout(() => router.refresh(), 800);
+          }
+        };
+
+        if (unconfirmedLoaded) {
+          triggerSync();
         } else {
-          setTimeout(() => router.refresh(), 800);
+          // Poll briefly if still loading unconfirmed on mount
+          const interval = setInterval(() => {
+            if (unconfirmedLoaded) {
+              clearInterval(interval);
+              triggerSync();
+            }
+          }, 100);
+          setTimeout(() => { clearInterval(interval); triggerSync(); }, 2000); // safety timeout
         }
       } else {
         setResult(data.error ?? "Sync failed");
