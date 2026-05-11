@@ -285,27 +285,26 @@ function isMiddayBrisbane(date: Date | string): boolean {
   return brisbaneHour >= 10 && brisbaneHour < 14;
 }
 
-/** Piecewise weather factor (0–1) based on temperature and humidity. */
+/** Piecewise weather factor (0–1) based on Dew Point calculation. */
 function weatherFactorPiecewise(
   tempC: number | null | undefined,
   humidityPct: number | null | undefined,
 ): { factor: number; desc: string } {
-  if (tempC == null || Number.isNaN(tempC)) {
-    return { factor: 0.5, desc: "No temperature data — neutral weather factor." };
+  if (tempC == null || Number.isNaN(tempC) || humidityPct == null || Number.isNaN(humidityPct)) {
+    return { factor: 0.5, desc: "Incomplete weather data — neutral weather factor." };
   }
-  const h = humidityPct;
-  const hasHumidity = h != null && !Number.isNaN(h);
-  const humDisp = hasHumidity ? `${(h as number).toFixed(0)}%` : "—";
-  const hot = tempC >= 32;
-  const humid = hasHumidity && (h as number) > 80;
+
+  // DewPoint ≈ Temp - ((100 - Humidity)/5)
+  const dp = tempC - ((100 - humidityPct) / 5);
+  
   let factor: number;
-  if (hot && humid) factor = 1.0;
-  else if (hot || humid) factor = 0.95;
-  else if (tempC >= 28) factor = 0.85;
-  else if (tempC >= 24) factor = 0.75;
-  else if (tempC >= 18) factor = 0.6;
+  if (dp > 24) factor = 1.0;
+  else if (dp > 21) factor = 0.9;
+  else if (dp > 18) factor = 0.8;
+  else if (dp > 15) factor = 0.65;
   else factor = 0.5;
-  return { factor, desc: `${tempC.toFixed(1)}°C, ${humDisp} → weather factor ${factor.toFixed(2)}.` };
+
+  return { factor, desc: `${tempC.toFixed(1)}°C, ${humidityPct.toFixed(0)}% (DP: ${dp.toFixed(1)}°C) → weather factor ${factor.toFixed(2)}.` };
 }
 
 /** Piecewise elevation factor (0–1) based on elevation gain per km. */

@@ -74,6 +74,7 @@ model Profile {
   stravaRefresh     String?
   stravaTokenExpiry DateTime?
   lastRefreshedAt   DateTime?
+  timezone          String    @default("Australia/Brisbane")
 }
 
 model UserSettings {
