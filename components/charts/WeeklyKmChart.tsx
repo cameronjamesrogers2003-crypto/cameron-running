@@ -13,86 +13,64 @@ import {
 } from "recharts";
 import { useMediaQuery } from "@/lib/useMediaQuery";
 
-interface WeeklyKmData {
-  week: string;
-  actual: number;
-  target: number | null;
-  targetMode: "plan" | "suggested" | "none";
-}
-
-const TOOLTIP_STYLE = {
-  background: "#181818",
-  border: "1px solid rgba(255,255,255,0.08)",
-  borderRadius: 8,
-  fontSize: 12,
+export type WeekChartEntry = {
+  label: string;          // e.g. "20 Apr–26 Apr"
+  startDate: string;      // ISO string, Monday 00:00:00 AEST
+  actualKm: number;       // sum of distanceKm for all runs in that week
+  actualKmDisplay: number; // same as actualKm, but minimum 0.5 if actualKm === 0 (for bar rendering)
+  targetKm: number | null; // from plan sessions if plan started, else +10% of prev actual, else null
+  trajectoryKm: number;   // previous week's actualKm (or this week's actualKm for week 0)
+  isPlanWeek: boolean;    // true if weekStart >= planStartDate (AEST comparison)
 };
 
-function getBarColour(index: number, data: WeeklyKmData[]): string {
+function getBarColour(index: number, data: WeekChartEntry[]): string {
   const isCurrentWeek = index === data.length - 1;
   if (isCurrentWeek) return "#FFFFFF";
 
-  const actual = data[index].actual;
-  const previous = data[index - 1]?.actual ?? 0;
+  if (index === 0) return "#991B1B";
 
-  if (index === 0) return "#991B1B"; // Default for first week
-  return actual >= previous ? "#991B1B" : "#38BDF8";
+  const current = data[index].actualKm;
+  const previous = data[index - 1].actualKm;
+  return current >= previous ? "#991B1B" : "#38BDF8";
 }
 
-function CustomTooltip({ active, payload, label, data }: any) {
-  if (!active || !payload || !payload.length) return null;
-
-  const entry = payload[0].payload as WeeklyKmData;
-  const actual = entry.actual;
-  const target = entry.target;
-  const targetMode = entry.targetMode;
-
-  const index = data.findIndex((d: any) => d.week === label);
-  const isCurrent = index === data.length - 1;
-  const previous = index > 0 ? data[index - 1].actual : 0;
-
-  let statusLine = "";
-  let statusColor = "";
-
-  if (isCurrent) {
-    statusLine = "⬤ current week in progress";
-    statusColor = "#FFFFFF";
-  } else if (actual >= previous) {
-    statusLine = "↑ volume up from last week";
-    statusColor = "#991B1B";
-  } else {
-    statusLine = "↓ volume down — recovery";
-    statusColor = "#38BDF8";
-  }
-
-  const targetLabel =
-    targetMode === "plan"
-      ? "Target km (plan)"
-      : targetMode === "suggested"
-        ? "Target km (suggested +10%)"
-        : null;
+function CustomTooltip({ active, payload, label, chartData }: any) {
+  if (!active || !payload?.length) return null;
+  const entry: WeekChartEntry = payload[0]?.payload;
+  const isCurrentWeek = entry.label === chartData[chartData.length - 1]?.label;
 
   return (
-    <div style={TOOLTIP_STYLE} className="p-2.5 space-y-1">
-      <p className="text-white font-bold mb-1">{label}</p>
-      <p style={{ color: "rgba(255,255,255,0.7)" }}>
-        Actual km: <span className="text-white">{actual.toFixed(1)}</span>
+    <div style={{
+      background: "#1a1a1a",
+      border: "0.5px solid #374151",
+      borderRadius: 8,
+      padding: "10px 14px",
+      fontSize: 13,
+      color: "#f9fafb",
+      minWidth: 200,
+    }}>
+      <p style={{ fontWeight: 500, marginBottom: 6 }}>{label}</p>
+      <p style={{ color: "#9ca3af", margin: "2px 0" }}>
+        Actual km: {entry.actualKm.toFixed(1)}
       </p>
-      {target !== null && targetLabel && (
-        <p style={{ color: "rgba(255,255,255,0.7)" }}>
-          {targetLabel}: <span className="text-white">{target.toFixed(1)}</span>
+      {entry.targetKm !== null && (
+        <p style={{ color: "#9ca3af", margin: "2px 0" }}>
+          {entry.isPlanWeek
+            ? `Target km (plan): ${entry.targetKm.toFixed(1)}`
+            : `Target km (suggested +10%): ${entry.targetKm.toFixed(1)}`}
         </p>
       )}
-      <p className="pt-1 mt-1 border-t border-white/10 text-[10px] font-bold uppercase tracking-wider" style={{ color: statusColor }}>
-        {statusLine}
-      </p>
+      {isCurrentWeek && (
+        <p style={{ color: "#22D3EE", margin: "6px 0 0", fontSize: 11, fontWeight: 500 }}>
+          ● current week in progress
+        </p>
+      )}
     </div>
   );
 }
 
-export default function WeeklyKmChart({ data }: { data: WeeklyKmData[] }) {
+export default function WeeklyKmChart({ data }: { data: WeekChartEntry[] }) {
   const compact = useMediaQuery("(max-width: 767px)");
-  const tickSize = compact ? 9 : 11;
-  const tipSize = compact ? 11 : 12;
   const gridColor = "rgba(255,255,255,0.06)";
   const textColor = "rgba(255,255,255,0.40)";
 
@@ -101,71 +79,62 @@ export default function WeeklyKmChart({ data }: { data: WeeklyKmData[] }) {
       <ResponsiveContainer width="100%" height={compact ? 140 : 160}>
         <ComposedChart
           data={data}
-          margin={{ top: 4, right: compact ? 0 : 4, bottom: 0, left: compact ? -28 : -20 }}
+          margin={{ top: 10, right: 16, left: 0, bottom: 0 }}
+          barCategoryGap="30%"
+          barGap={4}
         >
-        <CartesianGrid
-          strokeDasharray="3 3"
-          stroke={gridColor}
-          vertical={false}
-        />
-        <XAxis
-          dataKey="week"
-          tick={{ fill: textColor, fontSize: tickSize }}
-          axisLine={false}
-          tickLine={false}
-        />
-        <YAxis
-          tick={{ fill: textColor, fontSize: tickSize, fontFamily: "var(--font-mono, monospace)" }}
-          axisLine={false}
-          tickLine={false}
-          width={48}
-          tickCount={6}
-          tickFormatter={(value: number) => `${Math.round(value / 5) * 5}km`}
-          domain={[0, "auto"]}
-        />
-        <Tooltip
-          content={<CustomTooltip data={data} />}
-          cursor={{ fill: "rgba(255,255,255,0.04)" }}
-        />
-        <Bar
-          dataKey="actual"
-          radius={[4, 4, 0, 0]}
-          name="Actual km"
-          maxBarSize={40}
-          fillOpacity={1}
-        >
-          {data.map((entry, index) => {
-            const isCurrent = index === data.length - 1;
-            const actual = entry.actual;
-            const isZero = actual <= 0;
-            const fill = getBarColour(index, data);
+          <CartesianGrid
+            strokeDasharray="3 3"
+            stroke={gridColor}
+            vertical={false}
+          />
+          <XAxis 
+            dataKey="label" 
+            tick={{ fill: textColor, fontSize: 11 }} 
+            axisLine={false}
+            tickLine={false}
+          />
+          
+          <YAxis
+            tickCount={5}
+            tick={{ fill: textColor, fontSize: 11, fontFamily: "var(--font-mono, monospace)" }}
+            axisLine={false}
+            tickLine={false}
+            tickFormatter={(value: number) => `${value}km`}
+            domain={[0, (dataMax: number) => Math.ceil((dataMax + 2) / 5) * 5]}
+            width={48}
+            allowDecimals={false}
+          />
 
-            return (
+          <Tooltip content={<CustomTooltip chartData={data} />} />
+
+          <Bar
+            dataKey="actualKmDisplay"
+            radius={[4, 4, 0, 0]}
+            maxBarSize={72}
+          >
+            {data.map((entry, index) => (
               <Cell
                 key={`cell-${index}`}
-                fill={isZero ? "#D3D1C7" : fill}
-                stroke={isCurrent ? "#22D3EE" : "none"}
-                strokeWidth={isCurrent ? 2 : 0}
-                style={{
-                  // Custom shape handling for zero-height bars moved here if possible, 
-                  // or we can use a custom shape prop on Bar and just use Cell for colors.
-                  // Recharts Bar Cell only handles colors well.
-                }}
+                fill={getBarColour(index, data)}
+                stroke={index === data.length - 1 ? "#22D3EE" : "none"}
+                strokeWidth={index === data.length - 1 ? 2 : 0}
               />
-            );
-          })}
-        </Bar>
-        <Line
-          dataKey="target"
-          stroke="rgba(255,255,255,0.3)"
-          strokeWidth={1.5}
-          strokeDasharray="4 4"
-          dot={false}
-          name="Target km"
-          connectNulls={false}
-        />
-      </ComposedChart>
-    </ResponsiveContainer>
+            ))}
+          </Bar>
+
+          <Line
+            dataKey="trajectoryKm"
+            stroke="#6B7280"
+            strokeDasharray="5 4"
+            strokeWidth={1.5}
+            dot={false}
+            connectNulls={false}
+            type="monotone"
+          />
+        </ComposedChart>
+      </ResponsiveContainer>
     </div>
   );
 }
+

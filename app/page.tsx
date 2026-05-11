@@ -277,7 +277,20 @@ export default async function Dashboard({
   // ── Chart data ────────────────────────────────────────────────────────────
   const chartWeekNums = Array.from({ length: 4 }, (_, i) => chartStartWeek + i);
 
-  const weeklyKmData = chartWeekNums.map((wn) => {
+  function toAESTDateString(date: Date): string {
+    return new Intl.DateTimeFormat("en-AU", {
+      timeZone: "Australia/Brisbane",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(date);
+  }
+
+  const planStartStr = settings.planStartDate
+    ? toAESTDateString(new Date(settings.planStartDate))
+    : null;
+
+  const weeklyKmData = chartWeekNums.map((wn, index, arr) => {
     const idx = wn - chartStartWeek;
     const wStart = new Date(chartRangeStart.getTime() + idx * 7 * MS_PER_DAY);
     const wEnd = new Date(wStart.getTime() + 7 * MS_PER_DAY);
@@ -288,21 +301,12 @@ export default async function Dashboard({
       })
       .reduce((s, a) => s + a.distanceKm, 0);
 
-    // Calculate previous week's actual for fallback target logic
-    const prevWStart = new Date(wStart.getTime() - 7 * MS_PER_DAY);
-    const prevWEnd = wStart;
-    const prevActual = chartActivities
-      .filter((a) => {
-        const d = new Date(a.date);
-        return d >= prevWStart && d < prevWEnd;
-      })
-      .reduce((s, a) => s + a.distanceKm, 0);
+    const weekStartStr = toAESTDateString(wStart);
+    const isPlanWeek = planStartStr !== null && weekStartStr >= planStartStr;
 
-    const isPlanned = planStart && wStart >= startOfDayAEST(planStart);
-    let target: number | null = null;
-    let targetMode: "plan" | "suggested" | "none" = "none";
-
-    if (isPlanned) {
+    // Calculate targetKm
+    let targetKm: number | null = null;
+    if (isPlanWeek) {
       const targetSessionsInWindow = planToRender.flatMap((pw) =>
         pw.sessions.map((s) => ({
           ...s,
@@ -312,24 +316,47 @@ export default async function Dashboard({
 
       // Deduplicate by ID
       const uniqueSessions = Array.from(new Map(targetSessionsInWindow.map((s) => [s.id, s])).values());
-      target = uniqueSessions.reduce((sum, s) => sum + s.targetDistanceKm, 0);
-      targetMode = "plan";
+      targetKm = Math.round(
+        uniqueSessions.reduce((sum, s) => sum + (s.targetDistanceKm ?? 0), 0) * 10
+      ) / 10;
+    } else {
+      // Pre-plan fallback: 10% increase over previous week's actual
+      const prevWStart = new Date(wStart.getTime() - 7 * MS_PER_DAY);
+      const prevWEnd = wStart;
+      const prevActual = chartActivities
+        .filter((a) => {
+          const d = new Date(a.date);
+          return d >= prevWStart && d < prevWEnd;
+        })
+        .reduce((s, a) => s + a.distanceKm, 0);
 
-      if (wn === currentWeek) {
-        console.log(`[WeeklyKmChart] sessions for current week ${wn} (${formatAEST(wStart, "d MMM")}-${formatAEST(wEnd, "d MMM")}):`,
-          uniqueSessions.map((s) => `${s.day} ${s.type} ${s.targetDistanceKm}km (id: ${s.id})`),
-        );
-      }
-    } else if (prevActual > 0) {
-      target = Math.round(prevActual * 1.1 * 10) / 10;
-      targetMode = "suggested";
+      targetKm = prevActual > 0
+        ? Math.round(prevActual * 1.1 * 10) / 10
+        : null;
+    }
+
+    // Trajectory: anchor at week 1's actual, then follow previous week's actual
+    let trajectoryKm = actual;
+    if (index > 0) {
+      const prevWStart = new Date(wStart.getTime() - 7 * MS_PER_DAY);
+      const prevWEnd = wStart;
+      const prevActual = chartActivities
+        .filter((a) => {
+          const d = new Date(a.date);
+          return d >= prevWStart && d < prevWEnd;
+        })
+        .reduce((s, a) => s + a.distanceKm, 0);
+      trajectoryKm = prevActual;
     }
 
     return {
-      week: `${formatAEST(wStart, "d MMM")}–${formatAEST(new Date(wEnd.getTime() - MS_PER_DAY), "d MMM")}`,
-      actual: Math.round(actual * 10) / 10,
-      target: target != null ? Math.round(target * 10) / 10 : null,
-      targetMode,
+      label: `${formatAEST(wStart, "d MMM")}–${formatAEST(new Date(wEnd.getTime() - MS_PER_DAY), "d MMM")}`,
+      startDate: wStart.toISOString(),
+      actualKm: actual,
+      actualKmDisplay: actual === 0 ? 0.5 : actual,
+      targetKm,
+      trajectoryKm,
+      isPlanWeek,
     };
   });
 
