@@ -20,6 +20,7 @@ export interface SessionCardProps {
   targetKm: number;
   targetPaceStr: string;
   effortLabel: string;
+  isNovice?: boolean;
 
   cardBg: string;
   leftBorder: string;
@@ -50,6 +51,7 @@ export default function SessionCard(props: SessionCardProps) {
     targetKm,
     targetPaceStr,
     effortLabel,
+    isNovice,
     cardBg,
     leftBorder,
     colorBarBg,
@@ -161,8 +163,14 @@ export default function SessionCard(props: SessionCardProps) {
 
           {/* Target */}
           <p className="font-mono font-semibold text-sm text-white">
-            {targetKm.toFixed(1)} km · {targetPaceStr}
+            {targetKm.toFixed(1)} km {isNovice ? "" : `· ${targetPaceStr}`}
           </p>
+
+          {isNovice && (
+            <span className="inline-block mt-1.5 px-2 py-0.5 rounded-md text-[10px] font-bold bg-teal-500/20 text-teal-400 border border-teal-500/30 uppercase tracking-tighter">
+              Target RPE: 3-4
+            </span>
+          )}
 
           {/* Actual (completed) */}
           {showRating && actualKm != null && actualPaceStr && (

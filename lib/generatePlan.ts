@@ -631,6 +631,10 @@ function buildLongRuns(config: PlanConfig, weeklyKm: number[], isCutback: boolea
 }
 
 export function generatePlan(config: PlanConfig): TrainingWeek[] {
+  if (config.level === "NOVICE") {
+    config.vdot = 28; // Safe fallback for couch-to-5k calculations
+  }
+
   if (!Number.isFinite(config.vdot) || config.vdot <= 0) {
     config.vdot = 33;
   }
@@ -724,12 +728,17 @@ export function generatePlan(config: PlanConfig): TrainingWeek[] {
     const sessions: Session[] = dayList.map((day) => {
       const type = typesForWeek[day];
 
-      const km =
+      let km =
         type === "long"
           ? wkLongKm
           : type === "interval"
             ? round1(clamp(eachOther, 3, Math.min(intervalCap, nonLongCap)))
           : round1(clamp(eachOther, 3, Math.max(3, nonLongCap)));
+
+      // Strict caps for Novice level to keep sessions within 20-30 min window.
+      if (config.level === "NOVICE") {
+        km = type === "long" ? clamp(km, 3, 5) : clamp(km, 2.5, 4);
+      }
 
       const paceObj =
         type === "long" ? pMin.long :

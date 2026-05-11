@@ -623,6 +623,7 @@ export default async function ProgramPage({
                             targetKm: session.targetDistanceKm,
                             targetPaceStr: fmtTargetPace(session.targetPaceMinPerKm),
                             effortLabel: EFFORT_LABEL[session.type],
+                            isNovice: settings.experienceLevel === "NOVICE",
                             cardBg,
                             leftBorder,
                             colorBarBg: runTypeColor(session.type),
