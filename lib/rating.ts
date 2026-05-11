@@ -555,10 +555,10 @@ export function calculateRunRating(
     const atl = atlLoad / 7;
     const ctl = ctlLoad / 28;
 
-    if (ctl > 0 && atl > ctl * 1.20 && (runType === "easy" || runType === "long")) {
-      effortScoreRaw = Math.min(MAX_EFFORT, effortScoreRaw + 0.3);
+    if (ctl > 0 && atl > ctl * 1.25 && (runType === "easy" || runType === "long")) {
+      effortScoreRaw = Math.min(MAX_EFFORT, effortScoreRaw + 0.4);
       fatigueBonusApplied = true;
-      effortReason += " [+0.3 fatigue bonus: 7-day training load > 20% above 28-day average]";
+      effortReason += " [Fatigue bonus applied: Recent 7-day training load is significantly higher than your 28-day baseline.]";
     }
   }
 
