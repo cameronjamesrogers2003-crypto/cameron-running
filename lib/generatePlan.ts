@@ -134,7 +134,7 @@ function phaseForWeek(config: PlanConfig, week: number): Phase {
 }
 
 function getCutbackConfig(level: PlanConfig["level"]) {
-  if (level === "NOVICE") return { every: 4, reduce: 0.25, maxIncrease: 0.10 };
+  if (level === "NOVICE") return { every: 3, reduce: 0.25, maxIncrease: 0.10 };
   if (level === "BEGINNER") return { every: 3, reduce: 0.20, maxIncrease: 0.10 };
   if (level === "INTERMEDIATE") return { every: 4, reduce: 0.25, maxIncrease: 0.15 };
   if (level === "ADVANCED") return { every: 4, reduce: 0.30, maxIncrease: 0.20 };
@@ -169,7 +169,7 @@ function getPeakWeeklyKm(level: PlanConfig["level"], goal: PlanConfig["goal"]): 
 }
 
 function getStartWeeklyKm(level: PlanConfig["level"], peak: number): number {
-  if (level === "NOVICE") return peak * 0.35;
+  if (level === "NOVICE") return peak * 0.20;
   if (level === "BEGINNER") return peak * 0.60;
   if (level === "INTERMEDIATE") return peak * 0.70;
   return peak * 0.80;
@@ -238,8 +238,8 @@ export function computeWeekSubtitle(
 function getLongRunKm(config: PlanConfig, goal: PlanConfig["goal"]) {
   const key = `${config.level}-${goal}`;
   switch (key) {
-    case "NOVICE-5k": return { start: 2, peak: 6 };
-    case "NOVICE-10k": return { start: 3, peak: 11 };
+    case "NOVICE-5k": return { start: 1.5, peak: 6 };
+    case "NOVICE-10k": return { start: 1.5, peak: 11 };
     case "NOVICE-hm": return { start: 6, peak: 14 };
     case "NOVICE-full": return { start: 8, peak: 24 };
     case "BEGINNER-5k": return { start: 4, peak: 10 };
@@ -561,6 +561,29 @@ function buildWeeklyVolumes(config: PlanConfig): { weeklyKm: number[]; isCutback
       continue;
     }
 
+    if (config.level === "NOVICE") {
+      const { start: lrStart, peak: lrPeak } = getLongRunKm(config, config.goal);
+      const progress = lastNonTaperWeek <= 1 ? 1 : (w - 1) / (lastNonTaperWeek - 1);
+      let currentLong = lrStart + progress * (lrPeak - lrStart);
+      if (cutback) {
+        currentLong = currentLong * (1 - reduce);
+      }
+      
+      const multiplier = config.days.length === 2 ? 1.6 : config.days.length === 3 ? 2.2 : 2.6;
+      let next = currentLong * multiplier;
+      
+      if (w === 1) {
+        prev = next;
+      } else if (!cutback) {
+        next = Math.max(next, prev);
+        prev = next;
+      } else {
+        next = Math.max(next, weeklyKm[0] ?? next);
+      }
+      weeklyKm.push(round1(next));
+      continue;
+    }
+
     // Target a smooth ramp to peak by the last non-taper week.
     const progress = lastNonTaperWeek <= 1 ? 1 : (w - 1) / (lastNonTaperWeek - 1);
     const desired = startKm + progress * (peak - startKm);
@@ -782,9 +805,7 @@ export function generatePlan(config: PlanConfig): TrainingWeek[] {
                type === "interval" ? round1(clamp(eachOther, minSessionKm, Math.min(intervalCap, nonLongCap))) : 
                round1(clamp(eachOther, minSessionKm, Math.max(minSessionKm, nonLongCap)));
 
-      if (config.level === "NOVICE") {
-        km = type === "long" ? clamp(km, 2.5, 6) : clamp(km, 1.5, 4);
-      }
+      // The NOVICE hard clamp on km was removed. Volume is constrained dynamically via weekKm, baseLongKm, minLongKm and nonLongCap.
 
       const paceObj = type === "long" ? pMin.long : type === "easy" ? pMin.easy : type === "tempo" ? pMin.tempo : pMin.interval;
       const targetPaceMinPerKm = round1(paceObj.asSecondsPerKm / 60);
