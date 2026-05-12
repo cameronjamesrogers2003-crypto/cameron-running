@@ -169,10 +169,80 @@ function getPeakWeeklyKm(level: PlanConfig["level"], goal: PlanConfig["goal"]): 
 }
 
 function getStartWeeklyKm(level: PlanConfig["level"], peak: number): number {
-  if (level === "NOVICE") return peak * 0.15;
+  if (level === "NOVICE") return peak * 0.35;
   if (level === "BEGINNER") return peak * 0.60;
   if (level === "INTERMEDIATE") return peak * 0.70;
   return peak * 0.80;
+}
+
+/** 
+ * Returns Novice session distances for a given week using the bottom-up formula:
+ * T[w] = L[w] + nonLongCount * E[w]
+ */
+function getNoviceWeeklyDistances(
+  config: PlanConfig,
+  w: number,
+  lastNonTaperWeek: number,
+  prevTotal: number | null
+): { longKm: number; easyKm: number; totalKm: number } {
+  const { start: lrStart, peak: lrPeak } = getLongRunKm(config, config.goal);
+  
+  // 1. Calculate base (pre-cutback/taper) session distances
+  const progress = lastNonTaperWeek <= 1 ? 1 : clamp((w - 1) / (lastNonTaperWeek - 1), 0, 1);
+  let L = lrStart + progress * (lrPeak - lrStart);
+  let E = 1.0 + progress * (4.0 - 1.0);
+
+  const phase = phaseForWeek(config, w);
+  const isTaper = phase === "Taper";
+  const { every, reduce } = getCutbackConfig(config.level);
+  const inFinalThree = w > config.weeks - 3;
+  const isCutback = !inFinalThree && !isTaper && w % every === 0;
+
+  if (isCutback) {
+    L *= (1 - reduce);
+    E *= (1 - reduce);
+  } else if (isTaper) {
+    // Taper: reduce proportionally to the weekly volume reduction factor from taperWeeklyKm.
+    // Use the theoretical bottom-up peak (at lastNonTaperWeek) as the base for taper reduction.
+    const peakTotal = lrPeak + (config.days.length - 1) * 4.0;
+    const taperTargetTotal = taperWeeklyKm(config, peakTotal, w);
+    const factor = taperTargetTotal / Math.max(0.1, peakTotal);
+    L *= factor;
+    E *= factor;
+  }
+
+  const nonLongCount = config.days.length - 1;
+
+  // Apply 50% cap for 2-day plans early so monotonicity works on capped values
+  if (config.days.length === 2) {
+    L = Math.min(L, E);
+  }
+
+  let T = L + nonLongCount * E;
+
+  // 2. Monotonicity guardrail for non-cutback, non-taper weeks
+  if (!isCutback && !isTaper && prevTotal !== null && T <= prevTotal + 0.01) {
+    const targetT = prevTotal + 0.5;
+    const diff = targetT - T;
+    // Tie-break: prefer increasing E (cap 4.0), then L (cap lrPeak).
+    const eRoom = (4.0 - E) * nonLongCount;
+    if (eRoom > 0.001) {
+      const eInc = Math.min(diff / nonLongCount, 4.0 - E);
+      E += eInc;
+      if (config.days.length === 2) L = Math.min(L, E);
+      T = L + nonLongCount * E;
+      if (T < targetT - 0.01) {
+        L = Math.min(lrPeak, L + (targetT - T));
+        if (config.days.length === 2) L = Math.min(L, E);
+      }
+    } else {
+      L = Math.min(lrPeak, L + diff);
+      if (config.days.length === 2) L = Math.min(L, E);
+    }
+    T = L + nonLongCount * E;
+  }
+
+  return { longKm: L, easyKm: E, totalKm: T };
 }
 
 function taperWeeklyKm(config: PlanConfig, peak: number, week: number): number {
@@ -556,37 +626,15 @@ function buildWeeklyVolumes(config: PlanConfig): { weeklyKm: number[]; isCutback
     const cutback = !inFinalThree && phase !== "Taper" && w % every === 0;
     isCutbackArr.push(cutback);
 
-    if (phase === "Taper") {
-      weeklyKm.push(round1(taperWeeklyKm(config, peak, w)));
+    if (config.level === "NOVICE") {
+      const prevVol = weeklyKm.length > 0 ? weeklyKm[weeklyKm.length - 1] : null;
+      const { totalKm } = getNoviceWeeklyDistances(config, w, lastNonTaperWeek, prevVol);
+      weeklyKm.push(round1(totalKm));
       continue;
     }
 
-    if (config.level === "NOVICE") {
-      const { start: lrStart, peak: lrPeak } = getLongRunKm(config, config.goal);
-      const progress = lastNonTaperWeek <= 1 ? 1 : (w - 1) / (lastNonTaperWeek - 1);
-      let currentLong = lrStart + progress * (lrPeak - lrStart);
-
-      let nonLongSessionDistance = 1.0 + progress * (4.0 - 1.0);
-
-      if (cutback) {
-        currentLong = currentLong * (1 - reduce);
-        nonLongSessionDistance = nonLongSessionDistance * (1 - reduce);
-      }
-
-      const nonLongSessionCount = config.days.length - 1;
-      let next = currentLong + (nonLongSessionCount * nonLongSessionDistance);
-
-      if (w === 1) {
-        prev = next;
-      } else if (!cutback) {
-        if (next < prev) {
-          next = prev + 0.5;
-        }
-        prev = next;
-      } else {
-        next = Math.max(next, weeklyKm[0] ?? next);
-      }
-      weeklyKm.push(round1(next));
+    if (phase === "Taper") {
+      weeklyKm.push(round1(taperWeeklyKm(config, peak, w)));
       continue;
     }
     // Target a smooth ramp to peak by the last non-taper week.
@@ -638,8 +686,9 @@ function buildLongRuns(config: PlanConfig, weeklyKm: number[], isCutback: boolea
       curr = start;
     } else if (w <= lastNonTaperWeek) {
       if (config.level === "NOVICE") {
-        const progress = (w - 1) / Math.max(1, lastNonTaperWeek - 1);
-        curr = start + progress * (peak - start);
+        const prevVol = w > 1 ? weeklyKm[w - 2] : null;
+        const { longKm: lk } = getNoviceWeeklyDistances(config, w, lastNonTaperWeek, prevVol);
+        curr = lk;
       } else {
         const build = phase === "Race Specific";
         if (build) {
@@ -656,7 +705,7 @@ function buildLongRuns(config: PlanConfig, weeklyKm: number[], isCutback: boolea
     }
 
     let wkLong = curr;
-    if (isCutback[w - 1]) {
+    if (config.level !== "NOVICE" && isCutback[w - 1]) {
       const { reduce } = getCutbackConfig(config.level);
       wkLong = wkLong * (1 - reduce);
     }
@@ -754,8 +803,15 @@ export function generatePlan(config: PlanConfig): TrainingWeek[] {
     let nonLongCap: number;
 
     if (config.level === "NOVICE") {
-      wkLongKm = baseLongKm;
       distributedWeekKm = weekKm;
+      const originalWeekKm = weeklyKm[w - 1] ?? weekKm;
+      if (distributedWeekKm < originalWeekKm - 0.01) {
+        // Apply ACWR by proportionally scaling L and E.
+        const factor = distributedWeekKm / Math.max(0.1, originalWeekKm);
+        wkLongKm = round1(baseLongKm * factor);
+      } else {
+        wkLongKm = baseLongKm;
+      }
       nonLongCap = round1(wkLongKm * 1.5);
     } else {
       const constrainedWeekKm = round1(Math.min(weekKm, baseLongKm / 0.35));
