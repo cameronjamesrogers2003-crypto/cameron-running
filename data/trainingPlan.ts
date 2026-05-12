@@ -42,6 +42,17 @@ export interface Session {
   targetPaceMinPerKm: number
   targetPaceFormatted?: string
   description: string
+  /** Novice-specific structure for managed impact */
+  structure?: {
+    warmupMin: number
+    cooldownMin: number
+    runWalkRatio?: {
+      runSec: number
+      walkSec: number
+    }
+  }
+  targetRpe?: number
+  plannedWorkload?: number
 }
 
 export interface TrainingWeek {

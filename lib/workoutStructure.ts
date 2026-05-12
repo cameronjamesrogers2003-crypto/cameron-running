@@ -31,6 +31,15 @@ export interface WorkoutContext {
   vdot: number;
   targetDistanceKm: number;
   targetPaceMinPerKm: number;
+  targetRpe?: number;
+  structure?: {
+    warmupMin: number;
+    cooldownMin: number;
+    runWalkRatio?: {
+      runSec: number;
+      walkSec: number;
+    };
+  };
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -54,25 +63,33 @@ function isBasePhase(phase: Phase): boolean {
   );
 }
 
-function getNoviceIntervals(week: number): string {
-  if (week <= 2) return "Alternate 1 min jogging / 2 min brisk walking";
-  if (week <= 4) return "Alternate 2 min jogging / 1 min brisk walking";
-  if (week <= 6) return "Alternate 3 min jogging / 1 min brisk walking";
-  if (week <= 8) return "Alternate 5 min jogging / 1 min brisk walking";
-  return "Alternate 8-10 min jogging / 1 min walking";
+function getNoviceIntervals(ctx: WorkoutContext): string {
+  if (ctx.structure?.runWalkRatio) {
+    const { runSec, walkSec } = ctx.structure.runWalkRatio;
+    return `Repeat: Jog ${runSec}s, Walk ${walkSec}s`;
+  }
+  if (ctx.week <= 2) return "Alternate 1 min jogging / 2 min brisk walking";
+  if (ctx.week <= 4) return "Alternate 2 min jogging / 1 min brisk walking";
+  if (ctx.week <= 6) return "Alternate 3 min jogging / 1 min brisk walking";
+  if (ctx.week <= 8) return "Alternate 5 min jogging / 1 min brisk walking";
+  return "Alternate 8–10 min jogging / 1 min walking";
 }
 
 // ── Easy run ──────────────────────────────────────────────────────────────────
 
 function buildEasyStructure(ctx: WorkoutContext): WorkoutStructure {
   if (ctx.level === "NOVICE") {
+    const warmup = ctx.structure?.warmupMin ?? 5;
+    const cooldown = ctx.structure?.cooldownMin ?? 5;
+    const rpe = ctx.targetRpe ?? 3;
+    
     return {
       sessionPurpose: "Build consistency and time-on-feet through run/walk intervals.",
       physiologicalTarget: "Aerobic adaptation. Gradually teaching your body to handle continuous motion.",
-      warmup: { label: "Start", content: "5 min brisk walk. Focus on upright posture and easy breathing." },
-      mainSet: { label: "Main", content: `${getNoviceIntervals(ctx.week)} until you reach ${ctx.targetDistanceKm.toFixed(1)} km.` },
-      cooldown: { label: "Finish", content: "5 min slow walk to let your heart rate settle." },
-      effortGuidance: "Effort: RPE 3–4 / 10. You should be able to hold a full conversation easily.",
+      warmup: { label: "Start", content: `${warmup} min brisk walk. Focus on upright posture and easy breathing.` },
+      mainSet: { label: "Main", content: `${getNoviceIntervals(ctx)} until you reach ${ctx.targetDistanceKm.toFixed(1)} km.` },
+      cooldown: { label: "Finish", content: `${cooldown} min slow walk to let your heart rate settle.` },
+      effortGuidance: `Effort: RPE ${rpe} / 10 ("Conversational Pace"). You should be able to hold a full conversation easily.`,
       executionTips: [
         "Don't rush the jogging intervals — consistency is more important than speed.",
         "The walking breaks are active recovery; keep moving at a brisk pace.",
@@ -305,13 +322,17 @@ function buildIntervalStructure(ctx: WorkoutContext): WorkoutStructure {
 
 function buildLongRunStructure(ctx: WorkoutContext): WorkoutStructure {
   if (ctx.level === "NOVICE") {
+    const warmup = ctx.structure?.warmupMin ?? 5;
+    const cooldown = ctx.structure?.cooldownMin ?? 5;
+    const rpe = ctx.targetRpe ?? 4;
+
     return {
       sessionPurpose: "Develop endurance through a sustained effort of run/walk intervals.",
       physiologicalTarget: "Aerobic base building. Increasing the total duration of forward motion.",
-      warmup: { label: "Start", content: "5 min easy walk or very light jog. Focus on relaxed mechanics." },
-      mainSet: { label: "Main", content: `${getNoviceIntervals(ctx.week)} for a total of ${ctx.targetDistanceKm.toFixed(1)} km.` },
-      cooldown: { label: "After", content: "5–10 min slow walk. Light stretching if comfortable." },
-      effortGuidance: "Effort: RPE 4 / 10. Slightly more sustained but still fully conversational.",
+      warmup: { label: "Start", content: `${warmup} min brisk walk. Focus on upright posture and easy breathing.` },
+      mainSet: { label: "Main", content: `${getNoviceIntervals(ctx)} for a total of ${ctx.targetDistanceKm.toFixed(1)} km.` },
+      cooldown: { label: "After", content: `${cooldown} min slow walk. Light stretching if comfortable.` },
+      effortGuidance: `Effort: RPE ${rpe} / 10 ("Conversational Pace"). Slightly more sustained but still fully conversational.`,
       executionTips: [
         "Use the walking breaks to lower your heart rate and reset your form.",
         "Focus on 'time on feet' rather than how fast you are moving.",
