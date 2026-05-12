@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, ChevronLeft, ChevronRight, Info } from "lucide-react";
 import type { Day, PlanConfig } from "@/data/trainingPlan";
@@ -154,6 +154,13 @@ export default function OnboardingPage() {
   const [targetTime, setTargetTime] = useState({ hours: "1", mins: "55" });
   const [skipFitness, setSkipFitness] = useState(false);
 
+  // Safeguard: Novices are restricted to 5K/10K
+  useEffect(() => {
+    if (form.experienceLevel === "NOVICE" && (form.goalRace === "HALF" || form.goalRace === "FULL")) {
+      setForm(prev => ({ ...prev, goalRace: "5K" }));
+    }
+  }, [form.experienceLevel, form.goalRace]);
+
   const isNovice = form.experienceLevel === "NOVICE";
   const totalSteps = isNovice ? 3 : 4;
 
@@ -243,7 +250,7 @@ export default function OnboardingPage() {
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-8">
-      <StepIndicator currentStep={step} totalSteps={totalSteps} isNovice={isNovice} />
+      <StepIndicator currentStep={step} isNovice={isNovice} />
 
       <div className="min-h-[450px]">
         {/* ── STEP 1: Welcome & Goals ─────────────────────────────────── */}
@@ -306,19 +313,26 @@ export default function OnboardingPage() {
             <section className="space-y-4">
               <p className="text-xs font-black uppercase tracking-widest text-white/30 ml-1">What are you training for?</p>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                {(["5K", "10K", "HALF", "FULL"] as GoalRace[]).map(goal => (
-                  <button
-                    key={goal}
-                    type="button"
-                    onClick={() => setForm({ ...form, goalRace: goal })}
-                    className={`py-3 px-2 rounded-xl border-2 transition-all font-bold text-xs ${
-                      form.goalRace === goal ? "border-teal-500 bg-teal-500/10 text-white" : "border-white/5 bg-white/5 text-white/30"
-                    }`}
-                  >
-                    {goal === "HALF" ? "HALF MAR" : goal === "FULL" ? "MARATHON" : goal}
-                  </button>
-                ))}
+                {(["5K", "10K", "HALF", "FULL"] as GoalRace[])
+                  .filter(goal => !(isNovice && (goal === "HALF" || goal === "FULL")))
+                  .map(goal => (
+                    <button
+                      key={goal}
+                      type="button"
+                      onClick={() => setForm({ ...form, goalRace: goal })}
+                      className={`py-3 px-2 rounded-xl border-2 transition-all font-bold text-xs ${
+                        form.goalRace === goal ? "border-teal-500 bg-teal-500/10 text-white" : "border-white/5 bg-white/5 text-white/30"
+                      }`}
+                    >
+                      {goal === "HALF" ? "HALF MAR" : goal === "FULL" ? "MARATHON" : goal}
+                    </button>
+                  ))}
               </div>
+              {isNovice && (
+                <p className="text-[10px] text-teal-400/80 font-medium ml-1">
+                  Novice plans are restricted to 5k and 10k to ensure safe, injury-free progression.
+                </p>
+              )}
             </section>
 
             <section className="space-y-4 pb-8">

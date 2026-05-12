@@ -121,6 +121,14 @@ export default function SettingsForm() {
   );
   const [goalRace, setGoalRace] = useState<"5K" | "10K" | "HALF" | "FULL">((settings.goalRace as any) ?? "HALF");
   const [planLengthWeeks, setPlanLengthWeeks] = useState<8 | 12 | 16 | 20>((settings.planLengthWeeks ?? 16) as 8 | 12 | 16 | 20);
+
+  // Safeguard: Novices are restricted to 5K/10K
+  useEffect(() => {
+    if (experienceLevel === "NOVICE" && (goalRace === "HALF" || goalRace === "FULL")) {
+      setGoalRace("5K");
+    }
+  }, [experienceLevel, goalRace]);
+
   const [trainingDays, setTrainingDays] = useState<Day[]>(() => parseTrainingDaysValue(settings.trainingDays));
   const [selectedLongRunDay, setSelectedLongRunDay] = useState<Day | null>(() => parseLongRunDayValue(settings.longRunDay));
 
@@ -522,24 +530,31 @@ export default function SettingsForm() {
                       ["10K", "10.0 km"],
                       ["HALF", "21.1 km"],
                       ["FULL", "42.2 km"],
-                    ] as const).map(([goal, dist]) => (
-                      <button
-                        key={goal}
-                        type="button"
-                        onClick={() => setGoalRace(goal)}
-                        className="p-3.5 rounded-xl border cursor-pointer transition-all text-left hover:bg-white/[0.07]"
-                        style={{
-                          background: goalRace === goal ? "rgba(45,212,191,0.08)" : "var(--card-bg)",
-                          border: goalRace === goal ? "2px solid rgba(45,212,191,0.60)" : "1px solid rgba(255,255,255,0.08)",
-                        }}
-                      >
-                        <p className="text-xs font-black text-white mb-1">
-                          {goal === "HALF" ? "HALF MAR" : goal === "FULL" ? "MARATHON" : goal}
-                        </p>
-                        <p className="text-[10px]" style={{ color: "var(--text-muted)" }}>{dist}</p>
-                      </button>
-                    ))}
+                    ] as const)
+                      .filter(([goal]) => !(experienceLevel === "NOVICE" && (goal === "HALF" || goal === "FULL")))
+                      .map(([goal, dist]) => (
+                        <button
+                          key={goal}
+                          type="button"
+                          onClick={() => setGoalRace(goal)}
+                          className="p-3.5 rounded-xl border cursor-pointer transition-all text-left hover:bg-white/[0.07]"
+                          style={{
+                            background: goalRace === goal ? "rgba(45,212,191,0.08)" : "var(--card-bg)",
+                            border: goalRace === goal ? "2px solid rgba(45,212,191,0.60)" : "1px solid rgba(255,255,255,0.08)",
+                          }}
+                        >
+                          <p className="text-xs font-black text-white mb-1">
+                            {goal === "HALF" ? "HALF MAR" : goal === "FULL" ? "MARATHON" : goal}
+                          </p>
+                          <p className="text-[10px]" style={{ color: "var(--text-muted)" }}>{dist}</p>
+                        </button>
+                      ))}
                   </div>
+                  {experienceLevel === "NOVICE" && (
+                    <p className="text-[10px] mt-3 text-teal-400/80 font-medium">
+                      Novice plans are restricted to 5k and 10k to ensure safe, injury-free progression.
+                    </p>
+                  )}
                 </div>
 
                 <div>
