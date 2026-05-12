@@ -102,9 +102,11 @@ function phaseForWeek(config: PlanConfig, week: number): Phase {
   const goal = config.goal;
 
   // Derive base/build/taper boundaries.
-  // Shorter races (5k/10k) require shorter tapers (1-2 weeks).
   const structure = (() => {
     if (weeks === 8) {
+      if (goal === "5k" || goal === "10k") {
+        return { baseEnd: 3, buildEnd: 7, taperStart: 8 }; // Aggressive 1 week taper
+      }
       return { baseEnd: 2, buildEnd: 6, taperStart: 7 };
     }
     if (weeks === 12) {
@@ -142,8 +144,8 @@ function getCutbackConfig(level: PlanConfig["level"]) {
 function getPeakWeeklyKm(level: PlanConfig["level"], goal: PlanConfig["goal"]): number {
   const key = `${level}-${goal}`;
   switch (key) {
-    case "NOVICE-5k": return 20;
-    case "NOVICE-10k": return 30;
+    case "NOVICE-5k": return 16;
+    case "NOVICE-10k": return 26;
     case "NOVICE-hm": return 40;
     case "NOVICE-full": return 55;
     case "BEGINNER-5k": return 30;
@@ -190,7 +192,7 @@ function taperWeeklyKm(config: PlanConfig, peak: number, week: number): number {
   })();
 
   const idx = week - taperStart; // 0-based into taper block
-  if (goal === "hm") {
+  if (goal === "hm" || goal === "10k" || goal === "5k") {
     if (idx === 0) return peak * 0.70;
     return peak * 0.50;
   }
@@ -238,8 +240,8 @@ export function computeWeekSubtitle(
 function getLongRunKm(config: PlanConfig, goal: PlanConfig["goal"]) {
   const key = `${config.level}-${goal}`;
   switch (key) {
-    case "NOVICE-5k": return { start: 3, peak: 8 };
-    case "NOVICE-10k": return { start: 5, peak: 12 };
+    case "NOVICE-5k": return { start: 2, peak: 6 };
+    case "NOVICE-10k": return { start: 3, peak: 11 };
     case "NOVICE-hm": return { start: 6, peak: 14 };
     case "NOVICE-full": return { start: 8, peak: 24 };
     case "BEGINNER-5k": return { start: 4, peak: 10 };
@@ -272,7 +274,10 @@ function getPhaseWindows(config: Pick<PlanConfig, "weeks" | "goal">, weekNumber:
   const goal = config.goal;
 
   const boundaries = (() => {
-    if (weeks === 8) return { base: 2, taper: 2 };
+    if (weeks === 8) {
+      if (goal === "5k" || goal === "10k") return { base: 3, taper: 1 };
+      return { base: 2, taper: 2 };
+    }
     if (weeks === 12) {
       if (goal === "5k" || goal === "10k") return { base: 3, taper: 2 };
       return { base: 4, taper: 3 };
@@ -690,20 +695,25 @@ export function generatePlan(config: PlanConfig): TrainingWeek[] {
     );
 
     const weekKm = round1(weeklyKm[w - 1] ?? peakKm);
-    const baseLongKm = round1(clamp(longKm[w - 1] ?? 0, 5, weekKm));
+
+    // Dynamic minimums to prevent static sessions for Novices/5k plans
+    const minLongKm = (config.level === "NOVICE" || config.goal === "5k") ? 1.5 : 5;
+    const minSessionKm = (config.level === "NOVICE" || config.goal === "5k") ? 1.0 : 3;
+
+    const baseLongKm = round1(clamp(longKm[w - 1] ?? 0, minLongKm, weekKm));
     const otherDays = dayList.filter((d) => typesForWeek[d] !== "long");
     const nonLongCount = otherDays.length;
 
     // Rule 1/3: long run should be at least 35% of weekly volume.
     // If base long run would be <35%, reduce weekly volume to match the long run.
     const constrainedWeekKm = round1(Math.min(weekKm, baseLongKm / 0.35));
-    const wkLongKm = round1(clamp(Math.max(baseLongKm, constrainedWeekKm * 0.35), 5, constrainedWeekKm));
+    const wkLongKm = round1(clamp(Math.max(baseLongKm, constrainedWeekKm * 0.35), minLongKm, constrainedWeekKm));
 
     // Rule 2: non-long sessions should not exceed 85% of the long run distance.
     // For 4+ day plans, protect easy-day minimums so frequency plans don't degrade into very short runs.
     const easySessionCount = otherDays.filter((day) => typesForWeek[day] === "easy").length;
     const minEasyKm = (
-      config.level === "NOVICE" ? 2 :
+      config.level === "NOVICE" ? 1.5 :
       config.level === "BEGINNER" ? 3 :
       config.level === "INTERMEDIATE" ? 4 :
       5
@@ -732,12 +742,12 @@ export function generatePlan(config: PlanConfig): TrainingWeek[] {
         type === "long"
           ? wkLongKm
           : type === "interval"
-            ? round1(clamp(eachOther, 3, Math.min(intervalCap, nonLongCap)))
-          : round1(clamp(eachOther, 3, Math.max(3, nonLongCap)));
+            ? round1(clamp(eachOther, minSessionKm, Math.min(intervalCap, nonLongCap)))
+          : round1(clamp(eachOther, minSessionKm, Math.max(minSessionKm, nonLongCap)));
 
       // Strict caps for Novice level to keep sessions within 20-30 min window.
       if (config.level === "NOVICE") {
-        km = type === "long" ? clamp(km, 3, 5) : clamp(km, 2.5, 4);
+        km = type === "long" ? clamp(km, 2.5, 6) : clamp(km, 1.5, 4);
       }
 
       const paceObj =
