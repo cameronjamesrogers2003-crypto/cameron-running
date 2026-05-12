@@ -170,10 +170,9 @@ function getPeakWeeklyKm(level: PlanConfig["level"], goal: PlanConfig["goal"]): 
 
 function getStartWeeklyKm(level: PlanConfig["level"], peak: number): number {
   const frac = 
-    level === "NOVICE" ? 0.65 :
-    level === "BEGINNER" ? 0.70 : 
-    level === "INTERMEDIATE" ? 0.75 : 
-    level === "ADVANCED" ? 0.80 : 0.85; // ELITE
+    level === "NOVICE" ? 0.35 :
+    level === "BEGINNER" ? 0.60 : 
+    level === "INTERMEDIATE" ? 0.70 : 0.80; 
   return peak * frac;
 }
 
@@ -611,16 +610,22 @@ function buildLongRuns(config: PlanConfig, weeklyKm: number[], isCutback: boolea
     if (w === 1) {
       curr = start;
     } else if (w <= lastNonTaperWeek) {
-      const build = phase === "Race Specific";
-      if (build) {
-        const remainingWeeks = Math.max(1, lastNonTaperWeek - w + 1);
-        const remainingDist = peak - curr;
-        const ideal = remainingDist / remainingWeeks;
-        const inc = clamp(Math.round(ideal), 1, 2);
-        curr = Math.min(peak, curr + inc);
+      if (config.level === "NOVICE") {
+        // Pure linear ramp for absolute beginners to ensure progression every week
+        const progress = (w - 1) / Math.max(1, lastNonTaperWeek - 1);
+        curr = start + progress * (peak - start);
       } else {
-        // Base phase: gentle increase (0–1 km).
-        curr = Math.min(peak, curr + (curr < peak ? 1 : 0));
+        const build = phase === "Race Specific";
+        if (build) {
+          const remainingWeeks = Math.max(1, lastNonTaperWeek - w + 1);
+          const remainingDist = peak - curr;
+          const ideal = remainingDist / remainingWeeks;
+          const inc = clamp(Math.round(ideal), 1, 2);
+          curr = Math.min(peak, curr + inc);
+        } else {
+          // Base phase: gentle increase (0–1 km).
+          curr = Math.min(peak, curr + (curr < peak ? 1 : 0));
+        }
       }
     }
 
@@ -704,12 +709,16 @@ export function generatePlan(config: PlanConfig): TrainingWeek[] {
     const otherDays = dayList.filter((d) => typesForWeek[d] !== "long");
     const nonLongCount = otherDays.length;
 
-    // Rule 1/3: long run should be at least 35% of weekly volume.
-    // If base long run would be <35%, reduce weekly volume to match the long run.
-    const constrainedWeekKm = round1(Math.min(weekKm, baseLongKm / 0.35));
-    const wkLongKm = round1(clamp(Math.max(baseLongKm, constrainedWeekKm * 0.35), minLongKm, constrainedWeekKm));
+    // Progression Ratios: Novices need more flexibility to allow for a ramp.
+    const minLongRatio = config.level === "NOVICE" ? 0.15 : 0.35;
+    const maxNonLongRatio = config.level === "NOVICE" ? 1.50 : 0.85;
 
-    // Rule 2: non-long sessions should not exceed 85% of the long run distance.
+    // Rule 1/3: long run should be at least X% of weekly volume.
+    // If base long run would be <X%, reduce weekly volume to match the long run.
+    const constrainedWeekKm = round1(Math.min(weekKm, baseLongKm / minLongRatio));
+    const wkLongKm = round1(clamp(Math.max(baseLongKm, constrainedWeekKm * minLongRatio), minLongKm, constrainedWeekKm));
+
+    // Rule 2: non-long sessions should not exceed X% of the long run distance.
     // For 4+ day plans, protect easy-day minimums so frequency plans don't degrade into very short runs.
     const easySessionCount = otherDays.filter((day) => typesForWeek[day] === "easy").length;
     const minEasyKm = (
@@ -718,7 +727,7 @@ export function generatePlan(config: PlanConfig): TrainingWeek[] {
       config.level === "INTERMEDIATE" ? 4 :
       5
     );
-    const nonLongCap = round1(wkLongKm * 0.85);
+    const nonLongCap = round1(wkLongKm * maxNonLongRatio);
     let distributedWeekKm = constrainedWeekKm;
     let remaining = round1(Math.max(0, distributedWeekKm - wkLongKm));
     let eachOther = round1(nonLongCount > 0 ? remaining / nonLongCount : 0);
