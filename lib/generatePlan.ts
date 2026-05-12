@@ -332,24 +332,29 @@ export function computeWeekSubtitle(
 function getLongRunKm(config: PlanConfig, goal: PlanConfig["goal"]) {
   const key = `${config.level}-${goal}`;
   switch (key) {
-    case "NOVICE-5k": return { start: 1.5, peak: 6 };
-    case "NOVICE-10k": return { start: 1.5, peak: 11 };
+    // 5K: Peak long run strictly capped at <= 8 km.
+    case "NOVICE-5k": return { start: 1.5, peak: 5 };
+    case "BEGINNER-5k": return { start: 3, peak: 6 };
+    case "INTERMEDIATE-5k": return { start: 4, peak: 7 };
+    case "ADVANCED-5k": return { start: 5, peak: 8 };
+    case "ELITE-5k": return { start: 6, peak: 8 };
+
+    // 10K: Peak long run strictly capped at <= 14 km.
+    case "NOVICE-10k": return { start: 1.5, peak: 10 };
+    case "BEGINNER-10k": return { start: 5, peak: 12 };
+    case "INTERMEDIATE-10k": return { start: 6, peak: 13 };
+    case "ADVANCED-10k": return { start: 8, peak: 14 };
+    case "ELITE-10k": return { start: 8, peak: 14 };
+
+    // HM & Full caps
     case "NOVICE-hm": return { start: 6, peak: 14 };
     case "NOVICE-full": return { start: 8, peak: 24 };
-    case "BEGINNER-5k": return { start: 4, peak: 10 };
-    case "BEGINNER-10k": return { start: 6, peak: 14 };
     case "BEGINNER-hm": return { start: 7, peak: 18 };
     case "BEGINNER-full": return { start: 10, peak: 29 };
-    case "INTERMEDIATE-5k": return { start: 6, peak: 12 };
-    case "INTERMEDIATE-10k": return { start: 8, peak: 16 };
     case "INTERMEDIATE-hm": return { start: 9, peak: 20 };
     case "INTERMEDIATE-full": return { start: 13, peak: 32 };
-    case "ADVANCED-5k": return { start: 8, peak: 15 };
-    case "ADVANCED-10k": return { start: 10, peak: 18 };
     case "ADVANCED-hm": return { start: 11, peak: 22 };
     case "ADVANCED-full": return { start: 16, peak: 35 };
-    case "ELITE-5k": return { start: 10, peak: 20 };
-    case "ELITE-10k": return { start: 12, peak: 24 };
     case "ELITE-hm": return { start: 14, peak: 28 };
     case "ELITE-full": return { start: 18, peak: 40 };
     default: return { start: 7, peak: 18 };
@@ -811,10 +816,34 @@ export function generatePlan(config: PlanConfig): TrainingWeek[] {
 
     if (config.level === "NOVICE") {
       distributedWeekKm = weekKm;
-      wkLongKm = baseLongKm; // Note: baseLongKm might be clamped to 1.5 if not careful
-      // Actually, for Novice, we should use exactly longKm[w-1] 
       wkLongKm = longKm[w - 1] ?? baseLongKm;
       nonLongCap = 100;
+    } else if (config.goal === "5k" || config.goal === "10k") {
+      wkLongKm = baseLongKm;
+      // Enforce Target Band: long run should be ~22-35% of the week.
+      let minWeekKm = dayList.length >= 4 ? wkLongKm / 0.35 : wkLongKm / 0.50;
+      let maxWeekKm = wkLongKm / 0.22;
+      distributedWeekKm = round1(clamp(weekKm, minWeekKm, maxWeekKm));
+      
+      if (dayList.length === 2) {
+        wkLongKm = Math.min(wkLongKm, distributedWeekKm * 0.5);
+      }
+      
+      // Prevent non-long runs from exceeding the long run
+      nonLongCap = round1(wkLongKm);
+      
+      let remaining = round1(Math.max(0, distributedWeekKm - wkLongKm));
+      let eachOther = round1(nonLongCount > 0 ? remaining / nonLongCount : 0);
+      
+      if (eachOther < minSessionKm && nonLongCount > 0) {
+        eachOther = minSessionKm;
+        distributedWeekKm = round1(wkLongKm + (eachOther * nonLongCount));
+      }
+      
+      if (eachOther > nonLongCap && nonLongCount > 0) {
+        eachOther = nonLongCap;
+        distributedWeekKm = round1(wkLongKm + (eachOther * nonLongCount));
+      }
     } else {
       const constrainedWeekKm = round1(Math.min(weekKm, baseLongKm / 0.35));
       wkLongKm = round1(clamp(Math.max(baseLongKm, constrainedWeekKm * 0.35), minLongKm, constrainedWeekKm));
@@ -823,7 +852,7 @@ export function generatePlan(config: PlanConfig): TrainingWeek[] {
     }
 
     // Long Run Rule: For 2-session/week programs, the Long Run must not exceed 50% of total weekly volume.
-    if (dayList.length === 2) {
+    if (dayList.length === 2 && (config.goal !== "5k" && config.goal !== "10k" || config.level === "NOVICE")) {
       wkLongKm = Math.min(wkLongKm, distributedWeekKm * 0.5);
     }
 
@@ -831,8 +860,8 @@ export function generatePlan(config: PlanConfig): TrainingWeek[] {
     let remaining = round1(Math.max(0, distributedWeekKm - wkLongKm));
     let eachOther = round1(nonLongCount > 0 ? remaining / nonLongCount : 0);
 
-    // Bypass generic floors and redistribution for Novice
-    if (config.level !== "NOVICE") {
+    // Bypass generic floors and redistribution for Novice, and 5K/10K goals
+    if (config.level !== "NOVICE" && config.goal !== "5k" && config.goal !== "10k") {
       if (dayList.length >= 4 && easySessionCount > 0 && eachOther < minEasyKm) {
         const minRequiredWeeklyKm = round1(wkLongKm + (minEasyKm * easySessionCount));
         distributedWeekKm = round1(Math.min(peakKm, Math.max(distributedWeekKm, minRequiredWeeklyKm)));
