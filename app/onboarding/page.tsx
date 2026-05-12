@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Check, ChevronLeft, ChevronRight, Info } from "lucide-react";
 import type { Day, PlanConfig } from "@/data/trainingPlan";
 import { useSettings } from "@/context/SettingsContext";
 import { getDefaultLongRunDay, getScheduleWarnings } from "@/lib/generatePlan";
@@ -9,530 +10,508 @@ import { toBrisbaneYmd } from "@/lib/dateUtils";
 import VdotCalculator, { type VdotPersonalFields } from "@/components/VdotCalculator";
 import { FORM_CONTROL_TW } from "@/lib/formControlClasses";
 
+// ── Types ──────────────────────────────────────────────────────────────────
+
 type Level = "NOVICE" | "BEGINNER" | "INTERMEDIATE" | "ADVANCED" | "ELITE";
 type GoalRace = "5K" | "10K" | "HALF" | "FULL";
 
+interface OnboardingState {
+  firstName: string;
+  nickname: string;
+  experienceLevel: Level | null;
+  goalRace: GoalRace | null;
+  planLengthWeeks: 8 | 12 | 16 | 20;
+  trainingDays: Day[];
+  longRunDay: Day | null;
+  maxHR: number;
+  vdot: number | null;
+  targetFinishTimeMins: number | null;
+}
+
+// ── Constants ────────────────────────────────────────────────────────────────
+
 const DAYS: Day[] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 const DAY_LABEL: Record<Day, string> = {
-  mon: "Mon",
-  tue: "Tue",
-  wed: "Wed",
-  thu: "Thu",
-  fri: "Fri",
-  sat: "Sat",
-  sun: "Sun",
+  mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat", sun: "Sun",
 };
 
-const LEVEL_COPY: Record<Level, string> = {
-  NOVICE: "Just starting out. Focus on consistency and walk-runs.",
-  BEGINNER: "0–12 months running. Conservative progression.",
-  INTERMEDIATE: "1–3 years running. Balanced mix of sessions.",
-  ADVANCED: "3+ years running. High intensity from week 1.",
-  ELITE: "Competitive athlete. High volume and specificity.",
+const LEVEL_DETAILS: Record<Level, { title: string; desc: string }> = {
+  NOVICE: { title: "Novice", desc: "Just starting out. Focus on consistency and walk-runs." },
+  BEGINNER: { title: "Beginner", desc: "0–12 months running. Conservative progression." },
+  INTERMEDIATE: { title: "Intermediate", desc: "1–3 years running. Balanced mix of sessions." },
+  ADVANCED: { title: "Advanced", desc: "3+ years running. High intensity from week 1." },
+  ELITE: { title: "Elite", desc: "Competitive athlete. High volume and specificity." },
 };
 
-function CardOption({
-  selected,
-  title,
-  subtitle,
-  onClick,
-  badge,
-}: {
-  selected: boolean;
-  title: string;
-  subtitle: string;
-  onClick: () => void;
-  badge?: string;
+// ── Components ───────────────────────────────────────────────────────────────
+
+function StepIndicator({ currentStep, isNovice }: { currentStep: number; isNovice: boolean }) {
+  const steps = isNovice 
+    ? [{ id: 1, label: "Goals" }, { id: 2, label: "Schedule" }, { id: 4, label: "Review" }]
+    : [{ id: 1, label: "Goals" }, { id: 2, label: "Schedule" }, { id: 3, label: "Fitness" }, { id: 4, label: "Review" }];
+  
+  const activeIdx = steps.findIndex(s => s.id === currentStep);
+  const progress = ((activeIdx + 1) / steps.length) * 100;
+
+  return (
+    <div className="mb-12">
+      <div className="flex justify-between items-center mb-6">
+        {steps.map((s, idx) => {
+          const isActive = s.id === currentStep;
+          const isCompleted = isNovice 
+            ? (currentStep === 4 && s.id < 4) || (currentStep === 2 && s.id === 1)
+            : s.id < currentStep;
+
+          return (
+            <div key={s.label} className="flex flex-col items-center flex-1 relative">
+              <div 
+                className={`w-10 h-10 rounded-full flex items-center justify-center text-xs font-black transition-all duration-500 z-10 ${
+                  isActive ? "bg-teal-500 text-black scale-110 shadow-xl shadow-teal-500/30" : 
+                  isCompleted ? "bg-teal-500/20 text-teal-400 border border-teal-500/20" : "bg-white/5 text-white/20 border border-white/5"
+                }`}
+              >
+                {isCompleted ? <Check className="w-5 h-5" strokeWidth={3} /> : idx + 1}
+              </div>
+              <span className={`text-[10px] mt-3 font-black uppercase tracking-[0.2em] transition-colors duration-500 ${isActive ? "text-white" : "text-white/20"}`}>
+                {s.label}
+              </span>
+              
+              {/* Connector Line */}
+              {idx < steps.length - 1 && (
+                <div className="absolute top-5 left-[50%] w-full h-[2px] bg-white/5 -z-0">
+                  <div 
+                    className="h-full bg-teal-500/30 transition-all duration-700 ease-in-out" 
+                    style={{ width: isCompleted ? "100%" : "0%" }}
+                  />
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden shadow-inner">
+        <div 
+          className="h-full bg-gradient-to-r from-teal-600 to-teal-400 transition-all duration-1000 ease-out"
+          style={{ width: `${progress}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function CardOption({ selected, title, subtitle, onClick, badge }: { 
+  selected: boolean; title: string; subtitle: string; onClick: () => void; badge?: string 
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="text-left rounded-xl p-4 border transition"
-      style={{
-        borderColor: selected ? "rgba(45,212,191,0.45)" : "rgba(255,255,255,0.12)",
-        background: selected ? "rgba(45,212,191,0.1)" : "rgba(255,255,255,0.03)",
-      }}
+      className={`text-left rounded-2xl p-5 border-2 transition-all duration-300 hover:scale-[1.02] ${
+        selected ? "border-teal-500/50 bg-teal-500/5 shadow-lg shadow-teal-500/10" : "border-white/5 bg-white/30 backdrop-blur-sm"
+      }`}
     >
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-sm font-semibold text-white">{title}</p>
+      <div className="flex items-center justify-between gap-3 mb-1">
+        <p className={`text-sm font-bold ${selected ? "text-white" : "text-white/70"}`}>{title}</p>
         {badge && (
-          <span
-            className="text-[10px] px-2 py-0.5 rounded-full"
-            style={{ background: "rgba(45,212,191,0.2)", color: "#5eead4" }}
-          >
+          <span className="text-[10px] px-2 py-0.5 rounded bg-teal-500/20 text-teal-400 font-black uppercase tracking-tighter">
             {badge}
           </span>
         )}
       </div>
-      <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>{subtitle}</p>
+      <p className="text-xs leading-relaxed text-white/40">{subtitle}</p>
     </button>
   );
 }
 
-function computeLockedWeeksFromPlan(planStartIso: string | null, maxWeek: number): number[] {
-  if (!planStartIso || maxWeek <= 0) return [];
-  const planStart = new Date(planStartIso);
-  if (Number.isNaN(planStart.getTime())) return [];
-  const now = new Date();
-  const todayAestYmd = new Intl.DateTimeFormat("en-CA", { timeZone: "Australia/Brisbane" }).format(now);
-  const locked: number[] = [];
-  for (let week = 1; week <= maxWeek; week++) {
-    const weekEnd = new Date(planStart.getTime() + week * 7 * 24 * 60 * 60 * 1000);
-    const weekEndAestYmd = new Intl.DateTimeFormat("en-CA", { timeZone: "Australia/Brisbane" }).format(weekEnd);
-    if (weekEndAestYmd < todayAestYmd) locked.push(week);
-  }
-  return locked;
-}
+// ── Page Component ──────────────────────────────────────────────────────────
 
 export default function OnboardingPage() {
   const router = useRouter();
   const { settings, updateSettings } = useSettings();
 
-  const [step, setStep] = useState(0);
-  const [firstName, setFirstName] = useState(settings.firstName ?? "");
-  const [nickname, setNickname] = useState(settings.nickname ?? "");
-  const [nameError, setNameError] = useState<string | null>(null);
-  const [goalRace, setGoalRace] = useState<GoalRace | null>((settings.goalRace as GoalRace | null) ?? null);
-  const [level, setLevel] = useState<Level | null>((settings.experienceLevel as Level | null) ?? null);
-  const [planLengthWeeks, setPlanLengthWeeks] = useState<12 | 16 | 20>((settings.planLengthWeeks as 12 | 16 | 20 | null) ?? 16);
-  const [calculatedVdot, setCalculatedVdot] = useState<number | null>(null);
-  const [maxHR, setMaxHR] = useState<number>(settings.maxHR);
-  const [vdotPersonal, setVdotPersonal] = useState<VdotPersonalFields>({
-    ageInput: settings.age != null ? String(settings.age) : "",
-    gender: settings.gender ?? "",
-    weightInput: settings.weightKg != null && Number.isFinite(settings.weightKg) ? String(settings.weightKg) : "",
-    runningExperience: settings.runningExperience ?? "",
-  });
-  const [fitnessPayload, setFitnessPayload] = useState<{
-    vdot: number;
-    maxHR: number;
-    vdotRaceDistance: string;
-    vdotRaceMinutes: number;
-    vdotRaceSeconds: number;
-    age: number | null;
-    gender: string | null;
-    weightKg: number | null;
-    runningExperience: string | null;
-  } | null>(null);
-  const [suggestedLevel, setSuggestedLevel] = useState<Level | null>(null);
-  const [skipFitnessStep, setSkipFitnessStep] = useState(false);
-  const [targetHoursInput, setTargetHoursInput] = useState<string>("1");
-  const [targetMinutesInput, setTargetMinutesInput] = useState<string>("55");
-  const [skipFinishTime, setSkipFinishTime] = useState(false);
-  const [trainingDays, setTrainingDays] = useState<Day[]>(() => {
-    try {
-      const parsed = settings.trainingDays ? JSON.parse(settings.trainingDays) as unknown : [];
-      if (Array.isArray(parsed)) return parsed.filter((d): d is Day => DAYS.includes(d as Day));
-    } catch {}
-    return ["wed", "sat", "sun"]; // default fallback
-  });
-  const [longRunDay, setLongRunDay] = useState<Day | null>(() => {
-    const value = settings.longRunDay;
-    return value && DAYS.includes(value as Day) ? (value as Day) : null;
-  });
+  const [step, setStep] = useState(1);
   const [saving, setSaving] = useState(false);
+  
+  // State consolidation
+  const [form, setForm] = useState<OnboardingState>({
+    firstName: settings.firstName ?? "",
+    nickname: settings.nickname ?? "",
+    experienceLevel: (settings.experienceLevel as Level | null) ?? null,
+    goalRace: (settings.goalRace as GoalRace | null) ?? null,
+    planLengthWeeks: (settings.planLengthWeeks as any) ?? 16,
+    trainingDays: (() => {
+      try {
+        const parsed = settings.trainingDays ? JSON.parse(settings.trainingDays) : ["wed", "sat", "sun"];
+        return Array.isArray(parsed) ? parsed : ["wed", "sat", "sun"];
+      } catch { return ["wed", "sat", "sun"]; }
+    })(),
+    longRunDay: (settings.longRunDay as Day | null) ?? "sun",
+    maxHR: settings.maxHR ?? 190,
+    vdot: settings.currentVdot ?? null,
+    targetFinishTimeMins: settings.targetFinishTime ?? null,
+  });
 
-  const effectiveLevelForRecommendation = level ?? suggestedLevel;
-  const recommendedLength =
-    effectiveLevelForRecommendation === "BEGINNER"
-      ? 20
-      : effectiveLevelForRecommendation === "ADVANCED"
-        ? 12
-        : 16;
+  const [targetTime, setTargetTime] = useState({ hours: "1", mins: "55" });
+  const [skipFitness, setSkipFitness] = useState(false);
+
+  const isNovice = form.experienceLevel === "NOVICE";
+  const totalSteps = isNovice ? 3 : 4;
 
   const sortedTrainingDays = useMemo(
-    () => [...trainingDays].sort((a, b) => DAYS.indexOf(a) - DAYS.indexOf(b)),
-    [trainingDays],
+    () => [...form.trainingDays].sort((a, b) => DAYS.indexOf(a) - DAYS.indexOf(b)),
+    [form.trainingDays]
   );
 
   const effectiveLongRunDay = useMemo<Day | null>(() => {
     if (sortedTrainingDays.length < 2) return null;
-    if (longRunDay && sortedTrainingDays.includes(longRunDay)) return longRunDay;
+    if (form.longRunDay && sortedTrainingDays.includes(form.longRunDay)) return form.longRunDay;
     return getDefaultLongRunDay(sortedTrainingDays);
-  }, [longRunDay, sortedTrainingDays]);
+  }, [form.longRunDay, sortedTrainingDays]);
+
   const scheduleWarnings = useMemo(
-    () => (effectiveLongRunDay ? getScheduleWarnings(sortedTrainingDays, effectiveLongRunDay, level ?? undefined) : []),
-    [effectiveLongRunDay, sortedTrainingDays, level],
+    () => (effectiveLongRunDay ? getScheduleWarnings(sortedTrainingDays, effectiveLongRunDay, form.experienceLevel ?? undefined) : []),
+    [effectiveLongRunDay, sortedTrainingDays, form.experienceLevel]
   );
 
   const canNext = (() => {
-    if (step === 0) return firstName.trim().length > 0;
-    if (step === 1) return goalRace != null;
-    if (step === 2) return level != null;
-    if (step === 3) return [12, 16, 20].includes(planLengthWeeks);
-    if (step === 4) return skipFitnessStep || calculatedVdot != null;
-    if (step === 5) {
-      if (skipFinishTime) return true;
-      const h = parseInt(targetHoursInput, 10);
-      const m = parseInt(targetMinutesInput, 10);
-      return Number.isFinite(h) && h >= 0 && Number.isFinite(m) && m >= 0 && m < 60;
-    }
-    if (step === 6) return trainingDays.length >= 2 && trainingDays.length <= 6;
-    if (step === 7) return sortedTrainingDays.length >= 2 && effectiveLongRunDay != null;
+    if (step === 1) return form.firstName.trim().length > 0 && form.experienceLevel != null && form.goalRace != null;
+    if (step === 2) return form.trainingDays.length >= 2 && effectiveLongRunDay != null;
+    if (step === 3 && !isNovice) return skipFitness || (form.vdot != null);
     return true;
   })();
 
-  function toggleDay(day: Day) {
-    setTrainingDays((prev) => {
-      if (prev.includes(day)) return prev.filter((d) => d !== day);
-      if (prev.length >= 6) return prev;
-      return [...prev, day];
-    });
-  }
+  const handleNext = () => {
+    if (step === 2 && isNovice) {
+      setStep(4); // Skip to review
+    } else {
+      setStep(s => Math.min(4, s + 1));
+    }
+  };
+
+  const handleBack = () => {
+    if (step === 4 && isNovice) {
+      setStep(2);
+    } else {
+      setStep(s => Math.max(1, s - 1));
+    }
+  };
 
   async function complete() {
-    if (!level || !goalRace || trainingDays.length < 2) return;
-    const parsedTargetHours = parseInt(targetHoursInput, 10) || 0;
-    const parsedTargetMinutes = parseInt(targetMinutesInput, 10) || 0;
-    const parsedAgeRaw = vdotPersonal.ageInput.trim() === "" ? null : Number(vdotPersonal.ageInput);
-    const parsedAge = parsedAgeRaw != null && Number.isFinite(parsedAgeRaw) ? Math.round(parsedAgeRaw) : null;
-    const parsedWeightRaw = vdotPersonal.weightInput.trim() === "" ? null : Number(vdotPersonal.weightInput);
-    const parsedWeight = parsedWeightRaw != null && Number.isFinite(parsedWeightRaw) ? parsedWeightRaw : null;
+    if (!form.experienceLevel || !form.goalRace || form.trainingDays.length < 2) return;
     setSaving(true);
-    const finishMins = skipFinishTime ? null : (parsedTargetHours * 60 + parsedTargetMinutes);
-    const effectiveFitness = fitnessPayload ?? {
-      vdot: calculatedVdot ?? settings.currentVdot,
-      maxHR,
-      vdotRaceDistance: settings.vdotRaceDistance ?? "5",
-      vdotRaceMinutes: settings.vdotRaceMinutes ?? 0,
-      vdotRaceSeconds: settings.vdotRaceSeconds ?? 0,
-      age: parsedAge,
-      gender: vdotPersonal.gender || null,
-      weightKg: parsedWeight,
-      runningExperience: vdotPersonal.runningExperience || null,
-    };
-    const planConfig: PlanConfig = {
-      level,
-      goal: 
-        goalRace === "FULL" ? "full" : 
-        goalRace === "HALF" ? "hm" : 
-        goalRace === "10K" ? "10k" : "5k",
-      weeks: planLengthWeeks,
-      days: sortedTrainingDays,
-      longRunDay: effectiveLongRunDay ?? undefined,
-      vdot: effectiveFitness.vdot,
-    };
+
+    const finishMins = isNovice ? null : (parseInt(targetTime.hours, 10) * 60 + parseInt(targetTime.mins, 10));
+    
     try {
       await updateSettings({
-        firstName: firstName.trim(),
-        nickname: nickname.trim() || null,
-        goalRace,
-        experienceLevel: level,
-        planLengthWeeks,
+        firstName: form.firstName.trim(),
+        nickname: form.nickname.trim() || null,
+        goalRace: form.goalRace,
+        experienceLevel: form.experienceLevel,
+        planLengthWeeks: form.planLengthWeeks,
         trainingDays: JSON.stringify(sortedTrainingDays),
         longRunDay: effectiveLongRunDay,
         targetFinishTime: finishMins,
-        currentVdot: effectiveFitness.vdot,
-        maxHR: effectiveFitness.maxHR,
-        vdotRaceDistance: effectiveFitness.vdotRaceDistance,
-        vdotRaceMinutes: effectiveFitness.vdotRaceMinutes,
-        vdotRaceSeconds: effectiveFitness.vdotRaceSeconds,
-        age: effectiveFitness.age,
-        gender: effectiveFitness.gender,
-        weightKg: effectiveFitness.weightKg,
-        runningExperience: effectiveFitness.runningExperience,
+        currentVdot: isNovice ? 28 : (form.vdot ?? 33),
+        maxHR: form.maxHR,
       });
 
       const token = process.env.NEXT_PUBLIC_PLANS_API_TOKEN;
-      let lockedWeeks: number[] = [];
-      try {
-        const existingResp = await fetch("/api/plans/current", {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        });
-        if (existingResp.ok) {
-          const existing = await existingResp.json() as { plan?: Array<{ week: number }> } | null;
-          const maxWeek = existing?.plan?.reduce((m, w) => Math.max(m, w.week), 0) ?? 0;
-          lockedWeeks = computeLockedWeeksFromPlan(settings.planStartDate, maxWeek);
-        }
-      } catch {}
-
       await fetch("/api/plans/generate", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({ ...planConfig, lockedWeeks }),
+        body: JSON.stringify({
+          level: form.experienceLevel,
+          goal: form.goalRace === "FULL" ? "full" : form.goalRace === "HALF" ? "hm" : form.goalRace === "10K" ? "10k" : "5k",
+          weeks: form.planLengthWeeks,
+          days: sortedTrainingDays,
+          longRunDay: effectiveLongRunDay ?? undefined,
+          vdot: isNovice ? 28 : (form.vdot ?? 33),
+        }),
       });
 
       router.push("/dashboard");
+    } catch (e) {
+      console.error(e);
     } finally {
       setSaving(false);
     }
   }
 
   return (
-    <div className="max-w-3xl mx-auto space-y-4">
-      <p className="text-[11px] sm:text-xs uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>
-        Step {Math.min(step + 1, 8)} of 8
-      </p>
-      {step === 0 && (
-        <section className="space-y-4">
-          <h1 className="text-2xl font-bold text-white">Welcome to Runshift</h1>
-          <p className="text-sm" style={{ color: "var(--text-muted)" }}>Let&apos;s personalise your experience.</p>
-          <div className="space-y-3 max-w-md mx-auto">
-            <input
-              type="text"
-              value={firstName}
-              onChange={(e) => {
-                setFirstName(e.target.value);
-                if (e.target.value.trim()) setNameError(null);
-              }}
-              placeholder="First name"
-              className={`w-full px-4 py-3 rounded-xl text-lg bg-white/[0.06] border border-white/[0.10] text-white placeholder-white/30 outline-none focus:border-teal-500/50 transition-colors text-center font-medium ${FORM_CONTROL_TW}`}
+    <div className="max-w-2xl mx-auto px-4 py-8">
+      <StepIndicator currentStep={step} totalSteps={totalSteps} isNovice={isNovice} />
+
+      <div className="min-h-[450px]">
+        {/* ── STEP 1: Welcome & Goals ─────────────────────────────────── */}
+        {step === 1 && (
+          <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <header>
+              <h1 className="text-3xl font-black text-white tracking-tight mb-2">Welcome to Runshift</h1>
+              <p className="text-white/40">Let&apos;s build your perfect training program.</p>
+            </header>
+
+            <section className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-black uppercase tracking-widest text-white/30 ml-1">First Name</label>
+                  <input
+                    type="text"
+                    value={form.firstName}
+                    onChange={e => setForm({ ...form, firstName: e.target.value })}
+                    className={`w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white outline-none focus:border-teal-500/50 transition-all ${FORM_CONTROL_TW}`}
+                    placeholder="Enter your name"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-black uppercase tracking-widest text-white/30 ml-1">Nickname</label>
+                  <input
+                    type="text"
+                    value={form.nickname}
+                    onChange={e => setForm({ ...form, nickname: e.target.value })}
+                    className={`w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white outline-none focus:border-teal-500/50 transition-all ${FORM_CONTROL_TW}`}
+                    placeholder="Optional"
+                  />
+                </div>
+              </div>
+            </section>
+
+            <section className="space-y-4">
+              <p className="text-xs font-black uppercase tracking-widest text-white/30 ml-1">Experience Level</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {(Object.entries(LEVEL_DETAILS) as [Level, typeof LEVEL_DETAILS["NOVICE"]][]).map(([key, info]) => (
+                  <CardOption 
+                    key={key}
+                    selected={form.experienceLevel === key}
+                    title={info.title}
+                    subtitle={info.desc}
+                    onClick={() => setForm({ ...form, experienceLevel: key })}
+                  />
+                ))}
+              </div>
+              
+              {isNovice && (
+                <div className="p-4 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-start gap-3 mt-4 animate-in zoom-in-95 duration-300">
+                  <Info className="w-5 h-5 text-blue-400 shrink-0 mt-0.5" />
+                  <p className="text-xs text-blue-200/80 leading-relaxed">
+                    <strong>Novice plans</strong> focus purely on time-on-feet and effort (RPE). Advanced pace and heart rate metrics will be disabled to keep your foundation-building simple.
+                  </p>
+                </div>
+              )}
+            </section>
+
+            <section className="space-y-4">
+              <p className="text-xs font-black uppercase tracking-widest text-white/30 ml-1">What are you training for?</p>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {(["5K", "10K", "HALF", "FULL"] as GoalRace[]).map(goal => (
+                  <button
+                    key={goal}
+                    type="button"
+                    onClick={() => setForm({ ...form, goalRace: goal })}
+                    className={`py-3 px-2 rounded-xl border-2 transition-all font-bold text-xs ${
+                      form.goalRace === goal ? "border-teal-500 bg-teal-500/10 text-white" : "border-white/5 bg-white/5 text-white/30"
+                    }`}
+                  >
+                    {goal === "HALF" ? "HALF MAR" : goal === "FULL" ? "MARATHON" : goal}
+                  </button>
+                ))}
+              </div>
+            </section>
+
+            <section className="space-y-4 pb-8">
+              <p className="text-xs font-black uppercase tracking-widest text-white/30 ml-1">Plan Length</p>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {([8, 12, 16, 20] as const).map(weeks => (
+                  <button
+                    key={weeks}
+                    type="button"
+                    onClick={() => setForm({ ...form, planLengthWeeks: weeks })}
+                    className={`py-3 px-2 rounded-xl border-2 transition-all font-bold text-xs ${
+                      form.planLengthWeeks === weeks ? "border-teal-500 bg-teal-500/10 text-white" : "border-white/5 bg-white/5 text-white/30"
+                    }`}
+                  >
+                    {weeks} WEEKS
+                  </button>
+                ))}
+              </div>
+            </section>
+          </div>
+        )}
+
+        {/* ── STEP 2: Schedule ────────────────────────────────────────── */}
+        {step === 2 && (
+          <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <header>
+              <h1 className="text-3xl font-black text-white tracking-tight mb-2">Weekly Schedule</h1>
+              <p className="text-white/40">Tell us when you&apos;re available to train.</p>
+            </header>
+
+            <section className="space-y-4">
+              <p className="text-xs font-black uppercase tracking-widest text-white/30 ml-1">Training Days (Select 2-6)</p>
+              <div className="grid grid-cols-7 gap-2">
+                {DAYS.map(day => {
+                  const selected = form.trainingDays.includes(day);
+                  return (
+                    <button
+                      key={day}
+                      type="button"
+                      onClick={() => {
+                        const next = selected ? form.trainingDays.filter(d => d !== day) : [...form.trainingDays, day];
+                        if (next.length <= 6) setForm({ ...form, trainingDays: next });
+                      }}
+                      className={`h-12 rounded-xl border-2 transition-all font-black text-[10px] uppercase ${
+                        selected ? "border-teal-500 bg-teal-500/10 text-white" : "border-white/5 bg-white/5 text-white/30"
+                      }`}
+                    >
+                      {DAY_LABEL[day]}
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+
+            <section className="space-y-4">
+              <p className="text-xs font-black uppercase tracking-widest text-white/30 ml-1">Long Run Day</p>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {sortedTrainingDays.map(day => (
+                  <CardOption
+                    key={day}
+                    selected={form.longRunDay === day}
+                    title={DAY_LABEL[day].toUpperCase()}
+                    subtitle="Sustained Effort"
+                    onClick={() => setForm({ ...form, longRunDay: day })}
+                  />
+                ))}
+              </div>
+              {scheduleWarnings.length > 0 && (
+                <div className="mt-4 p-4 rounded-xl bg-amber-500/10 border border-amber-500/20">
+                  {scheduleWarnings.map(w => <p key={w} className="text-xs text-amber-200/70">⚠️ {w}</p>)}
+                </div>
+              )}
+            </section>
+          </div>
+        )}
+
+        {/* ── STEP 3: Fitness (Skipped for Novice) ─────────────────────── */}
+        {step === 3 && !isNovice && (
+          <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <header>
+              <h1 className="text-3xl font-black text-white tracking-tight mb-2">Fitness Baseline</h1>
+              <p className="text-white/40">We use VDOT to calibrate your specific pace zones.</p>
+            </header>
+
+            <VdotCalculator
+              maxHR={form.maxHR}
+              onMaxHRChange={hr => setForm({ ...form, maxHR: hr })}
+              isNovice={false}
+              onApply={v => setForm({ ...form, vdot: v })}
+              onFitnessSave={p => setForm({ ...form, vdot: p.vdot, maxHR: p.maxHR })}
             />
-            <input
-              type="text"
-              value={nickname}
-              onChange={(e) => setNickname(e.target.value)}
-              placeholder="Nickname (optional)"
-              className={`w-full px-4 py-3 rounded-xl text-lg bg-white/[0.06] border border-white/[0.10] text-white placeholder-white/30 outline-none focus:border-teal-500/50 transition-colors text-center font-medium ${FORM_CONTROL_TW}`}
-            />
-            <p className="text-xs text-center mt-2" style={{ color: "var(--text-dim)" }}>
-              This is how we&apos;ll address you in the app.
-            </p>
-            {nameError && <p className="text-xs text-center text-red-300">{nameError}</p>}
+
+            <section className="space-y-4 pt-4 border-t border-white/5">
+              <p className="text-xs font-black uppercase tracking-widest text-white/30 ml-1">Goal Finish Time (Optional)</p>
+              <div className="flex items-center gap-4">
+                <div className="flex-1 space-y-1.5">
+                  <input
+                    type="number"
+                    value={targetTime.hours}
+                    onChange={e => setTargetTime({ ...targetTime, hours: e.target.value })}
+                    className={`w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white font-mono text-center ${FORM_CONTROL_TW}`}
+                  />
+                  <p className="text-[10px] text-center text-white/30 uppercase font-black">Hours</p>
+                </div>
+                <div className="flex-1 space-y-1.5">
+                  <input
+                    type="number"
+                    value={targetTime.mins}
+                    onChange={e => setTargetTime({ ...targetTime, mins: e.target.value })}
+                    className={`w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white font-mono text-center ${FORM_CONTROL_TW}`}
+                  />
+                  <p className="text-[10px] text-center text-white/30 uppercase font-black">Minutes</p>
+                </div>
+              </div>
+            </section>
+
+            <button 
+              className="text-xs text-white/30 underline block mx-auto pt-4 hover:text-white"
+              onClick={() => setSkipFitness(true)}
+            >
+              I&apos;ll enter these metrics later
+            </button>
           </div>
-        </section>
-      )}
-      {step === 1 && (
-        <section className="space-y-3">
-          <h1 className="text-2xl font-bold text-white">What are you training for?</h1>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <CardOption selected={goalRace === "5K"} title="5KM" subtitle="5.0 km" onClick={() => setGoalRace("5K")} />
-            <CardOption selected={goalRace === "10K"} title="10KM" subtitle="10.0 km" onClick={() => setGoalRace("10K")} />
-            <CardOption selected={goalRace === "HALF"} title="HALF MARATHON" subtitle="21.1 km" onClick={() => setGoalRace("HALF")} />
-            <CardOption selected={goalRace === "FULL"} title="FULL MARATHON" subtitle="42.2 km" onClick={() => setGoalRace("FULL")} />
-          </div>
-        </section>
-      )}
-      {step === 2 && (
-        <section className="space-y-3">
-          <h1 className="text-2xl font-bold text-white">How long have you been running?</h1>
-          <div className="grid sm:grid-cols-5 gap-3">
-            {(["NOVICE", "BEGINNER", "INTERMEDIATE", "ADVANCED", "ELITE"] as const).map((opt) => (
-              <CardOption key={opt} selected={level === opt} title={opt} subtitle={LEVEL_COPY[opt]} onClick={() => setLevel(opt)} />
-            ))}
-          </div>
-        </section>
-      )}
-      {step === 3 && (
-        <section className="space-y-3">
-          <h1 className="text-2xl font-bold text-white">How many weeks do you have?</h1>
-          <div className="grid sm:grid-cols-4 gap-3">
-            {([8, 12, 16, 20] as const).map((weeks) => (
-              <CardOption
-                key={weeks}
-                selected={planLengthWeeks === weeks}
-                title={`${weeks} WEEKS`}
-                subtitle={weeks === 8 ? "Crash course for an upcoming race." : weeks === 12 ? "For runners with a race soon or a strong base." : weeks === 16 ? "Standard plan length. Recommended for most runners." : "Extra base building time. Ideal for beginners."}
-                badge={recommendedLength === weeks ? "Recommended" : undefined}
-                onClick={() => setPlanLengthWeeks(weeks as any)}
-              />
-            ))}
-          </div>
-        </section>
-      )}
-      {step === 4 && (
-        <section className="space-y-3">
-          <h1 className="text-2xl font-bold text-white">What&apos;s your current fitness level?</h1>
-          <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-            Enter a recent race time or timed 5K to calculate your VDOT score.
-          </p>
-          <VdotCalculator
-            maxHR={maxHR}
-            onMaxHRChange={setMaxHR}
-            personal={vdotPersonal}
-            onPersonalChange={setVdotPersonal}
-            seedRaceDistance={settings.vdotRaceDistance}
-            seedRaceMinutes={settings.vdotRaceMinutes}
-            seedRaceSeconds={settings.vdotRaceSeconds ?? 0}
-            onApply={(nextVdot) => {
-              setCalculatedVdot(nextVdot);
-            }}
-            onLevelSuggested={(nextLevel) => {
-              setSuggestedLevel(nextLevel);
-            }}
-            onFitnessSave={(payload) => {
-              setFitnessPayload(payload);
-              setCalculatedVdot(payload.vdot);
-              setMaxHR(payload.maxHR);
-              setVdotPersonal({
-                ageInput: payload.age != null ? String(payload.age) : "",
-                gender: payload.gender ?? "",
-                weightInput: payload.weightKg != null ? String(payload.weightKg) : "",
-                runningExperience: payload.runningExperience ?? "",
-              });
-            }}
-          />
-          {suggestedLevel && (
-            <div className="rounded-md border border-teal-400/30 bg-teal-400/10 p-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-sm text-teal-100">
-                Based on your time, we suggest: <strong>{suggestedLevel}</strong>
-              </p>
-              <button
-                type="button"
-                className="min-h-11 rounded-md px-3 py-2 text-sm font-semibold bg-teal-600 text-white"
-                onClick={() => setLevel(suggestedLevel)}
-              >
-                Apply to experience level
-              </button>
+        )}
+
+        {/* ── STEP 4: Review ──────────────────────────────────────────── */}
+        {step === 4 && (
+          <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <header>
+              <h1 className="text-3xl font-black text-white tracking-tight mb-2">Ready to Launch</h1>
+              <p className="text-white/40">Review your settings before we generate your program.</p>
+            </header>
+
+            <div className="rounded-3xl border border-white/10 bg-white/5 p-8 space-y-6">
+              <div className="grid grid-cols-2 gap-8">
+                <div>
+                  <p className="text-[10px] font-black text-white/30 uppercase tracking-widest mb-1">Target</p>
+                  <p className="text-lg font-bold text-white">{form.goalRace} Race</p>
+                  <p className="text-xs text-white/40">{form.planLengthWeeks} Weeks</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-black text-white/30 uppercase tracking-widest mb-1">Tier</p>
+                  <p className="text-lg font-bold text-teal-400">{form.experienceLevel}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-black text-white/30 uppercase tracking-widest mb-1">Schedule</p>
+                  <p className="text-sm font-medium text-white">{form.trainingDays.length} Days / Week</p>
+                  <p className="text-xs text-white/40">Long Run: {form.longRunDay ? DAY_LABEL[form.longRunDay] : "-"}</p>
+                </div>
+                {!isNovice && (
+                  <div>
+                    <p className="text-[10px] font-black text-white/30 uppercase tracking-widest mb-1">Fitness</p>
+                    <p className="text-sm font-medium text-white">VDOT {form.vdot ?? "Manual"}</p>
+                    <p className="text-xs text-white/40">Max HR: {form.maxHR} bpm</p>
+                  </div>
+                )}
+              </div>
             </div>
-          )}
-          <button className="text-sm underline" onClick={() => setSkipFitnessStep(true)} type="button">
-            Skip — I&apos;ll enter my VDOT manually
+          </div>
+        )}
+      </div>
+
+      {/* ── NAVIGATION ────────────────────────────────────────────────── */}
+      <footer className="mt-12 flex items-center justify-between gap-4 pt-8 border-t border-white/5">
+        <button
+          type="button"
+          onClick={handleBack}
+          disabled={step === 1 || saving}
+          className="flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold text-white/40 hover:text-white transition-all disabled:opacity-0"
+        >
+          <ChevronLeft className="w-4 h-4" /> Back
+        </button>
+
+        {step < 4 ? (
+          <button
+            type="button"
+            onClick={handleNext}
+            disabled={!canNext || saving}
+            className="flex items-center gap-2 px-8 py-3 rounded-xl bg-white text-black text-sm font-black hover:bg-teal-400 hover:scale-105 transition-all disabled:opacity-30 disabled:hover:scale-100"
+          >
+            Next <ChevronRight className="w-4 h-4" />
           </button>
-        </section>
-      )}
-      {step === 5 && (
-        <section className="space-y-3">
-          <h1 className="text-2xl font-bold text-white">What&apos;s your goal finish time?</h1>
-          <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-            Don&apos;t worry if you&apos;re unsure — you can update this later in Settings.
-          </p>
-          <div className="flex items-center gap-2">
-            <input
-              type="text"
-              inputMode="numeric"
-              pattern="[0-9]*"
-              value={targetHoursInput}
-              onChange={(e) => setTargetHoursInput(e.target.value)}
-              placeholder="0"
-              className={`min-h-11 w-24 rounded-md px-3 py-2 text-sm outline-none ${FORM_CONTROL_TW}`}
-            />
-            <span>hours</span>
-            <input
-              type="text"
-              inputMode="numeric"
-              pattern="[0-9]*"
-              value={targetMinutesInput}
-              onChange={(e) => setTargetMinutesInput(e.target.value)}
-              placeholder="00"
-              className={`min-h-11 w-24 rounded-md px-3 py-2 text-sm outline-none ${FORM_CONTROL_TW}`}
-            />
-            <span>minutes</span>
-          </div>
-          <button className="text-sm underline" onClick={() => setSkipFinishTime(true)} type="button">Skip for now</button>
-        </section>
-      )}
-      {step === 6 && (
-        <section className="space-y-3">
-          <h1 className="text-2xl font-bold text-white">Which days can you train?</h1>
-          <div className="grid grid-cols-7 gap-1.5 sm:gap-2">
-            {DAYS.map((day) => {
-              const selected = trainingDays.includes(day);
-              return (
-                <button
-                  type="button"
-                  key={day}
-                  onClick={() => toggleDay(day)}
-                  className="rounded-md min-h-11 py-2 text-[11px] sm:text-sm border"
-                  style={{
-                    borderColor: selected ? "rgba(45,212,191,0.45)" : "rgba(255,255,255,0.12)",
-                    background: selected ? "rgba(45,212,191,0.15)" : "rgba(255,255,255,0.03)",
-                    color: selected ? "#5eead4" : "#fff",
-                  }}
-                >
-                  {DAY_LABEL[day]}
-                </button>
-              );
-            })}
-          </div>
-          {trainingDays.length < 2 && <p className="text-xs text-orange-300">Select at least 2 training days.</p>}
-        </section>
-      )}
-      {step === 7 && (
-        <section className="space-y-3">
-          <h1 className="text-2xl font-bold text-white">Which day is your long run?</h1>
-          <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-            We&apos;ll build your training schedule around this day.
-          </p>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            {sortedTrainingDays.map((day) => (
-              <button
-                type="button"
-                key={day}
-                onClick={() => setLongRunDay(day)}
-                className="rounded-md min-h-11 py-2 text-[11px] sm:text-sm border"
-                style={{
-                  borderColor: effectiveLongRunDay === day ? "rgba(45,212,191,0.45)" : "rgba(255,255,255,0.12)",
-                  background: effectiveLongRunDay === day ? "rgba(45,212,191,0.15)" : "rgba(255,255,255,0.03)",
-                  color: effectiveLongRunDay === day ? "#5eead4" : "#fff",
-                }}
-              >
-                {DAY_LABEL[day]}
-              </button>
-            ))}
-          </div>
-          {scheduleWarnings.length > 0 && (
-            <div className="space-y-1">
-              {scheduleWarnings.map((warning) => (
-                <p key={warning} className="text-xs text-amber-300">
-                  {warning}
-                </p>
-              ))}
-            </div>
-          )}
-        </section>
-      )}
-      {step > 7 && (
-        <section className="space-y-3">
-          <h1 className="text-2xl font-bold text-white">Your plan is ready.</h1>
-          <div className="rounded-xl border border-white/10 bg-white/5 p-4 text-sm space-y-1">
-            <p><span style={{ color: "var(--text-muted)" }}>Goal race:</span> {goalRace === "FULL" ? "FULL MARATHON" : goalRace === "HALF" ? "HALF MARATHON" : goalRace === "10K" ? "10KM" : "5KM"}</p>
-            <p><span style={{ color: "var(--text-muted)" }}>Experience level:</span> {level}</p>
-            <p><span style={{ color: "var(--text-muted)" }}>Plan length:</span> {planLengthWeeks} weeks</p>
-            <p><span style={{ color: "var(--text-muted)" }}>Training days:</span> {sortedTrainingDays.map((d) => DAY_LABEL[d]).join(", ")}</p>
-            <p><span style={{ color: "var(--text-muted)" }}>Long run day:</span> {effectiveLongRunDay ? DAY_LABEL[effectiveLongRunDay] : "Not set"}</p>
-            <p><span style={{ color: "var(--text-muted)" }}>Start date:</span> {settings.planStartDate ? toBrisbaneYmd(new Date(settings.planStartDate)) : "Not set"}</p>
-            <p><span style={{ color: "var(--text-muted)" }}>Name:</span> {nickname.trim() || firstName.trim()}</p>
-          </div>
+        ) : (
           <button
             type="button"
             onClick={complete}
             disabled={saving}
-            className="rounded-md px-4 py-2 bg-teal-600 text-white text-sm font-semibold disabled:opacity-60"
+            className="px-10 py-4 rounded-2xl bg-teal-500 text-black text-base font-black hover:bg-teal-400 hover:scale-105 transition-all shadow-xl shadow-teal-500/20 disabled:opacity-50"
           >
-            {saving ? "Saving..." : "Start Training →"}
+            {saving ? "Generating..." : "Generate My Training Plan →"}
           </button>
-        </section>
-      )}
-
-      <div className="flex flex-col sm:flex-row justify-between gap-2 pt-3">
-        <button
-          type="button"
-          onClick={() => {
-            let prevStep = step - 1;
-            if ((prevStep === 5 || prevStep === 4) && level === "NOVICE") {
-              prevStep = 3;
-            }
-            setStep(Math.max(0, prevStep));
-          }}
-          disabled={step === 0}
-          className="rounded-md min-h-11 px-4 py-2 border border-white/15 text-sm disabled:opacity-50 w-full sm:w-auto"
-        >
-          Back
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            if (step === 0 && !firstName.trim()) {
-              setNameError("First name is required.");
-              return;
-            }
-            let nextStep = step + 1;
-            if ((nextStep === 4 || nextStep === 5) && level === "NOVICE") {
-              nextStep = 6;
-            }
-            setStep(Math.min(8, nextStep));
-          }}
-          disabled={(step === 0 ? false : !canNext) || step > 7}
-          className="rounded-md min-h-11 px-4 py-2 bg-white/10 text-sm disabled:opacity-50 w-full sm:w-auto"
-        >
-          Next
-        </button>
-      </div>
+        )}
+      </footer>
     </div>
   );
 }
