@@ -6,7 +6,10 @@ import { X } from "lucide-react";
 import { RunTypePill } from "@/components/RunTypePill";
 import type { SessionCardProps } from "./SessionCard";
 
-export type WorkoutModalProps = SessionCardProps & { onClose: () => void };
+export type WorkoutModalProps = SessionCardProps & { 
+  onClose: () => void;
+  sRPE?: number | null;
+};
 
 export default function WorkoutModal(props: WorkoutModalProps) {
   const {
@@ -30,6 +33,8 @@ export default function WorkoutModal(props: WorkoutModalProps) {
     mismatchNote,
     sessionLabelVariant,
     workoutStructure,
+    isNovice,
+    sRPE,
   } = props;
 
   const [mounted, setMounted] = useState(false);
@@ -68,6 +73,12 @@ export default function WorkoutModal(props: WorkoutModalProps) {
       : sessionLabelVariant === "missed"
       ? { text: "Missed", color: "#f59e0b" }
       : null;
+
+  // Safety Context: Display a warning if the reported RPE was significantly higher (e.g., +3 points) than the target RPE
+  const targetRpeMatch = workoutStructure.effortGuidance.match(/RPE (\d+)/);
+  const targetRpe = targetRpeMatch ? parseInt(targetRpeMatch[1], 10) : (sessionType === "long" ? 4 : 3);
+  const rpeGap = sRPE != null ? sRPE - targetRpe : 0;
+  const showRpeWarning = isNovice && sRPE != null && rpeGap >= 3;
 
   return createPortal(
     <div
@@ -201,17 +212,37 @@ export default function WorkoutModal(props: WorkoutModalProps) {
 
             {/* Actual run */}
             {showRating && actualKm != null && actualPaceStr && (
-              <p
-                className="text-xs font-mono mt-2"
-                style={{ color: "rgba(45,212,191,0.78)" }}
-              >
-                ✓ Completed · {actualKm.toFixed(1)} km · {actualPaceStr}
-              </p>
+              <div className="space-y-1.5 mt-2.5 pt-2.5 border-t border-white/5">
+                <p
+                  className="text-xs font-mono"
+                  style={{ color: "rgba(45,212,191,0.78)" }}
+                >
+                  ✓ Completed · {actualKm.toFixed(1)} km · {actualPaceStr}
+                </p>
+                {sRPE != null && (
+                  <p className="text-xs font-bold text-white/50">
+                    Reported Effort: <span className="text-teal-400">RPE {sRPE}</span>
+                  </p>
+                )}
+              </div>
             )}
           </div>
 
           {/* ── Body ──────────────────────────────────────────────────────── */}
           <div className="px-5 pt-5 pb-8 space-y-6">
+
+            {/* RPE Warning */}
+            {showRpeWarning && (
+              <div
+                className="rounded-xl px-4 py-3 bg-red-500/10 border border-red-500/20"
+              >
+                <p className="text-xs font-bold text-red-400 mb-1">High Perceived Effort</p>
+                <p className="text-xs leading-relaxed text-red-300/80">
+                  You reported an RPE of {sRPE}, which is significantly higher than the target RPE of {targetRpe}. 
+                  Consider slowing down or taking more walk breaks in your next session to ensure your body is adapting safely.
+                </p>
+              </div>
+            )}
 
             {/* Mismatch warning */}
             {runTypeMismatch && mismatchNote && (

@@ -196,7 +196,7 @@ function paceZoneBounds(runType: RunType, s: UserSettings): { lo: number; hi: nu
 }
 
 /** Looks up heart-rate effort bounds for a run type and returns max-HR fractions. */
-function hrFracZone(runType: RunType): [number, number] {
+export function hrFracZone(runType: RunType): [number, number] {
   switch (runType) {
     case "easy":
     case "long":

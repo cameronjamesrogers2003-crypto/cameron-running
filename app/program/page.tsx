@@ -550,6 +550,7 @@ export default async function ProgramPage({
                             ?? sameDayRuns.find((a) => a.classifiedRunType === session.type)
                             ?? sameDayRuns[0];
                           const isCompleted = !!matchedAct;
+                          const sRPE = matchedAct?.sRPE ?? null;
                           const runTypeMismatch =
                             !!matchedAct && matchedAct.classifiedRunType !== session.type;
 
@@ -624,6 +625,7 @@ export default async function ProgramPage({
                             targetPaceStr: fmtTargetPace(session.targetPaceMinPerKm),
                             effortLabel: EFFORT_LABEL[session.type],
                             isNovice: settings.experienceLevel === "NOVICE",
+                            sRPE,
                             cardBg,
                             leftBorder,
                             colorBarBg: runTypeColor(session.type),

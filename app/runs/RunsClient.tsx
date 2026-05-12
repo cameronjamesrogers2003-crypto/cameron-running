@@ -178,6 +178,7 @@ export default function RunsClient() {
   const [totalPages, setTotalPages] = useState(1);
   const [page,      setPage]      = useState(1);
   const [loading,   setLoading]   = useState(true);
+  const [isNovice,  setIsNovice]  = useState(false);
 
   // Filters
   const [search,    setSearch]    = useState("");
@@ -204,6 +205,15 @@ export default function RunsClient() {
   } = useConfirmRunQueue(reviewTriggerIds);
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    fetch("/api/settings")
+      .then(res => res.json())
+      .then(data => {
+        if (data.experienceLevel === "NOVICE") setIsNovice(true);
+      })
+      .catch(err => console.error("Failed to fetch settings:", err));
+  }, []);
 
   const fetchRuns = useCallback(async (pg: number) => {
     setLoading(true);
@@ -787,6 +797,7 @@ export default function RunsClient() {
           plannedSession={currentPlannedSession}
           onConfirm={handleConfirm}
           onDismiss={handleDismiss}
+          isNovice={isNovice}
         />
       )}
     </div>

@@ -21,6 +21,7 @@ export interface SessionCardProps {
   targetPaceStr: string;
   effortLabel: string;
   isNovice?: boolean;
+  sRPE?: number | null;
 
   cardBg: string;
   leftBorder: string;
@@ -52,6 +53,7 @@ export default function SessionCard(props: SessionCardProps) {
     targetPaceStr,
     effortLabel,
     isNovice,
+    sRPE,
     cardBg,
     leftBorder,
     colorBarBg,

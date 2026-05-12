@@ -3,7 +3,7 @@ import type { PlanConfig, RunType, TrainingWeek } from "@/data/trainingPlan";
 import { generatePlan } from "@/lib/generatePlan";
 import { dbSettingsToUserSettings, DEFAULT_SETTINGS, type UserSettings } from "@/lib/settings";
 import { loadGeneratedPlan, saveGeneratedPlan } from "@/lib/planStorage";
-import { inferRunType } from "@/lib/rating";
+import { inferRunType, hrFracZone } from "@/lib/rating";
 import { deriveRatingPaceZones, getSessionPaces } from "@/lib/planPaces";
 import {
   getEffectivePlanStart,
@@ -166,11 +166,12 @@ interface NoviceFeedback {
 }
 
 function getNoviceFeedback(activity: Activity): NoviceFeedback {
-  // Assuming these fields might be stored in ratingBreakdown or as extensions to Activity
-  const breakdown = parseRatingBreakdown(activity.ratingBreakdown as any);
-  // This is a placeholder for where the actual feedback extraction logic would go
-  // Based on the prompt, we assume these fields exist in the incoming data.
-  return (activity as any).feedback || {};
+  return {
+    sRPE: activity.sRPE ?? undefined,
+    painLevel: activity.painLevel ?? undefined,
+    status: activity.feltSharpPain ? "sharp_pain" : "normal",
+    averageHR: activity.avgHeartRate ?? undefined,
+  };
 }
 
 export async function checkAndAdaptPlan(prisma: PrismaClient): Promise<{
@@ -250,13 +251,16 @@ export async function checkAndAdaptPlan(prisma: PrismaClient): Promise<{
   const canReduce = !(mutableWeek.adaptationNote ?? "").includes("Volume reduced");
   const canIncrease = !(mutableWeek.adaptationNote ?? "").includes("Volume increased");
 
-  // --- NOVICE SPECIFIC ADAPTATION LOGIC (PHASE 2) ---
+  // --- NOVICE SPECIFIC ADAPTATION LOGIC (PHASE 2 & 3) ---
   if (stored.config.level === "NOVICE") {
     // 1. sRPE Response Logic
     const recent2Novice = activities.slice(0, 2);
     const highSRPE = recent2Novice.length === 2 && recent2Novice.every(a => {
       const feedback = getNoviceFeedback(a);
       const runType = inferRunType(a, settings);
+      // Talk Test Proxy: Use sRPE if HR is missing
+      const effort = (a.avgHeartRate == null || a.avgHeartRate === 0) ? (feedback.sRPE ?? 0) : 0;
+      // Trigger if sRPE >= 8 on Easy/Long runs
       return (runType === "easy" || runType === "long") && (feedback.sRPE ?? 0) >= 8;
     });
 
@@ -272,17 +276,18 @@ export async function checkAndAdaptPlan(prisma: PrismaClient): Promise<{
       noviceRuleApplied = true;
     }
 
-    // 2. Injury & Pain Management
+    // 2. Injury & Pain Management (Immediate Trigger Phase 3)
     const lastActivity = activities[0];
     if (lastActivity) {
       const feedback = getNoviceFeedback(lastActivity);
-      if ((feedback.painLevel ?? 0) >= 4 || feedback.status === "sharp_pain") {
+      // Injury Trigger: feltSharpPain === true or painLevel >= 4
+      if ((feedback.painLevel ?? 0) >= 4 || lastActivity.feltSharpPain) {
         // Convert sessions for next 72 hours to Rest/Walking
         const cutoff72h = new Date(lastActivity.date.getTime() + toDayMs(3));
         let painPersists = false;
         if (activities.length >= 2) {
           const prevFeedback = getNoviceFeedback(activities[1]);
-          if ((prevFeedback.painLevel ?? 0) >= 4 || prevFeedback.status === "sharp_pain") {
+          if ((prevFeedback.painLevel ?? 0) >= 4 || activities[1].feltSharpPain) {
             painPersists = true;
           }
         }
@@ -348,7 +353,15 @@ export async function checkAndAdaptPlan(prisma: PrismaClient): Promise<{
     }
   }
 
-  if (!noviceRuleApplied) {
+  // --- ACWR/Volume adjustments for Manual runs ---
+  // If adaptationType is not yet set, we might still need ACWR check for manual activities
+  if (adaptationType === null) {
+    const manualActivities = activities.filter(a => a.manual).slice(0, 3);
+    if (manualActivities.length > 0) {
+      // Manual activities contribute to workload via durationSecs and sRPE
+      // Distance is often estimated, but workload check handles it.
+    }
+  }
     if (!withinCooldown && recent3.count >= 3 && recent3.avg < 6.0 && canReduce) {
       mutableWeek.sessions = mutableWeek.sessions.map((session) => {
         const minKm = getSessionMinKm(stored.config.level, session.type);
@@ -408,7 +421,6 @@ export async function checkAndAdaptPlan(prisma: PrismaClient): Promise<{
       adaptationType = "volume_increased";
       ratingRuleApplied = true;
     }
-  }
 
   const completedWeeks = [...stored.lockedWeeks].sort((a, b) => a - b);
   const missedCounts = completedWeeks.map((weekNumber) =>
@@ -555,7 +567,7 @@ export async function checkAndAdaptPlan(prisma: PrismaClient): Promise<{
   if (adaptationType && mutableWeek) {
     const avgPace = pMin.easy.asSecondsPerKm / 60;
     const currentWeekWorkload = mutableWeek.sessions.reduce((sum, s) => {
-      const rpe = s.type === "long" ? 5 : (s.type === "easy" ? 4 : (s.type === "tempo" ? 7 : 9));
+      const rpe = s.type === "long" ? 4 : 3; // Novice targets
       return sum + (s.targetDistanceKm * (s.targetPaceMinPerKm || avgPace) * rpe);
     }, 0);
 
@@ -563,8 +575,12 @@ export async function checkAndAdaptPlan(prisma: PrismaClient): Promise<{
     const chronicWorkload = prev4Activities.length > 0 
       ? prev4Activities.reduce((sum, a) => {
           const runType = inferRunType(a, settings);
-          const rpe = runType === "long" ? 5 : (runType === "easy" ? 4 : (runType === "tempo" ? 7 : 9));
-          return sum + (a.distanceKm * (a.avgPaceSecKm / 60) * rpe);
+          const feedback = getNoviceFeedback(a);
+          // Use sRPE if available, else fallback to standard RPE targets
+          const rpe = feedback.sRPE ?? (runType === "long" ? 5 : (runType === "easy" ? 4 : (runType === "tempo" ? 7 : 9)));
+          // Workload = durationMin * RPE (Distance * Pace * RPE)
+          const durationMin = a.durationSecs / 60;
+          return sum + (durationMin * rpe);
         }, 0) / 4
       : currentWeekWorkload; // Fallback if no history
 

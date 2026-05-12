@@ -60,6 +60,10 @@ model Activity {
   linkedSessionId    String?
   // Whether the user has confirmed this run's classification
   isConfirmed        Boolean  @default(false)
+  // Subjective feedback for Novice/Adaptive logic
+  sRPE               Int?
+  painLevel          Int?
+  feltSharpPain      Boolean  @default(false)
   // JSON array of Strava per-km splits_metric entries.
   splitsJson         Json?
   // Human-readable explanation of classification confidence/method.

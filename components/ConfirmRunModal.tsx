@@ -11,6 +11,7 @@ interface ConfirmRunModalProps {
   plannedSession?: Session | null;
   onConfirm: (confirmedType: string, linkedSessionId?: string) => void;
   onDismiss: () => void;
+  isNovice?: boolean;
 }
 
 export default function ConfirmRunModal({
@@ -18,11 +19,15 @@ export default function ConfirmRunModal({
   plannedSession,
   onConfirm,
   onDismiss,
+  isNovice = false,
 }: ConfirmRunModalProps) {
   const [selectedType, setSelectedType] = useState<string>(activity.classifiedRunType || "easy");
   const [isPlanned, setIsPlanned] = useState<boolean>(
     plannedSession ? activity.classifiedRunType === plannedSession.type : false
   );
+  const [sRPE, setSRPE] = useState<number>(3);
+  const [painLevel, setPainLevel] = useState<number>(0);
+  const [feltSharpPain, setFeltSharpPain] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleConfirm = async () => {
@@ -34,6 +39,9 @@ export default function ConfirmRunModal({
         body: JSON.stringify({
           confirmedRunType: selectedType,
           linkedSessionId: isPlanned && plannedSession ? plannedSession.id : null,
+          sRPE,
+          painLevel,
+          feltSharpPain,
         }),
       });
       if (response.ok) {
@@ -53,6 +61,21 @@ export default function ConfirmRunModal({
     { id: "long", label: "Long Run" },
   ];
 
+  const getSRPEColor = (val: number) => {
+    if (val <= 3) return "text-teal-400";
+    if (val <= 6) return "text-yellow-400";
+    return "text-red-400";
+  };
+
+  const getSRPELabel = (val: number) => {
+    if (val <= 2) return "Very Easy";
+    if (val <= 4) return "Easy/Conversational";
+    if (val <= 6) return "Moderate";
+    if (val <= 8) return "Comfortably Hard";
+    if (val <= 9) return "Near Maximal";
+    return "Maximal Effort";
+  };
+
   const dateStr = new Date(activity.date).toLocaleDateString("en-AU", {
     day: "2-digit",
     month: "2-digit",
@@ -62,7 +85,7 @@ export default function ConfirmRunModal({
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
       <div className="w-full max-w-lg bg-[#111] border border-white/10 rounded-3xl overflow-hidden shadow-2xl animate-fadeInUp">
-        <div className="p-6 space-y-6">
+        <div className="p-6 space-y-6 max-h-[90vh] overflow-y-auto">
           <div className="space-y-1">
             <h1 className="text-xl font-black tracking-tight">New run detected</h1>
             <p className="ty-date">{dateStr}</p>
@@ -101,6 +124,64 @@ export default function ConfirmRunModal({
               ))}
             </div>
           </div>
+
+          {isNovice && (
+            <div className="space-y-4 pt-4 border-t border-white/5">
+              <p className="text-sm font-black uppercase tracking-widest text-teal-400">How did it feel?</p>
+              
+              <div className="space-y-3">
+                <div className="flex justify-between items-baseline">
+                  <p className="ty-label">Effort (sRPE)</p>
+                  <p className={`text-sm font-bold ${getSRPEColor(sRPE)}`}>{sRPE} — {getSRPELabel(sRPE)}</p>
+                </div>
+                <input
+                  type="range"
+                  min="1"
+                  max="10"
+                  step="1"
+                  value={sRPE}
+                  onChange={(e) => setSRPE(parseInt(e.target.value))}
+                  className="w-full h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-teal-400"
+                />
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <p className="ty-label">Did you feel any sharp pain?</p>
+                  <button
+                    onClick={() => setFeltSharpPain(!feltSharpPain)}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                      feltSharpPain ? "bg-red-500" : "bg-white/10"
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                        feltSharpPain ? "translate-x-6" : "translate-x-1"
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                {(feltSharpPain || painLevel > 0) && (
+                  <div className="space-y-3 animate-fadeIn">
+                    <div className="flex justify-between items-baseline">
+                      <p className="ty-label">Pain Level (1-10)</p>
+                      <p className="text-sm font-bold text-red-400">{painLevel}</p>
+                    </div>
+                    <input
+                      type="range"
+                      min="0"
+                      max="10"
+                      step="1"
+                      value={painLevel}
+                      onChange={(e) => setPainLevel(parseInt(e.target.value))}
+                      className="w-full h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-red-500"
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           {plannedSession && (
             <div className="space-y-3">

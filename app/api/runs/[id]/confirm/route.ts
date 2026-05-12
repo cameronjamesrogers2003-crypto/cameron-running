@@ -9,7 +9,7 @@ export async function PATCH(
 ) {
   const { id } = await params;
   const body = await req.json();
-  const { confirmedRunType, linkedSessionId } = body;
+  const { confirmedRunType, linkedSessionId, sRPE, painLevel, feltSharpPain } = body;
 
   if (!confirmedRunType) {
     return NextResponse.json({ error: "confirmedRunType is required" }, { status: 400 });
@@ -22,6 +22,9 @@ export async function PATCH(
         confirmedRunType,
         linkedSessionId: linkedSessionId || null,
         isConfirmed: true,
+        sRPE: sRPE != null ? parseInt(sRPE, 10) : undefined,
+        painLevel: painLevel != null ? parseInt(painLevel, 10) : undefined,
+        feltSharpPain: feltSharpPain ?? false,
       },
     });
 
