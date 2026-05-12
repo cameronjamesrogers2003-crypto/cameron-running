@@ -169,7 +169,7 @@ function getPeakWeeklyKm(level: PlanConfig["level"], goal: PlanConfig["goal"]): 
 }
 
 function getStartWeeklyKm(level: PlanConfig["level"], peak: number): number {
-  if (level === "NOVICE") return peak * 0.20;
+  if (level === "NOVICE") return peak * 0.15;
   if (level === "BEGINNER") return peak * 0.60;
   if (level === "INTERMEDIATE") return peak * 0.70;
   return peak * 0.80;
@@ -565,17 +565,23 @@ function buildWeeklyVolumes(config: PlanConfig): { weeklyKm: number[]; isCutback
       const { start: lrStart, peak: lrPeak } = getLongRunKm(config, config.goal);
       const progress = lastNonTaperWeek <= 1 ? 1 : (w - 1) / (lastNonTaperWeek - 1);
       let currentLong = lrStart + progress * (lrPeak - lrStart);
+
+      let nonLongSessionDistance = 1.0 + progress * (4.0 - 1.0);
+
       if (cutback) {
         currentLong = currentLong * (1 - reduce);
+        nonLongSessionDistance = nonLongSessionDistance * (1 - reduce);
       }
-      
-      const multiplier = config.days.length === 2 ? 1.6 : config.days.length === 3 ? 2.2 : 2.6;
-      let next = currentLong * multiplier;
-      
+
+      const nonLongSessionCount = config.days.length - 1;
+      let next = currentLong + (nonLongSessionCount * nonLongSessionDistance);
+
       if (w === 1) {
         prev = next;
       } else if (!cutback) {
-        next = Math.max(next, prev);
+        if (next < prev) {
+          next = prev + 0.5;
+        }
         prev = next;
       } else {
         next = Math.max(next, weeklyKm[0] ?? next);
@@ -583,7 +589,6 @@ function buildWeeklyVolumes(config: PlanConfig): { weeklyKm: number[]; isCutback
       weeklyKm.push(round1(next));
       continue;
     }
-
     // Target a smooth ramp to peak by the last non-taper week.
     const progress = lastNonTaperWeek <= 1 ? 1 : (w - 1) / (lastNonTaperWeek - 1);
     const desired = startKm + progress * (peak - startKm);
@@ -805,7 +810,9 @@ export function generatePlan(config: PlanConfig): TrainingWeek[] {
                type === "interval" ? round1(clamp(eachOther, minSessionKm, Math.min(intervalCap, nonLongCap))) : 
                round1(clamp(eachOther, minSessionKm, Math.max(minSessionKm, nonLongCap)));
 
-      // The NOVICE hard clamp on km was removed. Volume is constrained dynamically via weekKm, baseLongKm, minLongKm and nonLongCap.
+      if (config.level === "NOVICE") {
+        km = type === "long" ? clamp(km, 1.5, 6) : clamp(km, 1.0, 4);
+      }
 
       const paceObj = type === "long" ? pMin.long : type === "easy" ? pMin.easy : type === "tempo" ? pMin.tempo : pMin.interval;
       const targetPaceMinPerKm = round1(paceObj.asSecondsPerKm / 60);
