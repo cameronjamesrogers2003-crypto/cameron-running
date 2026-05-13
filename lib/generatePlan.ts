@@ -30,6 +30,154 @@ function round1(n: number): number {
   return Math.round(n * 10) / 10;
 }
 
+/** Half / full marathon long-run integrity (12+ weeks, B/I/A only). */
+function longRunIntegrityScope(config: Pick<PlanConfig, "level" | "goal" | "weeks">): boolean {
+  if (config.level === "NOVICE" || config.level === "ELITE") return false;
+  if (config.goal !== "hm" && config.goal !== "full") return false;
+  if (config.weeks < 12) return false;
+  return (
+    config.level === "BEGINNER" ||
+    config.level === "INTERMEDIATE" ||
+    config.level === "ADVANCED"
+  );
+}
+
+function getMinLongRunKm(level: PlanConfig["level"], goal: PlanConfig["goal"]): number {
+  if (goal === "hm") {
+    switch (level) {
+      case "BEGINNER":
+        return 8;
+      case "INTERMEDIATE":
+        return 10;
+      case "ADVANCED":
+        return 12;
+      default:
+        return 0;
+    }
+  }
+  if (goal === "full") {
+    switch (level) {
+      case "BEGINNER":
+        return 12;
+      case "INTERMEDIATE":
+        return 14;
+      case "ADVANCED":
+        return 16;
+      default:
+        return 0;
+    }
+  }
+  return 0;
+}
+
+function getSessionCountVolumeMultiplier(sessionCount: number): number {
+  switch (sessionCount) {
+    case 2:
+      return 0.8;
+    case 3:
+      return 1.0;
+    case 4:
+      return 1.2;
+    case 5:
+      return 1.35;
+    case 6:
+      return 1.5;
+    default:
+      return 1.0;
+  }
+}
+
+function getEasySessionMinimum(level: PlanConfig["level"]): number {
+  switch (level) {
+    case "BEGINNER":
+      return 4;
+    case "INTERMEDIATE":
+      return 5;
+    case "ADVANCED":
+      return 6;
+    default:
+      return 4;
+  }
+}
+
+function getQualitySessionKm(
+  type: "tempo" | "interval",
+  eachOtherRef: number,
+  minSessionKm: number,
+  nonLongCap: number,
+  intervalCap: number,
+): number {
+  if (type === "interval") {
+    return round1(clamp(eachOtherRef, minSessionKm, Math.min(intervalCap, nonLongCap)));
+  }
+  return round1(clamp(eachOtherRef, minSessionKm, Math.max(minSessionKm, nonLongCap)));
+}
+
+function sumQualityDistanceKm(
+  otherDays: Day[],
+  typesForWeek: Record<Day, RunType>,
+  splitRef: number,
+  minSessionKm: number,
+  nonLongCap: number,
+  intervalCap: number,
+): number {
+  let sum = 0;
+  for (const d of otherDays) {
+    const t = typesForWeek[d];
+    if (t === "tempo") {
+      sum += getQualitySessionKm("tempo", splitRef, minSessionKm, nonLongCap, intervalCap);
+    } else if (t === "interval") {
+      sum += getQualitySessionKm("interval", splitRef, minSessionKm, nonLongCap, intervalCap);
+    }
+  }
+  return sum;
+}
+
+function maxQualityDistanceKm(
+  otherDays: Day[],
+  typesForWeek: Record<Day, RunType>,
+  splitRef: number,
+  minSessionKm: number,
+  nonLongCap: number,
+  intervalCap: number,
+): number {
+  let m = 0;
+  for (const d of otherDays) {
+    const t = typesForWeek[d];
+    if (t === "tempo" || t === "interval") {
+      m = Math.max(
+        m,
+        getQualitySessionKm(t, splitRef, minSessionKm, nonLongCap, intervalCap),
+      );
+    }
+  }
+  return m;
+}
+
+function chronicWeeklyKmAvg(history: number[]): number {
+  if (history.length === 0) return 0;
+  const tail = history.slice(-4);
+  return tail.reduce((a, b) => a + b, 0) / tail.length;
+}
+
+export function weekAcuteToChronicOk(
+  acute: number,
+  weekNumber: number,
+  history: number[],
+  weeklyRamp: number[],
+): boolean {
+  if (weekNumber <= 4) return true;
+  const chActual = chronicWeeklyKmAvg(history);
+  const prevRamp: number[] = [];
+  for (let i = weekNumber - 5; i <= weekNumber - 2; i++) {
+    if (i >= 0) prevRamp.push(weeklyRamp[i] ?? 0);
+  }
+  const chRamp = prevRamp.length ? prevRamp.reduce((a, b) => a + b, 0) / prevRamp.length : 0;
+  const ch = Math.max(chActual, chRamp || chActual);
+  if (!(ch > 0)) return true;
+  return acute / ch <= 1.25 + 1e-9;
+}
+
 function uniqDays(days: Day[]): Day[] {
   const seen = new Set<Day>();
   const out: Day[] = [];
@@ -248,7 +396,7 @@ function rebalanceNoviceShortRaceSessionKm(
     Ln = Math.max(NOVICE_SHORT_MIN_LONG_KM, Ln);
   }
 
-  let Tn = round1(Ln + n * En);
+  const Tn = round1(Ln + n * En);
   return { L: round1(Ln), E: round1(En), T: Tn };
 }
 
@@ -312,7 +460,6 @@ function getNoviceWeeklyDistances(
     const targetT = prevTotal + 0.5;
     const diff = targetT - T;
     if (nonLongCount > 0) {
-      const eRoom = (4.0 - E) * nonLongCount;
       const eInc = Math.min(diff / nonLongCount, 4.0 - E);
       E += eInc;
       const remaining = targetT - (L + nonLongCount * E);
@@ -796,10 +943,17 @@ export function finalizePlanDisplayCopy(
   }
 }
 
-function buildWeeklyVolumes(config: PlanConfig): { weeklyKm: number[]; isCutback: boolean[]; peakKm: number } {
+export function buildWeeklyVolumes(config: PlanConfig): { weeklyKm: number[]; isCutback: boolean[]; peakKm: number } {
   const peakKmBase = getPeakWeeklyKm(config.level, config.goal);
-  const adjustedPeakKm = peakKmBase * (DAY_COUNT_MULTIPLIER[config.days.length] ?? 1.0);
+  const dayCountMult = longRunIntegrityScope(config)
+    ? getSessionCountVolumeMultiplier(config.days.length)
+    : DAY_COUNT_MULTIPLIER[config.days.length] ?? 1.0;
+  const adjustedPeakKm = peakKmBase * dayCountMult;
   const { every, reduce, maxIncrease } = getCutbackConfig(config.level);
+  const maxIncreaseEff =
+    longRunIntegrityScope(config) && config.days.length === 2
+      ? maxIncrease * 0.6
+      : maxIncrease;
 
   const taperWeeks = Array.from({ length: config.weeks }, (_, i) => phaseForWeek(config, i + 1) === "Taper");
   const lastNonTaperWeek = taperWeeks.lastIndexOf(false) + 1; // 1-indexed
@@ -838,7 +992,7 @@ function buildWeeklyVolumes(config: PlanConfig): { weeklyKm: number[]; isCutback
     const progress = lastNonTaperWeek <= 1 ? 1 : (w - 1) / (lastNonTaperWeek - 1);
     const desired = startKm + progress * (peak - startKm);
 
-    const maxAllowed = prev * (1 + maxIncrease);
+    const maxAllowed = prev * (1 + maxIncreaseEff);
     let next = Math.min(desired, maxAllowed);
 
     if (w === 1) next = startKm;
@@ -848,6 +1002,15 @@ function buildWeeklyVolumes(config: PlanConfig): { weeklyKm: number[]; isCutback
 
     weeklyKm.push(round1(next));
     prev = next;
+  }
+
+  if (longRunIntegrityScope(config) && config.days.length === 2) {
+    for (let i = 1; i < weeklyKm.length; i++) {
+      const w = i + 1;
+      if (phaseForWeek(config, w) === "Taper") continue;
+      const prevW = weeklyKm[i - 1];
+      weeklyKm[i] = round1(Math.min(weeklyKm[i], prevW * 1.18));
+    }
   }
 
   return { weeklyKm, isCutback: isCutbackArr, peakKm: round1(peak) };
@@ -910,6 +1073,10 @@ function buildLongRuns(config: PlanConfig, weeklyKm: number[], isCutback: boolea
       const { reduce } = getCutbackConfig(config.level);
       wkLong = wkLong * (1 - reduce);
     }
+    if (longRunIntegrityScope(config) && w >= 3) {
+      const minL = getMinLongRunKm(config.level, config.goal);
+      wkLong = Math.max(wkLong, minL);
+    }
     longKm.push(round1(wkLong));
   }
 
@@ -933,6 +1100,14 @@ export function generatePlan(config: PlanConfig): GeneratedPlanBundle {
   const { weeklyKm, isCutback, peakKm } = buildWeeklyVolumes({ ...config, days });
   const longKm = buildLongRuns({ ...config, days }, weeklyKm, isCutback);
 
+  const lastNonTaperWeek = (() => {
+    for (let wi = config.weeks; wi >= 1; wi--) {
+      if (phaseForWeek(config, wi) !== "Taper") return wi;
+    }
+    return config.weeks;
+  })();
+  const peakScheduledLongKm = round1(longKm[lastNonTaperWeek - 1] ?? 0);
+
   const paceAdjust: PlanPaceAdjust | undefined = config.paceAdjust;
   const partialAdjust = {
     easyPaceOffsetSec: paceAdjust?.easyPaceOffsetSec ?? 0,
@@ -953,6 +1128,7 @@ export function generatePlan(config: PlanConfig): GeneratedPlanBundle {
 
   const plan: TrainingWeek[] = [];
   const weeklyWorkloads: number[] = [];
+  const weekTotalsHistory: number[] = [];
 
   const noviceRunWalkTransitionWeek =
     config.level === "NOVICE" ? Math.max(1, getNoviceRunWalkTransitionWeek(config.weeks)) : 0;
@@ -977,11 +1153,30 @@ export function generatePlan(config: PlanConfig): GeneratedPlanBundle {
 
     const minLongKm = (config.level === "NOVICE" || config.goal === "5k") ? 1.5 : 5;
     const minSessionKm = (config.level === "NOVICE" || config.goal === "5k") ? 1.0 : 3;
-    const minEasyKm = config.level === "NOVICE" ? 1.0 : (config.level === "BEGINNER" ? 3 : config.level === "INTERMEDIATE" ? 4 : 5);
+    const minEasyKm = config.level === "NOVICE"
+      ? 1.0
+      : longRunIntegrityScope(config)
+        ? getEasySessionMinimum(config.level)
+        : config.level === "BEGINNER"
+          ? 3
+          : config.level === "INTERMEDIATE"
+            ? 4
+            : 5;
 
-    const baseLongKm = round1(clamp(longKm[w - 1] ?? 0, minLongKm, weekKm));
     const otherDays = dayList.filter((d) => typesForWeek[d] !== "long");
     const nonLongCount = otherDays.length;
+    const easySessionCount = otherDays.filter((day) => typesForWeek[day] === "easy").length;
+
+    if (longRunIntegrityScope(config) && phase !== "Taper") {
+      const minEasy = getEasySessionMinimum(config.level);
+      const qualitySessions = nonLongCount - easySessionCount;
+      const minLongFloor = w >= 3 ? getMinLongRunKm(config.level, config.goal) : minLongKm;
+      weekKm = round1(
+        Math.max(weekKm, minLongFloor + minEasy * easySessionCount + minSessionKm * qualitySessions),
+      );
+    }
+
+    const baseLongKm = round1(clamp(longKm[w - 1] ?? 0, minLongKm, weekKm));
 
     let wkLongKm: number;
     let distributedWeekKm: number;
@@ -994,8 +1189,8 @@ export function generatePlan(config: PlanConfig): GeneratedPlanBundle {
     } else if (config.goal === "5k" || config.goal === "10k") {
       wkLongKm = baseLongKm;
       // Enforce Target Band: long run should be ~22-35% of the week.
-      let minWeekKm = dayList.length >= 4 ? wkLongKm / 0.35 : wkLongKm / 0.50;
-      let maxWeekKm = wkLongKm / 0.22;
+      const minWeekKm = dayList.length >= 4 ? wkLongKm / 0.35 : wkLongKm / 0.50;
+      const maxWeekKm = wkLongKm / 0.22;
       distributedWeekKm = round1(clamp(weekKm, minWeekKm, maxWeekKm));
       
       if (dayList.length === 2) {
@@ -1005,7 +1200,7 @@ export function generatePlan(config: PlanConfig): GeneratedPlanBundle {
       // Prevent non-long runs from exceeding the long run
       nonLongCap = round1(wkLongKm);
       
-      let remaining = round1(Math.max(0, distributedWeekKm - wkLongKm));
+      const remaining = round1(Math.max(0, distributedWeekKm - wkLongKm));
       let eachOther = round1(nonLongCount > 0 ? remaining / nonLongCount : 0);
       
       if (eachOther < minSessionKm && nonLongCount > 0) {
@@ -1021,31 +1216,177 @@ export function generatePlan(config: PlanConfig): GeneratedPlanBundle {
       const constrainedWeekKm = round1(Math.min(weekKm, baseLongKm / 0.35));
       wkLongKm = round1(clamp(Math.max(baseLongKm, constrainedWeekKm * 0.35), minLongKm, constrainedWeekKm));
       distributedWeekKm = constrainedWeekKm;
+      if (longRunIntegrityScope(config) && phase !== "Taper") {
+        distributedWeekKm = round1(Math.max(distributedWeekKm, weekKm));
+        wkLongKm = round1(
+          clamp(Math.max(baseLongKm, distributedWeekKm * 0.35), minLongKm, distributedWeekKm),
+        );
+      }
       nonLongCap = round1(wkLongKm * 0.85);
+      if (longRunIntegrityScope(config)) {
+        nonLongCap = round1(Math.max(nonLongCap, getEasySessionMinimum(config.level)));
+      }
     }
 
     // Long Run Rule: For 2-session/week programs, the Long Run must not exceed 50% of total weekly volume.
     if (dayList.length === 2 && (config.goal !== "5k" && config.goal !== "10k" || config.level === "NOVICE")) {
-      wkLongKm = Math.min(wkLongKm, distributedWeekKm * 0.5);
+      if (!longRunIntegrityScope(config)) {
+        wkLongKm = Math.min(wkLongKm, distributedWeekKm * 0.5);
+      }
     }
 
-    const easySessionCount = otherDays.filter((day) => typesForWeek[day] === "easy").length;
     let remaining = round1(Math.max(0, distributedWeekKm - wkLongKm));
     let eachOther = round1(nonLongCount > 0 ? remaining / nonLongCount : 0);
 
     // Bypass generic floors and redistribution for Novice, and 5K/10K goals
     if (config.level !== "NOVICE" && config.goal !== "5k" && config.goal !== "10k") {
-      if (dayList.length >= 4 && easySessionCount > 0 && eachOther < minEasyKm) {
+      const minEasyDayThreshold = longRunIntegrityScope(config) ? 2 : 4;
+      if (dayList.length >= minEasyDayThreshold && easySessionCount > 0 && eachOther < minEasyKm) {
         const minRequiredWeeklyKm = round1(wkLongKm + (minEasyKm * easySessionCount));
         distributedWeekKm = round1(Math.min(peakKm, Math.max(distributedWeekKm, minRequiredWeeklyKm)));
         remaining = round1(Math.max(0, distributedWeekKm - wkLongKm));
         eachOther = round1(nonLongCount > 0 ? remaining / nonLongCount : 0);
       }
 
-      if (eachOther > nonLongCap) {
+      if (eachOther > nonLongCap && !longRunIntegrityScope(config)) {
         eachOther = nonLongCap;
         distributedWeekKm = round1(wkLongKm + (eachOther * nonLongCount));
       }
+    }
+
+    const integrityThisWeek =
+      longRunIntegrityScope(config) && w >= 3 && phase !== "Taper";
+
+    let qualitySplitRef = eachOther;
+    let easyKmForWeek = eachOther;
+
+    if (integrityThisWeek) {
+      const easyFloor = getEasySessionMinimum(config.level);
+      const frozenRef = eachOther;
+      const sumQ = sumQualityDistanceKm(
+        otherDays,
+        typesForWeek,
+        frozenRef,
+        minSessionKm,
+        nonLongCap,
+        intervalCap,
+      );
+      const qMax = maxQualityDistanceKm(
+        otherDays,
+        typesForWeek,
+        frozenRef,
+        minSessionKm,
+        nonLongCap,
+        intervalCap,
+      );
+
+      if (easySessionCount > 0) {
+        easyKmForWeek = round1((distributedWeekKm - wkLongKm - sumQ) / easySessionCount);
+      } else {
+        easyKmForWeek = 0;
+        distributedWeekKm = round1(wkLongKm + sumQ);
+      }
+      if (easySessionCount > 0 && easyKmForWeek < easyFloor) {
+        distributedWeekKm = round1(wkLongKm + sumQ + easyFloor * easySessionCount);
+        easyKmForWeek = easyFloor;
+      }
+      distributedWeekKm = round1(
+        wkLongKm + sumQ + (easySessionCount > 0 ? easyKmForWeek * easySessionCount : 0),
+      );
+
+      let maxNL = Math.max(qMax, easySessionCount > 0 ? easyKmForWeek : 0);
+
+      if (wkLongKm + 1e-9 < maxNL * 1.4) {
+        const needLong = round1(maxNL * 1.4);
+        const trialTotal = round1(distributedWeekKm - wkLongKm + needLong);
+        if (weekAcuteToChronicOk(trialTotal, w, weekTotalsHistory, weeklyKm)) {
+          wkLongKm = needLong;
+          distributedWeekKm = Math.max(distributedWeekKm, trialTotal);
+        } else {
+          const capEasy = round1(wkLongKm / 1.4);
+          if (easySessionCount > 0 && qMax <= capEasy + 1e-9) {
+            easyKmForWeek = Math.max(easyFloor, Math.min(easyKmForWeek, capEasy));
+            distributedWeekKm = round1(wkLongKm + sumQ + easyKmForWeek * easySessionCount);
+          }
+          maxNL = Math.max(qMax, easySessionCount > 0 ? easyKmForWeek : 0);
+          const needLong2 = round1(maxNL * 1.4);
+          const trialTotal2 = round1(distributedWeekKm - wkLongKm + needLong2);
+          if (weekAcuteToChronicOk(trialTotal2, w, weekTotalsHistory, weeklyKm)) {
+            wkLongKm = needLong2;
+            distributedWeekKm = Math.max(distributedWeekKm, trialTotal2);
+          }
+        }
+
+        easyKmForWeek =
+          easySessionCount > 0
+            ? round1((distributedWeekKm - wkLongKm - sumQ) / easySessionCount)
+            : 0;
+        if (easySessionCount > 0 && easyKmForWeek < easyFloor) {
+          distributedWeekKm = round1(wkLongKm + sumQ + easyFloor * easySessionCount);
+          easyKmForWeek = easyFloor;
+        }
+      }
+
+      maxNL = Math.max(qMax, easySessionCount > 0 ? easyKmForWeek : 0);
+      if (wkLongKm + 1e-9 < maxNL * 1.4) {
+        const needLong3 = round1(maxNL * 1.4);
+        const trialTotal3 = round1(distributedWeekKm - wkLongKm + needLong3);
+        if (weekAcuteToChronicOk(trialTotal3, w, weekTotalsHistory, weeklyKm)) {
+          wkLongKm = needLong3;
+          distributedWeekKm = Math.max(distributedWeekKm, trialTotal3);
+        }
+        easyKmForWeek =
+          easySessionCount > 0
+            ? round1((distributedWeekKm - wkLongKm - sumQ) / easySessionCount)
+            : 0;
+        if (easySessionCount > 0 && easyKmForWeek < easyFloor) {
+          distributedWeekKm = round1(wkLongKm + sumQ + easyFloor * easySessionCount);
+          easyKmForWeek = easyFloor;
+        }
+      }
+
+      for (let guard = 0; guard < 100; guard++) {
+        const mnl = Math.max(qMax, easySessionCount > 0 ? easyKmForWeek : 0);
+        if (mnl < 1e-6 || wkLongKm + 1e-9 >= mnl * 1.4) break;
+        wkLongKm = round1(wkLongKm + 0.1);
+        if (peakScheduledLongKm > 0) {
+          const needB = round1(mnl * 1.4);
+          wkLongKm = Math.min(wkLongKm, Math.max(peakScheduledLongKm, needB));
+        }
+      }
+
+      distributedWeekKm = round1(
+        wkLongKm + sumQ + (easySessionCount > 0 ? easyKmForWeek * easySessionCount : 0),
+      );
+
+      if (peakScheduledLongKm > 0) {
+        const mnlCap = Math.max(qMax, easySessionCount > 0 ? easyKmForWeek : 0);
+        const needL = round1(mnlCap * 1.4);
+        const capLong = Math.max(peakScheduledLongKm, needL);
+        wkLongKm = Math.min(wkLongKm, capLong);
+        wkLongKm = Math.max(wkLongKm, needL);
+        distributedWeekKm = round1(
+          wkLongKm + sumQ + (easySessionCount > 0 ? easyKmForWeek * easySessionCount : 0),
+        );
+        const mnl2 = Math.max(qMax, easySessionCount > 0 ? easyKmForWeek : 0);
+        if (mnl2 > 1e-6 && wkLongKm + 1e-9 < mnl2 * 1.4 && easySessionCount > 0) {
+          const maxEasy2 = round1(wkLongKm / 1.4);
+          easyKmForWeek = Math.max(easyFloor, Math.min(easyKmForWeek, maxEasy2));
+          distributedWeekKm = round1(wkLongKm + sumQ + easyKmForWeek * easySessionCount);
+        }
+      }
+
+      for (let z = 0; z < 50; z++) {
+        const totalPre = round1(
+          wkLongKm + sumQ + (easySessionCount > 0 ? easyKmForWeek * easySessionCount : 0),
+        );
+        if (weekAcuteToChronicOk(totalPre, w, weekTotalsHistory, weeklyKm)) break;
+        if (easySessionCount === 0 || easyKmForWeek <= easyFloor + 1e-9) break;
+        easyKmForWeek = round1(Math.max(easyFloor, easyKmForWeek - 0.2));
+        distributedWeekKm = round1(wkLongKm + sumQ + easyKmForWeek * easySessionCount);
+      }
+
+      qualitySplitRef = frozenRef;
     }
 
     // Enforce a minimum 48-hour gap between sessions for all plans with 3 or fewer days per week.
@@ -1068,6 +1409,19 @@ export function generatePlan(config: PlanConfig): GeneratedPlanBundle {
       let km: number;
       if (config.level === "NOVICE") {
         km = type === "long" ? wkLongKm : eachOther;
+      } else if (integrityThisWeek) {
+        km =
+          type === "long"
+            ? wkLongKm
+            : type === "easy"
+              ? round1(easyKmForWeek)
+              : getQualitySessionKm(
+                  type as "tempo" | "interval",
+                  qualitySplitRef,
+                  minSessionKm,
+                  nonLongCap,
+                  intervalCap,
+                );
       } else {
         km = type === "long" ? wkLongKm : 
              type === "interval" ? round1(clamp(eachOther, minSessionKm, Math.min(intervalCap, nonLongCap))) : 
@@ -1141,6 +1495,10 @@ export function generatePlan(config: PlanConfig): GeneratedPlanBundle {
       isCutback: cutback,
       sessions,
     });
+
+    weekTotalsHistory.push(
+      round1(sessions.reduce((sum, s) => sum + s.targetDistanceKm, 0)),
+    );
   }
 
   const validDays = new Set(days);
