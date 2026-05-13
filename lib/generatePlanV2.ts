@@ -360,8 +360,13 @@ const LONG_MAX_WEEKLY_FRACTION = 0.3;
 const LONG_FRACTION_WEEK_MIN_KM = 40;
 /** Long run must be at least this many km. */
 const MIN_LONG_RUN_KM = 8;
-/** Minimum km to leave on tempo/interval when stealing volume for easy-floor fixes. */
-const MIN_QUALITY_KM = 1.5;
+/**
+ * Minimum km for any tempo or interval session (including reps). Matches the weekly
+ * `minimumViableWeekKmForTypes` piece so steals / long-boost cannot pull quality below this.
+ */
+const MIN_TEMPO_INTERVAL_SESSION_KM = 4;
+/** Minimum km left on tempo/interval after taking volume for easy floor or long boost. */
+const MIN_QUALITY_KM = MIN_TEMPO_INTERVAL_SESSION_KM;
 
 function absoluteLongRunCapKm(
   goalDistance: PlanConfigV2["goalDistance"],
@@ -409,7 +414,7 @@ function longestEasyDistanceKm(dists: number[], types: RunType[]): number {
   return m;
 }
 
-/** Pull volume from easy (then quality) for a long-run increase; respects MIN_EASY_KM / MIN_QUALITY_KM. Returns km removed from other sessions. */
+/** Pull volume from easy (then quality) for a long-run increase; respects MIN_EASY_KM / MIN_TEMPO_INTERVAL_SESSION_KM. Returns km removed from other sessions. */
 function takeKmForLongBoostFromEasiesThenQuality(dists: number[], types: RunType[], needKm: number): number {
   const startRem = needKm;
   let rem = needKm;
@@ -676,9 +681,6 @@ function absorbPositiveWeeklyDrift(dists: number[], types: RunType[], weekTotalK
   }
 }
 
-/** Minimum km for tempo or interval (including rep-style intervals) in weekly volume floor. */
-const MIN_TEMPO_INTERVAL_WEEK_KM = 4;
-
 /**
  * Sum of per-session distance floors for the types assigned this week (long / easy / quality).
  * Used to bump low progression weeks so distribution never starts from an infeasible total.
@@ -688,7 +690,7 @@ function minimumViableWeekKmForTypes(types: readonly RunType[]): number {
   for (const t of types) {
     if (t === "long") sum += MIN_LONG_RUN_KM;
     else if (t === "easy") sum += MIN_EASY_KM;
-    else if (t === "tempo" || t === "interval") sum += MIN_TEMPO_INTERVAL_WEEK_KM;
+    else if (t === "tempo" || t === "interval") sum += MIN_TEMPO_INTERVAL_SESSION_KM;
   }
   return sum;
 }
@@ -938,7 +940,7 @@ export function generatePlanV2(config: PlanConfigV2): TrainingWeek[] {
       isCutback,
       sessions,
       totalTargetKm: weekKmForDistribution,
-    } as TrainingWeek);
+    });
   }
 
   return weeksOut;

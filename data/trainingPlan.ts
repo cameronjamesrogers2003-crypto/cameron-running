@@ -61,6 +61,8 @@ export interface TrainingWeek {
   week: number
   phase: Phase
   isCutback: boolean
+  /** Planned weekly volume (km) used when generating this week; may exceed raw progression when session minimums apply. */
+  totalTargetKm?: number
   isRecovery?: boolean
   originalWeek?: number
   softCutback?: boolean
