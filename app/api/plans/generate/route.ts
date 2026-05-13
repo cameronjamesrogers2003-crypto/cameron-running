@@ -83,6 +83,7 @@ export async function POST(req: NextRequest) {
     sessionsPerWeek: config.days.length as 2 | 3 | 4 | 5 | 6,
     startDate,
     trainingDays: config.days,
+    longRunDay: config.longRunDay,
   };
 
   let plan: TrainingWeek[];

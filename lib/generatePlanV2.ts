@@ -1,4 +1,5 @@
 import type { Day, Phase, RunType, Session, TrainingWeek } from "@/data/trainingPlan";
+import { getDefaultLongRunDay } from "@/lib/generatePlan";
 import {
   buildSessionDescription,
   estimateSessionDurationMin,
@@ -16,6 +17,8 @@ export interface PlanConfigV2 {
   sessionsPerWeek: 2 | 3 | 4 | 5 | 6;
   startDate: Date;
   trainingDays: Day[];
+  /** When set, the long run is always scheduled on this day (overrides day order in trainingDays). */
+  longRunDay?: Day;
 }
 
 const SESSION_SCALE: Record<2 | 3 | 4 | 5 | 6, number> = {
@@ -24,6 +27,17 @@ const SESSION_SCALE: Record<2 | 3 | 4 | 5 | 6, number> = {
   4: 1.24,
   5: 1.46,
   6: 1.67,
+};
+
+/** Mon-first calendar order for sorting sessions within a week. */
+const DAY_CAL_ORDER: Record<Day, number> = {
+  mon: 0,
+  tue: 1,
+  wed: 2,
+  thu: 3,
+  fri: 4,
+  sat: 5,
+  sun: 6,
 };
 
 const PEAK_KM: Record<
@@ -344,6 +358,65 @@ function round1(n: number): number {
   return Math.round(n * 10) / 10;
 }
 
+function uniqDaysPreserveOrder(days: Day[]): Day[] {
+  const seen = new Set<Day>();
+  const out: Day[] = [];
+  for (const d of days) {
+    if (!seen.has(d)) {
+      seen.add(d);
+      out.push(d);
+    }
+  }
+  return out;
+}
+
+/**
+ * Map each session type to a calendar day. Long run always uses `longRunDay` when provided
+ * (even if that day is not listed in trainingDays — user override). Other sessions rotate
+ * across remaining training days, preferring not to stack on the long-run day when alternatives exist.
+ */
+export function assignSessionDays(
+  types: RunType[],
+  trainingDays: Day[],
+  longRunDay?: Day | null,
+): Day[] {
+  const pool = uniqDaysPreserveOrder(trainingDays);
+  if (pool.length === 0) {
+    throw new Error("assignSessionDays: trainingDays must include at least one day");
+  }
+
+  const n = types.length;
+  const out: Day[] = new Array(n);
+  const longIdx = types.indexOf("long");
+
+  const longDay: Day =
+    longRunDay != null ? longRunDay : getDefaultLongRunDay(pool);
+
+  let rotPool = pool.filter((d) => d !== longDay);
+  if (rotPool.length === 0) {
+    rotPool = [...pool];
+  }
+
+  if (longIdx >= 0) {
+    out[longIdx] = longDay;
+  }
+
+  let r = 0;
+  for (let i = 0; i < n; i++) {
+    if (i === longIdx) continue;
+    out[i] = rotPool[r % rotPool.length]!;
+    r++;
+  }
+
+  if (longIdx < 0) {
+    for (let i = 0; i < n; i++) {
+      out[i] = pool[i % pool.length]!;
+    }
+  }
+
+  return out;
+}
+
 export function generatePlanV2(config: PlanConfigV2): TrainingWeek[] {
   const peakBase = PEAK_KM[config.goalDistance][config.experienceLevel];
   const scale = SESSION_SCALE[config.sessionsPerWeek];
@@ -388,11 +461,12 @@ export function generatePlanV2(config: PlanConfigV2): TrainingWeek[] {
 
     const totalKm = weeklyKm[wi] ?? 0;
     const weights = distanceWeights(types.length, types);
+    const sessionDays = assignSessionDays(types, config.trainingDays, config.longRunDay ?? null);
     const sessions: Session[] = [];
 
     for (let si = 0; si < types.length; si++) {
       const t = types[si]!;
-      const day = config.trainingDays[si] ?? config.trainingDays[config.trainingDays.length - 1]!;
+      const day = sessionDays[si]!;
       let dist = round1(totalKm * (weights[si] ?? 1 / types.length));
       dist = Math.max(1, dist);
 
@@ -472,6 +546,8 @@ export function generatePlanV2(config: PlanConfigV2): TrainingWeek[] {
         plannedWorkload,
       });
     }
+
+    sessions.sort((a, b) => DAY_CAL_ORDER[a.day] - DAY_CAL_ORDER[b.day]);
 
     const cutRule = cutbackRule(config.experienceLevel);
     const isCutback =
