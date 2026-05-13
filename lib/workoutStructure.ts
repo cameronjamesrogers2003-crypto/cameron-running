@@ -153,6 +153,37 @@ function buildEasyStructure(ctx: WorkoutContext): WorkoutStructure {
 // ── Tempo run ─────────────────────────────────────────────────────────────────
 
 function buildTempoStructure(ctx: WorkoutContext): WorkoutStructure {
+  if (ctx.level === "NOVICE") {
+    const km = ctx.targetDistanceKm;
+    const mainContent = `Run ${km.toFixed(1)} km by feel — aim for a pace slightly faster than your easy sessions, but do not chase a specific time. This is not a race-pace workout.`;
+    return {
+      sessionPurpose:
+        "Introduce a sustainable step-up in effort so your next program feels familiar, not intimidating.",
+      physiologicalTarget:
+        "Controlled neuromuscular and aerobic stress slightly above easy pace — teaching the body to tolerate modestly higher output without accumulating heavy fatigue.",
+      warmup: {
+        label: "Warmup",
+        content:
+          `${ctx.structure?.warmupMin ?? 5} min easy walk or very light jog. Ease into the session — the bridge block should feel controlled from the first minute.`,
+      },
+      mainSet: { label: "Bridge block", content: mainContent },
+      cooldown: {
+        label: "Cooldown",
+        content: `${ctx.structure?.cooldownMin ?? 5} min easy walk or shuffle. Let your breathing settle before you stop completely.`,
+      },
+      effortGuidance:
+        'Effort: RPE 5 / 10. This should feel "comfortably hard" — you can still speak in short phrases but not hold a full conversation. This is a controlled introduction to running at a slightly higher effort. Back off immediately if you feel strain.',
+      executionTips: [
+        "Run by feel — aim for a pace slightly faster than your easy sessions, but do not chase a specific time.",
+        "If breathing gets ragged or legs feel heavy, slow down until you are fully back in control.",
+        "One bridge session per week is enough — treat all other runs as easy conversational effort.",
+      ],
+      fallbackOption:
+        "If you are tired or conditions are poor, convert the bridge block to an easy run at RPE 3. Consistency beats forcing intensity.",
+      postRunRecovery: "Hydrate within 30 min. Light snack if hungry — keep it simple.",
+    };
+  }
+
   const p = pct(ctx.week, ctx.totalWeeks);
   const isTaper = ctx.phase === "Taper";
 

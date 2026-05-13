@@ -68,6 +68,10 @@ export interface TrainingWeek {
   weekSubtitle?: string
   /** Phase intro shown once per phase section; set on first week of each phase */
   phaseOverviewText?: string
+  /** Novice: plan is complete and user may be guided toward Beginner program (Phase 3 uses signals). */
+  noviceGraduationEligible?: boolean
+  /** Novice: first week number with bridge tempo sessions (same on every week for JSON consumers). */
+  noviceTempoWindowStart?: number
 }
 
 // Pace zones based on VDOT ~33 — reassess every 6–8 weeks

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { RunTypePill } from "@/components/RunTypePill";
+import { getSessionDisplayName } from "@/lib/runTypeStyles";
 import type { SessionCardProps } from "./SessionCard";
 
 export type WorkoutModalProps = SessionCardProps & { 
@@ -34,6 +35,7 @@ export default function WorkoutModal(props: WorkoutModalProps) {
     sessionLabelVariant,
     workoutStructure,
     isNovice,
+    runnerLevel,
     sRPE,
   } = props;
 
@@ -76,7 +78,17 @@ export default function WorkoutModal(props: WorkoutModalProps) {
 
   // Safety Context: Display a warning if the reported RPE was significantly higher (e.g., +3 points) than the target RPE
   const targetRpeMatch = workoutStructure.effortGuidance.match(/RPE (\d+)/);
-  const targetRpe = targetRpeMatch ? parseInt(targetRpeMatch[1], 10) : (sessionType === "long" ? 4 : 3);
+  const fallbackRpe =
+    isNovice
+      ? sessionType === "long"
+        ? 4
+        : sessionType === "tempo"
+          ? 5
+          : 3
+      : sessionType === "long"
+        ? 5
+        : 3;
+  const targetRpe = targetRpeMatch ? parseInt(targetRpeMatch[1], 10) : fallbackRpe;
   const rpeGap = sRPE != null ? sRPE - targetRpe : 0;
   const showRpeWarning = isNovice && sRPE != null && rpeGap >= 3;
 
@@ -86,7 +98,7 @@ export default function WorkoutModal(props: WorkoutModalProps) {
       style={{ opacity: visible ? 1 : 0, transition: "opacity 0.18s ease" }}
       role="dialog"
       aria-modal="true"
-      aria-label={`${sessionType} session details`}
+      aria-label={`${getSessionDisplayName(sessionType, runnerLevel ?? null)} session details`}
     >
       {/* Backdrop */}
       <div
@@ -133,7 +145,7 @@ export default function WorkoutModal(props: WorkoutModalProps) {
             {/* Type pill + status badges + close */}
             <div className="flex items-center justify-between gap-2 mb-3">
               <div className="flex items-center gap-2 flex-wrap">
-                <RunTypePill type={sessionType} size="sm" />
+                <RunTypePill type={sessionType} size="sm" runnerLevel={runnerLevel ?? null} />
                 {sessionLabel && (
                   <span
                     className="text-xs font-semibold px-2 py-0.5 rounded-full"

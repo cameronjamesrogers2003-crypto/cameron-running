@@ -35,3 +35,46 @@ export function getNoviceRunWalkTransitionWeek(weeks: PlanConfig["weeks"]): numb
   const buildWeeks = weeks - taperWeeks;
   return Math.round(buildWeeks * 0.6);
 }
+
+/** First week where Novice bridge tempo replaces one easy slot (inclusive). */
+export function getNoviceTempoWindowStart(weeks: PlanConfig["weeks"]): number {
+  switch (weeks) {
+    case 8:
+      return 7;
+    case 12:
+      return 10;
+    case 16:
+      return 13;
+    case 20:
+      return 17;
+    default:
+      return weeks;
+  }
+}
+
+/** Last week where Novice bridge tempo may appear (inclusive). Never the final race week. */
+export function getNoviceTempoWindowEnd(weeks: PlanConfig["weeks"]): number {
+  switch (weeks) {
+    case 8:
+      return 7;
+    case 12:
+      return 11;
+    case 16:
+      return 14;
+    case 20:
+      return 19;
+    default:
+      return Math.max(1, weeks - 1);
+  }
+}
+
+export function isNoviceBridgeTempoWeek(
+  level: PlanConfig["level"],
+  weeks: PlanConfig["weeks"],
+  weekNumber: number,
+): boolean {
+  if (level !== "NOVICE") return false;
+  const start = getNoviceTempoWindowStart(weeks);
+  const end = getNoviceTempoWindowEnd(weeks);
+  return weekNumber >= start && weekNumber <= end;
+}

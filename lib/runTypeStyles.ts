@@ -1,3 +1,5 @@
+import type { PlanConfig } from "@/data/trainingPlan";
+
 export function runTypeColor(type: string | null | undefined): string {
   switch (type?.toLowerCase()) {
     case "easy":
@@ -41,4 +43,15 @@ export function runTypeLabel(type: string | null | undefined): string {
     default:
       return "Run";
   }
+}
+
+/** UI label for a planned session type (Novice bridge tempo → "Bridge Run"). */
+export function getSessionDisplayName(
+  type: string | null | undefined,
+  level?: PlanConfig["level"] | null,
+): string {
+  if (level === "NOVICE" && type?.toLowerCase() === "tempo") {
+    return "Bridge Run";
+  }
+  return runTypeLabel(type);
 }

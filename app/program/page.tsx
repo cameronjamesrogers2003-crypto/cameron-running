@@ -1,6 +1,6 @@
 import prisma from "@/lib/db";
 import { formatPace as fmtPaceSec } from "@/lib/settings";
-import { buildTrainingPlan, type Day, type Phase, type RunType, type TrainingWeek } from "@/data/trainingPlan";
+import { buildTrainingPlan, type Day, type Phase, type PlanConfig, type RunType, type TrainingWeek } from "@/data/trainingPlan";
 import { finalizePlanDisplayCopy } from "@/lib/generatePlan";
 import {
   getEffectivePlanStart,
@@ -23,7 +23,7 @@ import PlanUpdatedBanner from "./PlanUpdatedBanner";
 import PageHeading from "@/components/ui/PageHeading";
 import PlanHistoryPanel from "./PlanHistoryPanel";
 import SessionCard, { type SessionCardProps } from "./SessionCard";
-import { runTypeColor } from "@/lib/runTypeStyles";
+import { runTypeColor, getSessionDisplayName } from "@/lib/runTypeStyles";
 import { phaseChipStyle } from "@/lib/phaseChipStyle";
 import { EmptyState } from "@/components/EmptyState";
 import { Calendar } from "lucide-react";
@@ -72,9 +72,9 @@ function getZoneBadge(
 
 // ── Volume change vs previous week in the plan ───────────────────────────────
 
-function formatRunTypeWord(t: string | null | undefined): string {
+function formatRunTypeWord(t: string | null | undefined, level?: PlanConfig["level"] | null): string {
   if (!t) return "Unclassified";
-  return t.charAt(0).toUpperCase() + t.slice(1);
+  return getSessionDisplayName(t, level ?? null);
 }
 
 function getVolumeChange(planWeek: TrainingWeek, plan: TrainingWeek[]): number | null {
@@ -612,7 +612,14 @@ export default async function ProgramPage({
                             vdot: settings.currentVdot,
                             targetDistanceKm: session.targetDistanceKm,
                             targetPaceMinPerKm: session.targetPaceMinPerKm,
+                            targetRpe: session.targetRpe,
+                            structure: session.structure,
                           };
+
+                          const effortLabel =
+                            settings.experienceLevel === "NOVICE" && session.type === "tempo"
+                              ? "Moderate bridge effort (RPE 5)"
+                              : EFFORT_LABEL[session.type];
 
                           const cardProps: SessionCardProps = {
                             sessionType: session.type,
@@ -623,8 +630,10 @@ export default async function ProgramPage({
                             description: session.description,
                             targetKm: session.targetDistanceKm,
                             targetPaceStr: fmtTargetPace(session.targetPaceMinPerKm),
-                            effortLabel: EFFORT_LABEL[session.type],
+                            effortLabel,
                             isNovice: settings.experienceLevel === "NOVICE",
+                            runnerLevel: settings.experienceLevel as PlanConfig["level"],
+                            targetRpe: session.targetRpe ?? null,
                             sRPE,
                             cardBg,
                             leftBorder,
@@ -638,7 +647,7 @@ export default async function ProgramPage({
                             isCompleted,
                             runTypeMismatch,
                             mismatchNote: runTypeMismatch && matchedAct
-                              ? `⚠️ Run type mismatch — planned: ${formatRunTypeWord(session.type)}, actual: ${formatRunTypeWord(matchedAct.classifiedRunType)}`
+                              ? `⚠️ Run type mismatch — planned: ${formatRunTypeWord(session.type, settings.experienceLevel as PlanConfig["level"])}, actual: ${formatRunTypeWord(matchedAct.classifiedRunType, settings.experienceLevel as PlanConfig["level"])}`
                               : undefined,
                             sessionLabelVariant,
                             workoutStructure: buildWorkoutStructure(session.type, workoutCtx),
@@ -659,7 +668,7 @@ export default async function ProgramPage({
                             {extraRuns.map((a, i) => (
                               <span key={a.id}>
                                 {formatAEST(a.date, "EEE d MMM")} — {a.distanceKm.toFixed(1)} km{" "}
-                                {formatRunTypeWord(a.classifiedRunType)}
+                                {formatRunTypeWord(a.classifiedRunType, settings.experienceLevel as PlanConfig["level"])}
                                 {i < extraRuns.length - 1 ? "; " : ""}
                               </span>
                             ))}

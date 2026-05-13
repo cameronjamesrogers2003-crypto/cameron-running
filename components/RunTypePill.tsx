@@ -1,14 +1,17 @@
-import { runTypeColor, runTypeBg, runTypeLabel } from "@/lib/runTypeStyles";
+import type { PlanConfig } from "@/data/trainingPlan";
+import { runTypeColor, runTypeBg, getSessionDisplayName } from "@/lib/runTypeStyles";
 
 interface RunTypePillProps {
   type: string | null | undefined;
   size?: "sm" | "md";
+  /** When set, Novice planned tempo sessions display as "Bridge Run". */
+  runnerLevel?: PlanConfig["level"] | null;
 }
 
-export function RunTypePill({ type, size = "md" }: RunTypePillProps) {
+export function RunTypePill({ type, size = "md", runnerLevel }: RunTypePillProps) {
   const color = runTypeColor(type);
   const bg = runTypeBg(type);
-  const label = runTypeLabel(type);
+  const label = getSessionDisplayName(type, runnerLevel ?? null);
 
   const padding = size === "sm" ? "3px 8px" : "4px 10px";
   const fontSize = "12px";

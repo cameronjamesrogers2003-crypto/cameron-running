@@ -6,7 +6,7 @@ import { RunTypePill } from "@/components/RunTypePill";
 import TodayLabel, { type SessionDayLabelVariant } from "./TodayLabel";
 import WorkoutModal from "./WorkoutModal";
 import type { WorkoutStructure } from "@/lib/workoutStructure";
-import type { RunType } from "@/data/trainingPlan";
+import type { RunType, PlanConfig } from "@/data/trainingPlan";
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
@@ -21,6 +21,9 @@ export interface SessionCardProps {
   targetPaceStr: string;
   effortLabel: string;
   isNovice?: boolean;
+  /** For Bridge Run label on tempo sessions */
+  runnerLevel?: PlanConfig["level"] | null;
+  targetRpe?: number | null;
   sRPE?: number | null;
 
   cardBg: string;
@@ -53,6 +56,8 @@ export default function SessionCard(props: SessionCardProps) {
     targetPaceStr,
     effortLabel,
     isNovice,
+    runnerLevel,
+    targetRpe,
     sRPE,
     cardBg,
     leftBorder,
@@ -140,7 +145,7 @@ export default function SessionCard(props: SessionCardProps) {
           </div>
 
           {/* Run type pill */}
-          <RunTypePill type={sessionType} size="sm" />
+              <RunTypePill type={sessionType} size="sm" runnerLevel={runnerLevel ?? null} />
 
           {/* Effort label */}
           <p
@@ -168,9 +173,9 @@ export default function SessionCard(props: SessionCardProps) {
             {targetKm.toFixed(1)} km {isNovice ? "" : `· ${targetPaceStr}`}
           </p>
 
-          {isNovice && (
+          {isNovice && targetRpe != null && (
             <span className="inline-block mt-1.5 px-2 py-0.5 rounded-md text-[10px] font-bold bg-teal-500/20 text-teal-400 border border-teal-500/30 uppercase tracking-tighter">
-              Target RPE: 3-4
+              Target RPE: {targetRpe}
             </span>
           )}
 

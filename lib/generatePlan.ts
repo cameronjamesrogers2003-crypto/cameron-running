@@ -1,8 +1,14 @@
 import { getSessionPaces } from "@/lib/planPaces";
-import { getNovicePeakWeeklyKm, getNoviceRunWalkTransitionWeek } from "@/lib/novicePlanCaps";
+import { getNovicePeakWeeklyKm, getNoviceRunWalkTransitionWeek, getNoviceTempoWindowStart, isNoviceBridgeTempoWeek } from "@/lib/novicePlanCaps";
 import type { Day, Phase, PlanConfig, PlanPaceAdjust, RunType, Session, TrainingWeek } from "@/data/trainingPlan";
 
-export { getNovicePeakWeeklyKm, getNoviceRunWalkTransitionWeek } from "@/lib/novicePlanCaps";
+export {
+  getNovicePeakWeeklyKm,
+  getNoviceRunWalkTransitionWeek,
+  getNoviceTempoWindowStart,
+  getNoviceTempoWindowEnd,
+  isNoviceBridgeTempoWeek,
+} from "@/lib/novicePlanCaps";
 
 const DAY_INDEX: Record<Day, number> = {
   mon: 0,
@@ -530,7 +536,12 @@ function getPhaseWindows(config: Pick<PlanConfig, "weeks" | "goal">, weekNumber:
 }
 
 function resolveHardType(level: PlanConfig["level"], config: PlanConfig, weekNumber: number): RunType {
-  if (level === "NOVICE") return "easy";
+  if (level === "NOVICE") {
+    if (isNoviceBridgeTempoWeek(level, config.weeks, weekNumber)) {
+      return "tempo";
+    }
+    return "easy";
+  }
 
   const { baseLengthWeeks, isBase, isBuild } = getPhaseWindows(config, weekNumber);
   const isShorterRace = config.goal === "5k" || config.goal === "10k";
@@ -634,6 +645,23 @@ export function assignSessionsTodays(
   if (dayList.length === 2) {
     const other = dayList.find((d) => d !== longRunDay)!;
     const { isBase, isBuild, isTaper } = getPhaseWindows(config, weekNumber);
+
+    if (level === "NOVICE") {
+      if (weekNumber === config.weeks) {
+        out[other] = "easy";
+        return out;
+      }
+      out[other] = resolveHardType(level, {
+        level,
+        goal: config.goal,
+        weeks: config.weeks,
+        days: dayList,
+        longRunDay,
+        vdot: 28,
+      }, weekNumber);
+      return out;
+    }
+
     if (isTaper) {
       out[other] = "easy";
       return out;
@@ -1044,11 +1072,32 @@ export function generatePlan(config: PlanConfig): TrainingWeek[] {
              round1(clamp(eachOther, minSessionKm, Math.max(minSessionKm, nonLongCap)));
       }
 
-      const paceObj = type === "long" ? pMin.long : type === "easy" ? pMin.easy : type === "tempo" ? pMin.tempo : pMin.interval;
+      const paceObj =
+        config.level === "NOVICE" && type === "tempo"
+          ? pMin.easy
+          : type === "long"
+            ? pMin.long
+            : type === "easy"
+              ? pMin.easy
+              : type === "tempo"
+                ? pMin.tempo
+                : pMin.interval;
       const targetPaceMinPerKm = round1(paceObj.asSecondsPerKm / 60);
-      
-      // Novice RPE 3-4, others higher
-      const targetRpe = config.level === "NOVICE" ? (type === "long" ? 4 : 3) : (type === "long" ? 5 : (type === "easy" ? 4 : (type === "tempo" ? 7 : 9)));
+
+      const targetRpe =
+        config.level === "NOVICE"
+          ? type === "long"
+            ? 4
+            : type === "tempo"
+              ? 5
+              : 3
+          : type === "long"
+            ? 5
+            : type === "easy"
+              ? 4
+              : type === "tempo"
+                ? 7
+                : 9;
       const plannedWorkload = round1(km * targetPaceMinPerKm * targetRpe);
       currentWeekWorkload += plannedWorkload;
 
@@ -1069,7 +1118,7 @@ export function generatePlan(config: PlanConfig): TrainingWeek[] {
           warmupMin: 5,
           cooldownMin: 5,
         };
-        if (noviceRunWalkTransitionWeek > 0 && w <= noviceRunWalkTransitionWeek) {
+        if (type !== "tempo" && noviceRunWalkTransitionWeek > 0 && w <= noviceRunWalkTransitionWeek) {
           const tw = noviceRunWalkTransitionWeek;
           const density =
             tw <= 1 ? 0.4 : w >= tw ? 1 : 0.4 + ((w - 1) / (tw - 1)) * 0.6;
@@ -1102,6 +1151,21 @@ export function generatePlan(config: PlanConfig): TrainingWeek[] {
   }
 
   finalizePlanDisplayCopy(plan, config.level);
+
+  if (config.level === "NOVICE") {
+    const tempoStart = getNoviceTempoWindowStart(config.weeks);
+    for (const week of plan) {
+      week.noviceGraduationEligible = true;
+      week.noviceTempoWindowStart = tempoStart;
+      for (const session of week.sessions) {
+        if (session.type === "tempo") {
+          session.description =
+            "Bridge run — a controlled introduction to a slightly higher effort before your next training block.";
+        }
+      }
+    }
+  }
+
   return plan;
 }
 
@@ -1121,6 +1185,27 @@ export function validateAssignments(): void {
   assertAssignment(
     "SCENARIO 1",
     assignSessionsTodays(["mon", "thu"], "thu", "BEGINNER", { goal: "hm", weeks: 12 }, 2),
+    [["mon", "easy"], ["thu", "long"]],
+  );
+
+  assertAssignment(
+    "NOVICE 2-DAY W1 5K/12W",
+    assignSessionsTodays(["mon", "thu"], "thu", "NOVICE", { goal: "5k", weeks: 12 }, 1),
+    [["mon", "easy"], ["thu", "long"]],
+  );
+  assertAssignment(
+    "NOVICE 2-DAY W10 BRIDGE 5K/12W",
+    assignSessionsTodays(["mon", "thu"], "thu", "NOVICE", { goal: "5k", weeks: 12 }, 10),
+    [["mon", "tempo"], ["thu", "long"]],
+  );
+  assertAssignment(
+    "NOVICE 2-DAY W11 BRIDGE 5K/12W",
+    assignSessionsTodays(["mon", "thu"], "thu", "NOVICE", { goal: "5k", weeks: 12 }, 11),
+    [["mon", "tempo"], ["thu", "long"]],
+  );
+  assertAssignment(
+    "NOVICE 2-DAY W12 TAPER 5K/12W",
+    assignSessionsTodays(["mon", "thu"], "thu", "NOVICE", { goal: "5k", weeks: 12 }, 12),
     [["mon", "easy"], ["thu", "long"]],
   );
 
