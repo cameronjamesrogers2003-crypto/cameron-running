@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { useSettings } from "@/context/SettingsContext";
 import { brisbaneMidnightUtcForYmd, toBrisbaneYmd } from "@/lib/dateUtils";
 import { planStartIsoYmdToAusDisplay } from "@/lib/planStartDateFormat";
@@ -441,6 +442,18 @@ export default function SettingsForm() {
           </button>
         ))}
       </div>
+
+      <Panel title="Guided setup" badge="Wizard">
+        <p className="text-sm mb-4" style={{ color: "var(--text-muted)" }}>
+          Open the same step-by-step onboarding flow. Your saved profile from the server loads automatically so you can tweak anything and regenerate your plan.
+        </p>
+        <Link
+          href="/onboarding?from=settings"
+          className="inline-flex items-center justify-center px-6 py-3 rounded-xl text-sm font-bold border border-white/15 text-white hover:bg-white/10 transition-colors"
+        >
+          Continue in setup wizard
+        </Link>
+      </Panel>
 
       <div className="space-y-4">
         {/* ── Tab 1: Goal & Level ────────────────────────────────────── */}

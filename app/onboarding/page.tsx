@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, ChevronLeft, ChevronRight, Info } from "lucide-react";
-import type { Day, PlanConfig } from "@/data/trainingPlan";
+import type { Day } from "@/data/trainingPlan";
 import { useSettings } from "@/context/SettingsContext";
 import { getDefaultLongRunDay, getScheduleWarnings } from "@/lib/generatePlan";
-import { toBrisbaneYmd } from "@/lib/dateUtils";
-import VdotCalculator, { type VdotPersonalFields } from "@/components/VdotCalculator";
+import type { UserSettings } from "@/lib/settings";
+import VdotCalculator from "@/components/VdotCalculator";
 import { FORM_CONTROL_TW } from "@/lib/formControlClasses";
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -26,6 +26,35 @@ interface OnboardingState {
   maxHR: number;
   vdot: number | null;
   targetFinishTimeMins: number | null;
+}
+
+function parseTrainingDaysFromSettings(raw: string | null | undefined): Day[] {
+  try {
+    const parsed = raw ? JSON.parse(raw) : ["wed", "sat", "sun"];
+    return Array.isArray(parsed) ? (parsed as Day[]) : ["wed", "sat", "sun"];
+  } catch {
+    return ["wed", "sat", "sun"];
+  }
+}
+
+function onboardingStateFromSettings(settings: UserSettings): OnboardingState {
+  let goalRace = (settings.goalRace as GoalRace | null) ?? null;
+  const experienceLevel = (settings.experienceLevel as Level | null) ?? null;
+  if (experienceLevel === "NOVICE" && (goalRace === "HALF" || goalRace === "FULL")) {
+    goalRace = "5K";
+  }
+  return {
+    firstName: settings.firstName ?? "",
+    nickname: settings.nickname ?? "",
+    experienceLevel,
+    goalRace,
+    planLengthWeeks: (settings.planLengthWeeks ?? 16) as 8 | 12 | 16 | 20,
+    trainingDays: parseTrainingDaysFromSettings(settings.trainingDays),
+    longRunDay: (settings.longRunDay as Day | null) ?? "sun",
+    maxHR: settings.maxHR ?? 190,
+    vdot: settings.currentVdot ?? null,
+    targetFinishTimeMins: settings.targetFinishTime ?? null,
+  };
 }
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -127,63 +156,60 @@ function CardOption({ selected, title, subtitle, onClick, badge }: {
 
 export default function OnboardingPage() {
   const router = useRouter();
-  const { settings, updateSettings } = useSettings();
+  const { settings, loading, updateSettings } = useSettings();
 
   const [step, setStep] = useState(1);
   const [saving, setSaving] = useState(false);
-  
-  // State consolidation
-  const [form, setForm] = useState<OnboardingState>({
-    firstName: settings.firstName ?? "",
-    nickname: settings.nickname ?? "",
-    experienceLevel: (settings.experienceLevel as Level | null) ?? null,
-    goalRace: (settings.goalRace as GoalRace | null) ?? null,
-    planLengthWeeks: (settings.planLengthWeeks as any) ?? 16,
-    trainingDays: (() => {
-      try {
-        const parsed = settings.trainingDays ? JSON.parse(settings.trainingDays) : ["wed", "sat", "sun"];
-        return Array.isArray(parsed) ? parsed : ["wed", "sat", "sun"];
-      } catch { return ["wed", "sat", "sun"]; }
-    })(),
-    longRunDay: (settings.longRunDay as Day | null) ?? "sun",
-    maxHR: settings.maxHR ?? 190,
-    vdot: settings.currentVdot ?? null,
-    targetFinishTimeMins: settings.targetFinishTime ?? null,
-  });
+
+  const [form, setForm] = useState<OnboardingState | null>(null);
+  const hydratedRef = useRef(false);
 
   const [targetTime, setTargetTime] = useState({ hours: "1", mins: "55" });
   const [skipFitness, setSkipFitness] = useState(false);
 
-  // Safeguard: Novices are restricted to 5K/10K
   useEffect(() => {
-    if (form.experienceLevel === "NOVICE" && (form.goalRace === "HALF" || form.goalRace === "FULL")) {
-      setForm(prev => ({ ...prev, goalRace: "5K" }));
-    }
-  }, [form.experienceLevel, form.goalRace]);
+    if (loading || hydratedRef.current) return;
+    hydratedRef.current = true;
+    queueMicrotask(() => {
+      const next = onboardingStateFromSettings(settings);
+      setForm(next);
+      const tf = settings.targetFinishTime;
+      if (tf != null && Number.isFinite(tf)) {
+        const h = Math.floor(tf / 60);
+        const m = tf % 60;
+        setTargetTime({ hours: String(h), mins: String(m) });
+      }
+      setSkipFitness(false);
+    });
+  }, [loading, settings]);
 
-  const isNovice = form.experienceLevel === "NOVICE";
-  const totalSteps = isNovice ? 3 : 4;
+  const isNovice = form?.experienceLevel === "NOVICE";
 
   const sortedTrainingDays = useMemo(
-    () => [...form.trainingDays].sort((a, b) => DAYS.indexOf(a) - DAYS.indexOf(b)),
-    [form.trainingDays]
+    () => (form ? [...form.trainingDays].sort((a, b) => DAYS.indexOf(a) - DAYS.indexOf(b)) : []),
+    [form],
   );
 
   const effectiveLongRunDay = useMemo<Day | null>(() => {
+    if (!form) return null;
     if (sortedTrainingDays.length < 2) return null;
     if (form.longRunDay && sortedTrainingDays.includes(form.longRunDay)) return form.longRunDay;
     return getDefaultLongRunDay(sortedTrainingDays);
-  }, [form.longRunDay, sortedTrainingDays]);
+  }, [form, sortedTrainingDays]);
 
   const scheduleWarnings = useMemo(
-    () => (effectiveLongRunDay ? getScheduleWarnings(sortedTrainingDays, effectiveLongRunDay, form.experienceLevel ?? undefined) : []),
-    [effectiveLongRunDay, sortedTrainingDays, form.experienceLevel]
+    () =>
+      form && effectiveLongRunDay
+        ? getScheduleWarnings(sortedTrainingDays, effectiveLongRunDay, form.experienceLevel ?? undefined)
+        : [],
+    [effectiveLongRunDay, sortedTrainingDays, form],
   );
 
   const canNext = (() => {
+    if (!form) return false;
     if (step === 1) return form.firstName.trim().length > 0 && form.experienceLevel != null && form.goalRace != null;
     if (step === 2) return form.trainingDays.length >= 2 && effectiveLongRunDay != null;
-    if (step === 3 && !isNovice) return skipFitness || (form.vdot != null);
+    if (step === 3 && !isNovice) return skipFitness || form.vdot != null;
     return true;
   })();
 
@@ -204,10 +230,10 @@ export default function OnboardingPage() {
   };
 
   async function complete() {
-    if (!form.experienceLevel || !form.goalRace || form.trainingDays.length < 2) return;
+    if (!form || !form.experienceLevel || !form.goalRace || form.trainingDays.length < 2) return;
     setSaving(true);
 
-    const finishMins = isNovice ? null : (parseInt(targetTime.hours, 10) * 60 + parseInt(targetTime.mins, 10));
+    const finishMins = isNovice ? null : parseInt(targetTime.hours, 10) * 60 + parseInt(targetTime.mins, 10);
     
     try {
       await updateSettings({
@@ -246,6 +272,15 @@ export default function OnboardingPage() {
     } finally {
       setSaving(false);
     }
+  }
+
+  if (loading || !form) {
+    return (
+      <div className="max-w-2xl mx-auto px-4 py-24 text-center">
+        <p className="text-sm font-semibold text-white/70">Loading your profile…</p>
+        <p className="text-xs text-white/40 mt-2">Your saved settings will appear in the wizard.</p>
+      </div>
+    );
   }
 
   return (
