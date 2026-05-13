@@ -1,8 +1,12 @@
 import prisma from "@/lib/db";
 import type { PlanConfig, TrainingWeek } from "@/data/trainingPlan";
+import type { GeneratedPlanBundle, NovicePlanRuntimeState } from "@/types/generatedPlan";
+import { defaultNoviceRuntimeState } from "@/types/generatedPlan";
 import { startOfDayAEST, toBrisbaneYmd } from "@/lib/dateUtils";
 
-const SINGLETON_ID = "singleton";
+export const GENERATED_PLAN_ID = "singleton";
+
+const SINGLETON_ID = GENERATED_PLAN_ID;
 
 function safeJsonParse<T>(value: string): T | null {
   try {
@@ -13,12 +17,61 @@ function safeJsonParse<T>(value: string): T | null {
   }
 }
 
+type PlanJsonV2 = {
+  version: 2;
+  weeks: TrainingWeek[];
+  noviceRuntime?: NovicePlanRuntimeState;
+};
+
+export function parseStoredPlanJson(
+  planJson: string,
+  config: PlanConfig,
+): { weeks: TrainingWeek[]; noviceRuntime?: NovicePlanRuntimeState } {
+  const parsed = safeJsonParse<unknown>(planJson);
+  if (Array.isArray(parsed)) {
+    return {
+      weeks: parsed as TrainingWeek[],
+      noviceRuntime: config.level === "NOVICE" ? defaultNoviceRuntimeState() : undefined,
+    };
+  }
+  if (
+    parsed &&
+    typeof parsed === "object" &&
+    (parsed as PlanJsonV2).version === 2 &&
+    Array.isArray((parsed as PlanJsonV2).weeks)
+  ) {
+    const v2 = parsed as PlanJsonV2;
+    return { weeks: v2.weeks, noviceRuntime: v2.noviceRuntime };
+  }
+  return { weeks: [], noviceRuntime: undefined };
+}
+
 export async function saveGeneratedPlan(
   config: PlanConfig,
-  plan: TrainingWeek[],
+  planInput: TrainingWeek[] | GeneratedPlanBundle,
   lockedWeeks?: number[],
+  noviceRuntimeOverride?: NovicePlanRuntimeState,
 ): Promise<void> {
-  const planJson = JSON.stringify(plan);
+  const weeks = Array.isArray(planInput) ? planInput : planInput.weeks;
+  let noviceRuntime: NovicePlanRuntimeState | undefined = Array.isArray(planInput)
+    ? noviceRuntimeOverride
+    : planInput.noviceRuntime ?? noviceRuntimeOverride;
+
+  const existingRow = await prisma.generatedPlan.findUnique({ where: { id: SINGLETON_ID } });
+  if (config.level === "NOVICE") {
+    if (noviceRuntime == null && existingRow) {
+      const prev = parseStoredPlanJson(existingRow.planJson, config);
+      noviceRuntime = prev.noviceRuntime ?? defaultNoviceRuntimeState();
+    }
+    noviceRuntime = noviceRuntime ?? defaultNoviceRuntimeState();
+  }
+
+  const payload: PlanJsonV2 = { version: 2, weeks };
+  if (config.level === "NOVICE" && noviceRuntime) {
+    payload.noviceRuntime = noviceRuntime;
+  }
+
+  const planJson = JSON.stringify(payload);
   const configJson = JSON.stringify(config);
   const lockedWeeksJson =
     lockedWeeks && Array.isArray(lockedWeeks) ? JSON.stringify(lockedWeeks) : null;
@@ -43,20 +96,29 @@ export async function loadGeneratedPlan(): Promise<{
   plan: TrainingWeek[];
   config: PlanConfig;
   lockedWeeks: number[];
+  noviceRuntime?: NovicePlanRuntimeState;
 } | null> {
   const row = await prisma.generatedPlan.findUnique({ where: { id: SINGLETON_ID } });
   if (!row) return null;
 
-  const plan = safeJsonParse<TrainingWeek[]>(row.planJson);
   const config = safeJsonParse<PlanConfig>(row.configJson);
+  if (!row.planJson || !config) return null;
+
+  const { weeks, noviceRuntime } = parseStoredPlanJson(row.planJson, config);
+  if (!weeks.length) return null;
+
   const lockedWeeksRaw = row.lockedWeeks ? safeJsonParse<unknown>(row.lockedWeeks) : [];
   const lockedWeeks =
     Array.isArray(lockedWeeksRaw)
       ? lockedWeeksRaw.map((n) => Number(n)).filter((n) => Number.isFinite(n))
       : [];
 
-  if (!plan || !config) return null;
-  return { plan, config, lockedWeeks };
+  return {
+    plan: weeks,
+    config,
+    lockedWeeks,
+    noviceRuntime: config.level === "NOVICE" ? noviceRuntime ?? defaultNoviceRuntimeState() : undefined,
+  };
 }
 
 export function getLockedWeeks(planStart: Date, totalWeeks = 0): number[] {

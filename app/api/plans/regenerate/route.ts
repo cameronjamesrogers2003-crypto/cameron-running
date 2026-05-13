@@ -50,18 +50,27 @@ async function regenerateFromSettings() {
   };
   const generatedPlan = generatePlan(config);
   const planStart = getEffectivePlanStart(settings.planStartDate, parsePlanFirstSessionDay(settings.trainingDays));
-  const computedLockedWeeks = getLockedWeeks(planStart, generatedPlan.length);
+  const computedLockedWeeks = getLockedWeeks(planStart, generatedPlan.weeks.length);
   const existingStored = await loadGeneratedPlan();
   const existingLockedSet = new Set(existingStored?.lockedWeeks ?? []);
   const lockedSet = new Set<number>([...computedLockedWeeks, ...existingLockedSet]);
   const existingByWeek = new Map((existingStored?.plan ?? []).map((week) => [week.week, week]));
 
-  const mergedPlan = generatedPlan.map((week) => {
+  const mergedPlan = generatedPlan.weeks.map((week) => {
     if (!lockedSet.has(week.week)) return week;
     return existingByWeek.get(week.week) ?? week;
   });
 
-  await saveGeneratedPlan(config, mergedPlan, [...lockedSet].sort((a, b) => a - b));
+  await saveGeneratedPlan(
+    config,
+    config.level === "NOVICE"
+      ? {
+          weeks: mergedPlan,
+          noviceRuntime: existingStored?.noviceRuntime ?? generatedPlan.noviceRuntime,
+        }
+      : mergedPlan,
+    [...lockedSet].sort((a, b) => a - b),
+  );
 
   return NextResponse.json({
     success: true,

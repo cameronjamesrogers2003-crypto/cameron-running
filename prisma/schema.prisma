@@ -170,6 +170,97 @@ model GeneratedPlan {
   planJson    String
   configJson  String
   lockedWeeks String?
+
+  noviceSessionCheckins   NoviceSessionCheckin[]
+  noviceWeeklyEvaluations NoviceWeeklyEvaluation[]
+  novicePlanMutations     NovicePlanMutation[]
+  noviceHandoffData       NoviceHandoffData?
+}
+
+model NoviceSessionCheckin {
+  id                      String   @id @default(cuid())
+  sessionId               String
+  planId                  String
+  weekNumber              Int
+  sessionType             String
+  plannedDistanceKm       Float
+  plannedDurationMin      Float
+  stravaActivityId        String?
+  actualDistanceKm        Float?
+  actualDurationMin       Float?
+  averagePaceSecPerKm     Float?
+  averageHeartRate        Float?
+  maxHeartRate            Float?
+  perceivedEffortFromHr   Float?
+  completed               Boolean
+  userRpe                 Int
+  skippedReason           String?
+  distanceCompletionRatio Float?
+  effortScore             Float?
+  createdAt               DateTime @default(now())
+
+  plan GeneratedPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@index([planId, weekNumber])
+}
+
+model NoviceWeeklyEvaluation {
+  id                       String   @id @default(cuid())
+  userId                   String
+  planId                   String
+  weekNumber               Int
+  totalSessionsPlanned     Int
+  totalSessionsCompleted   Int
+  completionRate           Float
+  totalPlannedKm           Float
+  totalActualKm            Float?
+  volumeCompletionRatio    Float?
+  averageUserRpe           Float
+  averageEffortScore       Float?
+  sessionsMissed           Int
+  missedReasons            String[]
+  hasInjuryFlag            Boolean
+  hasIllnessFlag           Boolean
+  adaptiveDecision         String
+  decisionReason           String
+  evaluatedAt              DateTime @default(now())
+
+  plan GeneratedPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@index([planId, weekNumber])
+}
+
+model NovicePlanMutation {
+  id                       String   @id @default(cuid())
+  planId                   String
+  triggeredByEvaluation    String
+  weekNumber               Int
+  mutationType             String
+  originalWeekData         Json
+  mutatedWeekData          Json
+  createdAt                DateTime @default(now())
+
+  plan GeneratedPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@index([planId])
+}
+
+model NoviceHandoffData {
+  id                       String   @id @default(cuid())
+  userId                   String   @unique
+  planId                   String   @unique
+  completedGoal            String
+  programWeeks             Int
+  totalSessionsCompleted   Int
+  totalKmCovered           Float
+  estimatedPaceSecPerKm    Float?
+  peakWeeklyKm             Float
+  averageWeeklyRpe         Float
+  suggestedNextLevel       String
+  suggestedNextGoal        String
+  graduatedAt              DateTime @default(now())
+
+  plan GeneratedPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
 }
 
 model PlanAdaptation {

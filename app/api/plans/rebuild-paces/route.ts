@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
     const settings = row ? dbSettingsToUserSettings(row) : DEFAULT_SETTINGS;
 
     const updatedPlan = rebuildPaceTargets(stored.plan, stored.lockedWeeks, settings, body.vdot);
-    await saveGeneratedPlan(stored.config, updatedPlan, stored.lockedWeeks);
+    await saveGeneratedPlan(stored.config, updatedPlan, stored.lockedWeeks, stored.noviceRuntime);
     await prisma.userSettings.update({
       where: { id: 1 },
       data: { currentVdot: Math.round(body.vdot) },

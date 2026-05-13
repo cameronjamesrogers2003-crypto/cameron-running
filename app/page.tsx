@@ -179,7 +179,7 @@ export default async function Dashboard({
         },
       };
       const regenerated = generatePlan(config);
-      await saveGeneratedPlan(config, regenerated);
+      await saveGeneratedPlan(config, regenerated.weeks, undefined, regenerated.noviceRuntime);
       redirect("/");
     }
   }

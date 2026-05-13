@@ -1,6 +1,8 @@
 import { getSessionPaces } from "@/lib/planPaces";
 import { getNovicePeakWeeklyKm, getNoviceRunWalkTransitionWeek, getNoviceTempoWindowStart, isNoviceBridgeTempoWeek } from "@/lib/novicePlanCaps";
 import type { Day, Phase, PlanConfig, PlanPaceAdjust, RunType, Session, TrainingWeek } from "@/data/trainingPlan";
+import type { GeneratedPlanBundle } from "@/types/generatedPlan";
+import { defaultNoviceRuntimeState } from "@/types/generatedPlan";
 
 export {
   getNovicePeakWeeklyKm,
@@ -914,7 +916,7 @@ function buildLongRuns(config: PlanConfig, weeklyKm: number[], isCutback: boolea
   return longKm;
 }
 
-export function generatePlan(config: PlanConfig): TrainingWeek[] {
+export function generatePlan(config: PlanConfig): GeneratedPlanBundle {
   if (config.level === "NOVICE") {
     config.vdot = 28; // Safe fallback for couch-to-5k calculations
   }
@@ -1166,7 +1168,10 @@ export function generatePlan(config: PlanConfig): TrainingWeek[] {
     }
   }
 
-  return plan;
+  return {
+    weeks: plan,
+    noviceRuntime: config.level === "NOVICE" ? defaultNoviceRuntimeState() : undefined,
+  };
 }
 
 export function validateAssignments(): void {

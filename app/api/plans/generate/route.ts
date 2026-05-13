@@ -54,14 +54,14 @@ export async function POST(req: NextRequest) {
       : undefined;
 
   const generatedPlan = generatePlan(config);
-  let plan = generatedPlan;
+  let plan = generatedPlan.weeks;
 
   if (lockedWeeks && lockedWeeks.length > 0) {
     const lockedSet = new Set(lockedWeeks);
     const existing = await loadGeneratedPlan();
     if (existing) {
       const existingByWeek = new Map(existing.plan.map((w) => [w.week, w]));
-      const merged = generatedPlan.map((w) => {
+      const merged = generatedPlan.weeks.map((w) => {
         if (!lockedSet.has(w.week)) return w;
         return existingByWeek.get(w.week) ?? w;
       });
@@ -75,7 +75,7 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  await saveGeneratedPlan(config, plan, lockedWeeks);
+  await saveGeneratedPlan(config, { weeks: plan, noviceRuntime: generatedPlan.noviceRuntime }, lockedWeeks);
 
   // Mark existing ACTIVE blocks as ABANDONED
   await prisma.trainingBlock.updateMany({

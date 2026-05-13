@@ -41,7 +41,7 @@ function runTest(level: PlanConfig["level"], goal: "5k" | "10k", daysCount: numb
     vdot: 40 // Average vdot
   };
 
-  const plan = generatePlan(config);
+  const plan = generatePlan(config).weeks;
 
   let hasFailed = false;
   const maxLong = CAPS[`${level}-${goal}` as keyof typeof CAPS];

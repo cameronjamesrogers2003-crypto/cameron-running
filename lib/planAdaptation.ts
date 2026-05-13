@@ -223,7 +223,7 @@ export async function checkAndAdaptPlan(prisma: PrismaClient): Promise<{
   };
   const pMin = getSessionPaces(settings.currentVdot, settings);
 
-  const plannedBase = generatePlan(mergedConfig);
+  const plannedBase = generatePlan(mergedConfig).weeks;
   const baseWeek = plannedBase.find((week) => week.week === targetWeekNumber);
   const baseWeekCapKm = baseWeek
     ? round1(baseWeek.sessions.reduce((sum, session) => sum + session.targetDistanceKm, 0))
@@ -295,7 +295,7 @@ export async function checkAndAdaptPlan(prisma: PrismaClient): Promise<{
         if (painPersists) {
           // Roll back 4 weeks
           const rollbackTarget = Math.max(1, targetWeekNumber - 4);
-          const rolledBackPlan = generatePlan(mergedConfig); // Re-generate to get original structure
+          const rolledBackPlan = generatePlan(mergedConfig).weeks; // Re-generate to get original structure
           const targetBlock = rolledBackPlan.slice(rollbackTarget - 1);
           
           // Replace future weeks with rolled back ones
@@ -442,7 +442,7 @@ export async function checkAndAdaptPlan(prisma: PrismaClient): Promise<{
     if (consecutiveMissWeeks >= 3) {
       // Roll back 4 weeks and trigger re-benchmark
       const rollbackTarget = Math.max(1, targetWeekNumber - 4);
-      const rolledBackPlan = generatePlan(mergedConfig);
+      const rolledBackPlan = generatePlan(mergedConfig).weeks;
       const targetBlock = rolledBackPlan.slice(rollbackTarget - 1);
       
       for (let i = 0; i < targetBlock.length; i++) {
@@ -658,7 +658,7 @@ export async function checkAndAdaptPlan(prisma: PrismaClient): Promise<{
     return { adapted: false, reason: null, changes: [] };
   }
 
-  await saveGeneratedPlan(stored.config, newPlan, stored.lockedWeeks);
+  await saveGeneratedPlan(stored.config, newPlan, stored.lockedWeeks, stored.noviceRuntime);
 
   const reason = !ratingRuleApplied && !missedRuleApplied && !noviceRuleApplied
     ? vdotShouldUpdate

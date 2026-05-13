@@ -74,6 +74,9 @@ export interface TrainingWeek {
   noviceTempoWindowStart?: number
 }
 
+export type { NovicePlanStatus, NovicePlanRuntimeState, GeneratedPlanBundle } from "@/types/generatedPlan";
+export { defaultNoviceRuntimeState } from "@/types/generatedPlan";
+
 // Pace zones based on VDOT ~33 — reassess every 6–8 weeks
 // Update PACE_ZONES when fitness improves
 export const PACE_ZONES = {
@@ -295,5 +298,6 @@ export function buildTrainingPlan(settings: UserSettings): TrainingWeek[] {
     },
   };
 
-  return generatePlan(config);
+  const bundle = generatePlan(config);
+  return bundle.weeks;
 }

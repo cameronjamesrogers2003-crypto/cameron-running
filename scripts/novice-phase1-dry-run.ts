@@ -6,7 +6,7 @@ import {
   generatePlan,
 } from "@/lib/generatePlan";
 import { getNovicePeakWeeklyKm, getNoviceRunWalkTransitionWeek } from "@/lib/novicePlanCaps";
-import type { Day, PlanConfig } from "@/data/trainingPlan";
+import type { Day, PlanConfig, TrainingWeek } from "@/data/trainingPlan";
 
 const DAYS_3: Day[] = ["tue", "thu", "sat"];
 const LONG_3: Day = "sat";
@@ -15,12 +15,12 @@ function round1(n: number): number {
   return Math.round(n * 10) / 10;
 }
 
-function weeklyTotals(plan: ReturnType<typeof generatePlan>): number[] {
+function weeklyTotals(plan: TrainingWeek[]): number[] {
   return plan.map((w) => round1(w.sessions.reduce((a, s) => a + s.targetDistanceKm, 0)));
 }
 
 function logConfig(label: string, config: PlanConfig) {
-  const plan = generatePlan(config);
+  const plan = generatePlan(config).weeks;
   const totals = weeklyTotals(plan);
   const lastNonTaper = [...plan].reverse().find((w) => w.phase !== "Taper")?.week ?? plan.length;
   const peakWkKm = totals[lastNonTaper - 1];

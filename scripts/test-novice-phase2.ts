@@ -6,7 +6,7 @@ import {
   getNoviceRunWalkTransitionWeek,
   getNoviceTempoWindowStart,
 } from "@/lib/novicePlanCaps";
-import type { Day, PlanConfig } from "@/data/trainingPlan";
+import type { Day, PlanConfig, TrainingWeek } from "@/data/trainingPlan";
 
 function assert(name: string, cond: boolean, detail?: string) {
   if (!cond) {
@@ -17,7 +17,7 @@ function assert(name: string, cond: boolean, detail?: string) {
   }
 }
 
-function tempoCount(plan: ReturnType<typeof generatePlan>, w: number) {
+function tempoCount(plan: TrainingWeek[], w: number) {
   const week = plan[w - 1];
   return week.sessions.filter((s) => s.type === "tempo").length;
 }
@@ -47,7 +47,7 @@ for (const w of [8, 12, 16, 20] as const) {
     longRunDay: "thu",
     vdot: 28,
   };
-  const plan = generatePlan(cfg);
+  const plan = generatePlan(cfg).weeks;
   for (const w of [1, 2, 3, 4, 5, 6, 7, 8, 9]) {
     assert(`12w2d W${w} no tempo`, tempoCount(plan, w) === 0);
   }
@@ -65,7 +65,7 @@ for (const w of [8, 12, 16, 20] as const) {
     days: DAYS_3,
     longRunDay: "sat",
     vdot: 28,
-  });
+  }).weeks;
   assert("8w3d W7 one tempo", tempoCount(plan, 7) === 1);
   assert("8w3d W8 no tempo", tempoCount(plan, 8) === 0);
 }
@@ -79,7 +79,7 @@ for (const w of [8, 12, 16, 20] as const) {
     days: DAYS_4,
     longRunDay: "sat",
     vdot: 28,
-  });
+  }).weeks;
   assert("16w4d W13 tempo", tempoCount(plan, 13) === 1);
   assert("16w4d W14 tempo", tempoCount(plan, 14) === 1);
   assert("16w4d W15 no tempo", tempoCount(plan, 15) === 0);
@@ -95,7 +95,7 @@ for (const w of [8, 12, 16, 20] as const) {
     days: DAYS_6,
     longRunDay: "sat",
     vdot: 28,
-  });
+  }).weeks;
   for (const w of [17, 18, 19]) {
     assert(`20w6d W${w} one tempo`, tempoCount(plan, w) === 1);
   }
@@ -111,7 +111,7 @@ for (const w of [8, 12, 16, 20] as const) {
     days: DAYS_3,
     longRunDay: "sat",
     vdot: 28,
-  });
+  }).weeks;
   const w7 = plan[6];
   for (const s of w7.sessions) {
     if (s.type === "easy") assert("W7 easy RPE3", s.targetRpe === 3);
@@ -132,7 +132,7 @@ for (const w of [8, 12, 16, 20] as const) {
     days: DAYS_3,
     longRunDay: "sat",
     vdot: 28,
-  });
+  }).weeks;
   assert("noviceGraduationEligible", plan[0].noviceGraduationEligible === true);
   assert("noviceTempoWindowStart", plan[0].noviceTempoWindowStart === getNoviceTempoWindowStart(12));
 }
