@@ -354,6 +354,218 @@ function distanceWeights(n: number, types: RunType[]): number[] {
   return w.map((x) => x / s);
 }
 
+const MIN_EASY_KM = 5;
+const LONG_MAX_WEEKLY_FRACTION = 0.3;
+/** Minimum km to leave on tempo/interval when stealing volume for easy-floor fixes. */
+const MIN_QUALITY_KM = 1.5;
+
+function absoluteLongRunCapKm(
+  goalDistance: PlanConfigV2["goalDistance"],
+  level: PlanConfigV2["experienceLevel"],
+): number {
+  if (goalDistance === "5K") return 15;
+  if (goalDistance === "10K") return 22;
+  if (goalDistance === "HalfMarathon") return 26;
+  if (level === "NOVICE" || level === "BEGINNER") return 32;
+  return 38;
+}
+
+function sumDists(dists: number[]): number {
+  return dists.reduce((a, b) => a + b, 0);
+}
+
+function redistributeKmToSessionIndices(dists: number[], indices: number[], km: number): void {
+  if (km <= 1e-9 || indices.length === 0) return;
+  const each = km / indices.length;
+  for (const i of indices) {
+    dists[i] = round1(dists[i] + each);
+  }
+  const drift = km - indices.length * each;
+  if (Math.abs(drift) > 1e-6) {
+    dists[indices[0]!] = round1(dists[indices[0]!] + drift);
+  }
+}
+
+function redistributeFreedKmToNonLong(dists: number[], types: RunType[], freedKm: number, longIdx: number): void {
+  if (freedKm <= 1e-9) return;
+  const recipients: number[] = [];
+  for (let i = 0; i < types.length; i++) {
+    if (longIdx >= 0 && i === longIdx) continue;
+    recipients.push(i);
+  }
+  if (recipients.length === 0) return;
+  redistributeKmToSessionIndices(dists, recipients, freedKm);
+}
+
+/**
+ * Long run: cap at 30% of weekly total first, then apply absolute goal/level ceiling.
+ * Freed km is reallocated to non-long sessions.
+ */
+function applyLongRunDistanceGuards(
+  dists: number[],
+  types: RunType[],
+  weekTotalKm: number,
+  goalDistance: PlanConfigV2["goalDistance"],
+  experienceLevel: PlanConfigV2["experienceLevel"],
+): void {
+  const li = types.indexOf("long");
+  if (li < 0 || weekTotalKm <= 0) return;
+
+  const cap30 = weekTotalKm * LONG_MAX_WEEKLY_FRACTION;
+  const capAbs = absoluteLongRunCapKm(goalDistance, experienceLevel);
+  const capped = Math.min(dists[li], cap30, capAbs);
+  const freed = dists[li] - capped;
+  dists[li] = round1(Math.max(capped, 0.1));
+  redistributeFreedKmToNonLong(dists, types, freed, li);
+}
+
+function stealKmFromQualityForEasyFloor(
+  dists: number[],
+  types: RunType[],
+  needKm: number,
+): number {
+  let taken = 0;
+  let remaining = needKm;
+  const order = types.map((t, i) => ({ t, i })).filter((x) => x.t === "tempo" || x.t === "interval");
+  for (const { i } of order) {
+    if (remaining <= 1e-9) break;
+    const avail = dists[i] - MIN_QUALITY_KM;
+    if (avail <= 0) continue;
+    const grab = Math.min(remaining, avail);
+    dists[i] = round1(dists[i] - grab);
+    taken += grab;
+    remaining -= grab;
+  }
+  return taken;
+}
+
+function easyIndices(types: RunType[]): number[] {
+  return types.map((t, i) => (t === "easy" ? i : -1)).filter((i) => i >= 0);
+}
+
+function qualitySessionIndices(types: RunType[]): number[] {
+  return types.map((t, i) => (t === "tempo" || t === "interval" ? i : -1)).filter((i) => i >= 0);
+}
+
+function absorbKmIntoQualityElseNonEasy(dists: number[], types: RunType[], km: number): void {
+  if (km <= 1e-9) return;
+  const q = qualitySessionIndices(types);
+  if (q.length > 0) {
+    redistributeKmToSessionIndices(dists, q, km);
+    return;
+  }
+  const nonEasy: number[] = [];
+  for (let i = 0; i < types.length; i++) {
+    if (types[i] !== "easy") nonEasy.push(i);
+  }
+  if (nonEasy.length > 0) {
+    redistributeKmToSessionIndices(dists, nonEasy, km);
+  }
+}
+
+/**
+ * Easy runs >= MIN_EASY_KM. Merge or remove easy sessions rather than emitting sub-5 km easies.
+ */
+function consolidateEasyRunDistances(dists: number[], types: RunType[], days: Day[]): void {
+  let guard = 0;
+  while (guard++ < 48) {
+    const eIdx = easyIndices(types);
+    if (eIdx.length === 0) break;
+    const below = eIdx.filter((i) => dists[i] < MIN_EASY_KM);
+    if (below.length === 0) break;
+
+    if (eIdx.length >= 2) {
+      let bestA = eIdx[0]!;
+      let bestB = eIdx[1]!;
+      let bestSum = dists[bestA] + dists[bestB];
+      for (let k = 0; k < eIdx.length; k++) {
+        for (let m = k + 1; m < eIdx.length; m++) {
+          const i = eIdx[k]!;
+          const j = eIdx[m]!;
+          const s = dists[i] + dists[j];
+          if (s < bestSum) {
+            bestSum = s;
+            bestA = i;
+            bestB = j;
+          }
+        }
+      }
+      const lo = Math.min(bestA, bestB);
+      const hi = Math.max(bestA, bestB);
+      dists[lo] = round1(dists[lo] + dists[hi]);
+      dists.splice(hi, 1);
+      types.splice(hi, 1);
+      days.splice(hi, 1);
+      continue;
+    }
+
+    const only = easyIndices(types)[0]!;
+    const deficit = MIN_EASY_KM - dists[only];
+    if (deficit <= 1e-9) break;
+
+    const stolen = stealKmFromQualityForEasyFloor(dists, types, deficit);
+    dists[only] = round1(dists[only] + stolen);
+
+    if (dists[only] >= MIN_EASY_KM - 1e-6) break;
+
+    const freed = dists[only] ?? 0;
+    dists.splice(only, 1);
+    types.splice(only, 1);
+    days.splice(only, 1);
+    absorbKmIntoQualityElseNonEasy(dists, types, freed);
+    continue;
+  }
+}
+
+/** Rounding / merges can leave sum slightly under the weekly target; add remainder to quality work. */
+function absorbPositiveWeeklyDrift(dists: number[], types: RunType[], weekTotalKm: number): void {
+  const drift = round1(weekTotalKm - sumDists(dists));
+  if (drift < 0.05) return;
+  const q = qualitySessionIndices(types);
+  if (q.length > 0) {
+    redistributeKmToSessionIndices(dists, q, drift);
+    return;
+  }
+  const eIdx = easyIndices(types);
+  if (eIdx.length > 0) {
+    redistributeKmToSessionIndices(dists, eIdx, drift);
+    return;
+  }
+  const li = types.indexOf("long");
+  if (li >= 0) {
+    dists[li] = round1(dists[li] + drift);
+  }
+}
+
+/**
+ * Initial proportional split, then long-run caps, easy consolidation, total sync.
+ */
+function finalizeWeeklySessionDistances(
+  typesIn: RunType[],
+  daysIn: Day[],
+  weekTotalKm: number,
+  goalDistance: PlanConfigV2["goalDistance"],
+  experienceLevel: PlanConfigV2["experienceLevel"],
+): { types: RunType[]; days: Day[]; dists: number[] } {
+  const types = [...typesIn];
+  const days = [...daysIn];
+  const n = types.length;
+  const weights = distanceWeights(n, types);
+  const dists = types.map((_, si) => round1(weekTotalKm * (weights[si] ?? 1 / n)));
+  for (let i = 0; i < n; i++) dists[i] = Math.max(0.1, dists[i]);
+
+  applyLongRunDistanceGuards(dists, types, weekTotalKm, goalDistance, experienceLevel);
+  consolidateEasyRunDistances(dists, types, days);
+  applyLongRunDistanceGuards(dists, types, weekTotalKm, goalDistance, experienceLevel);
+  consolidateEasyRunDistances(dists, types, days);
+  applyLongRunDistanceGuards(dists, types, weekTotalKm, goalDistance, experienceLevel);
+
+  absorbPositiveWeeklyDrift(dists, types, weekTotalKm);
+  applyLongRunDistanceGuards(dists, types, weekTotalKm, goalDistance, experienceLevel);
+
+  return { types, days, dists };
+}
+
 function round1(n: number): number {
   return Math.round(n * 10) / 10;
 }
@@ -460,23 +672,28 @@ export function generatePlanV2(config: PlanConfigV2): TrainingWeek[] {
     const isLastPeakWeek = weekNum === lastPeakWeekNumber && planPhase === "Peak";
 
     const totalKm = weeklyKm[wi] ?? 0;
-    const weights = distanceWeights(types.length, types);
     const sessionDays = assignSessionDays(types, config.trainingDays, config.longRunDay ?? null);
+    const { types: wTypes, days: wDays, dists: wDists } = finalizeWeeklySessionDistances(
+      types,
+      sessionDays,
+      totalKm,
+      config.goalDistance,
+      config.experienceLevel,
+    );
     const sessions: Session[] = [];
 
-    for (let si = 0; si < types.length; si++) {
-      const t = types[si]!;
-      const day = sessionDays[si]!;
-      let dist = round1(totalKm * (weights[si] ?? 1 / types.length));
-      dist = Math.max(1, dist);
+    for (let si = 0; si < wTypes.length; si++) {
+      const t = wTypes[si]!;
+      const day = wDays[si]!;
+      const dist = Math.max(0.1, wDists[si] ?? 0.1);
 
       const isReps =
         t === "interval" &&
         config.goalDistance === "5K" &&
         intPlus &&
         buildOrPeak &&
-        types.filter((x) => x === "interval").length > 0 &&
-        si === types.indexOf("interval");
+        wTypes.filter((x) => x === "interval").length > 0 &&
+        si === wTypes.indexOf("interval");
 
       const isRacePace =
         t === "tempo" && isLastPeakWeek && planPhase === "Peak" && config.experienceLevel !== "NOVICE";
