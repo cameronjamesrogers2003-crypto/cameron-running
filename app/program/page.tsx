@@ -27,6 +27,7 @@ import { runTypeColor, getSessionDisplayName } from "@/lib/runTypeStyles";
 import { phaseChipStyle } from "@/lib/phaseChipStyle";
 import { EmptyState } from "@/components/EmptyState";
 import { Calendar } from "lucide-react";
+import Link from "next/link";
 import { buildWorkoutStructure, type WorkoutContext } from "@/lib/workoutStructure";
 
 export const dynamic = "force-dynamic";
@@ -315,6 +316,15 @@ export default async function ProgramPage({
             </div>
           </div>
         </div>
+
+        {runnerLevel === "NOVICE" && (
+          <div className="mb-5 rounded-2xl border border-white/[0.1] bg-white/[0.04] px-4 py-3 text-sm">
+            <span style={{ color: "var(--text-muted)" }}>Prefer a calmer view with check-ins? </span>
+            <Link href="/plan/novice" className="font-semibold underline underline-offset-2" style={{ color: "var(--accent)" }}>
+              Open your beginner-friendly plan
+            </Link>
+          </div>
+        )}
 
         {/* Race flag banner (only when plan extends past race date) */}
         {extendsPastRace && settings.raceDate && (
