@@ -201,6 +201,9 @@ export function NovicePlanPageClient(props: NovicePlanPageClientProps) {
           </span>
           <span className="text-[#94a3b8]">·</span>
           <span className="text-[#64748b]">{weeksRemaining} weeks to go</span>
+          <Link href="/plan/novice/progress" className="ml-auto text-sm font-medium underline text-[#2d6a4f]">
+            My Progress →
+          </Link>
         </div>
       </header>
 

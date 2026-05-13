@@ -10,9 +10,11 @@ import {
   CircleHelp,
   Settings,
   Trophy,
+  BarChart3,
 } from "lucide-react";
+import { useSettings } from "@/context/SettingsContext";
 
-const items = [
+const baseItems = [
   { href: "/", label: "Dashboard", Icon: LayoutDashboard },
   { href: "/program", label: "Program", Icon: ClipboardList },
   { href: "/runs", label: "Runs", Icon: Activity },
@@ -24,6 +26,12 @@ const items = [
 
 export default function MobileBottomNav() {
   const pathname = usePathname();
+  const { settings } = useSettings();
+  const noviceActive = settings.experienceLevel === "NOVICE";
+
+  const items = noviceActive
+    ? [...baseItems.slice(0, 2), { href: "/plan/novice/progress", label: "Progress", Icon: BarChart3 }, ...baseItems.slice(2)]
+    : baseItems;
 
   return (
     <nav
@@ -35,10 +43,7 @@ export default function MobileBottomNav() {
     >
       <div className="flex items-stretch justify-around gap-0 max-w-lg mx-auto px-1 pt-1">
         {items.map(({ href, label, Icon }) => {
-          const active =
-            href === "/"
-              ? pathname === "/"
-              : pathname === href || pathname.startsWith(`${href}/`);
+          const active = href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`);
           return (
             <Link
               key={href}

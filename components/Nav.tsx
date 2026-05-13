@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Activity, Calendar, CircleHelp, ClipboardList, LayoutDashboard, RefreshCw, Settings, Trophy } from "lucide-react";
+import { Activity, BarChart3, Calendar, CircleHelp, ClipboardList, LayoutDashboard, RefreshCw, Settings, Trophy } from "lucide-react";
 import Logo from "@/components/Logo";
 import { SidebarSubtitle } from "@/components/SidebarSubtitle";
 import { useSync } from "@/context/SyncContext";
+import { useSettings } from "@/context/SettingsContext";
 import { format } from "date-fns";
 
-const mainLinks = [
+const baseLinks = [
   { href: "/", label: "Dashboard", Icon: LayoutDashboard },
   { href: "/program", label: "Program", Icon: ClipboardList },
   { href: "/runs", label: "Runs", Icon: Activity },
@@ -21,10 +22,15 @@ const mainLinks = [
 export default function Nav() {
   const pathname = usePathname();
   const { handleSync, loading, lastSynced } = useSync();
+  const { settings } = useSettings();
+  const noviceActive = settings.experienceLevel === "NOVICE";
+
+  const mainLinks = noviceActive
+    ? [...baseLinks.slice(0, 2), { href: "/plan/novice/progress", label: "My Progress", Icon: BarChart3 }, ...baseLinks.slice(2)]
+    : baseLinks;
 
   return (
     <>
-      {/* Mobile top bar */}
       <header className="lg:hidden sticky top-0 z-40 flex items-center justify-between px-4 h-14 bg-black/80 backdrop-blur-xl border-b border-white/[0.06]">
         <Link href="/" className="flex items-center gap-1 transition-opacity hover:opacity-80" aria-label="Home">
           <Logo size="sm" showWordmark={false} />
@@ -44,7 +50,6 @@ export default function Nav() {
         </div>
       </header>
 
-      {/* Desktop sidebar */}
       <aside className="rs-sidebar hidden lg:flex flex-col fixed left-0 top-0 bottom-0 w-56 bg-black/60 backdrop-blur-xl border-r border-white/[0.08] z-40">
         <div className="px-4 pt-4.5 pb-3.5 border-b border-white/[0.08]">
           <Link href="/" className="flex items-center gap-1 transition-opacity hover:opacity-80">
@@ -96,4 +101,3 @@ export default function Nav() {
     </>
   );
 }
-
