@@ -30,6 +30,10 @@ function round1(n: number): number {
   return Math.round(n * 10) / 10;
 }
 
+function roundToQuarter(km: number): number {
+  return Math.round(km * 4) / 4;
+}
+
 /** Half / full marathon long-run integrity (12+ weeks, B/I/A only). */
 function longRunIntegrityScope(config: Pick<PlanConfig, "level" | "goal" | "weeks">): boolean {
   if (config.level === "NOVICE" || config.level === "ELITE") return false;
@@ -612,14 +616,12 @@ export function computeWeekSubtitle(
 }
 
 function getLongRunKm(config: PlanConfig): { start: number; peak: number } {
-  const { level, goal, weeks } = config;
+  const { level, goal } = config;
   if (level === "NOVICE" && goal === "5k") {
-    const peak = weeks === 8 ? 4 : weeks === 12 ? 4.5 : weeks === 16 ? 5 : weeks === 20 ? 5.5 : 5;
-    return { start: 1.5, peak };
+    return { start: 3.0, peak: 5.0 };
   }
   if (level === "NOVICE" && goal === "10k") {
-    const peak = weeks === 8 ? 6 : weeks === 12 ? 7 : weeks === 16 ? 8 : weeks === 20 ? 9 : 8;
-    return { start: 1.5, peak };
+    return { start: 3.0, peak: 8.0 };
   }
   const key = `${level}-${goal}`;
   switch (key) {
@@ -1077,6 +1079,15 @@ function buildLongRuns(config: PlanConfig, weeklyKm: number[], isCutback: boolea
       const minL = getMinLongRunKm(config.level, config.goal);
       wkLong = Math.max(wkLong, minL);
     }
+    if (
+      config.level === "NOVICE" &&
+      (config.goal === "5k" || config.goal === "10k") &&
+      w > 1 &&
+      w <= 4
+    ) {
+      const prevLong = longKm[w - 2] ?? wkLong;
+      wkLong = clamp(wkLong, prevLong, prevLong + 0.5);
+    }
     longKm.push(round1(wkLong));
   }
 
@@ -1403,12 +1414,22 @@ export function generatePlan(config: PlanConfig): GeneratedPlanBundle {
     }
 
     let currentWeekWorkload = 0;
+    const noviceRoundedEasy = config.level === "NOVICE" ? roundToQuarter(eachOther) : 0;
+    const noviceRoundedLong = (() => {
+      if (config.level !== "NOVICE") return 0;
+      const differentialHeldPreRound = wkLongKm + 1e-9 >= eachOther * 1.4;
+      let roundedLong = roundToQuarter(wkLongKm);
+      if (differentialHeldPreRound && roundedLong + 1e-9 < noviceRoundedEasy * 1.4) {
+        roundedLong = roundToQuarter(wkLongKm + 0.125);
+      }
+      return roundedLong;
+    })();
 
     const sessions: Session[] = dayList.map((day) => {
       const type = typesForWeek[day];
       let km: number;
       if (config.level === "NOVICE") {
-        km = type === "long" ? wkLongKm : eachOther;
+        km = type === "long" ? noviceRoundedLong : noviceRoundedEasy;
       } else if (integrityThisWeek) {
         km =
           type === "long"
@@ -1461,7 +1482,7 @@ export function generatePlan(config: PlanConfig): GeneratedPlanBundle {
         id: `${w}-${day}`,
         day,
         type,
-        targetDistanceKm: round1(km),
+        targetDistanceKm: config.level === "NOVICE" ? roundToQuarter(km) : round1(km),
         targetPaceMinPerKm,
         targetPaceFormatted: paceObj.formattedMinPerKm,
         description: "",
