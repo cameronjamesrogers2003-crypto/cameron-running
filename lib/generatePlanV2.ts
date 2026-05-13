@@ -379,6 +379,80 @@ function absoluteLongRunCapKm(
   return 38;
 }
 
+/** Nearest 0.25 km for session distances (track/GPS-friendly). */
+function roundQuarterKm(n: number): number {
+  return Math.round(n * 4) / 4;
+}
+
+function floorKmForSessionType(types: RunType[], i: number): number {
+  const t = types[i];
+  if (t === "long") return MIN_LONG_RUN_KM;
+  if (t === "tempo" || t === "interval") return MIN_TEMPO_INTERVAL_SESSION_KM;
+  if (t === "easy") return MIN_EASY_KM;
+  return 0.25;
+}
+
+/**
+ * Remove up to `budgetKm` from non-easy sessions while respecting per-type floors.
+ * Returns the km actually removed.
+ */
+function takeVolumeFromDonorsForBudget(dists: number[], types: RunType[], budgetKm: number): number {
+  let rem = budgetKm;
+  for (let guard = 0; guard < 48 && rem > 1e-6; guard++) {
+    const donorIdx: number[] = [];
+    for (let i = 0; i < types.length; i++) {
+      if (types[i] === "easy") continue;
+      const floor = floorKmForSessionType(types, i);
+      if (dists[i] > floor + 1e-6) donorIdx.push(i);
+    }
+    if (donorIdx.length === 0) break;
+    const sumAvail = donorIdx.reduce((s, i) => s + (dists[i] - floorKmForSessionType(types, i)), 0);
+    if (sumAvail <= 1e-9) break;
+    let took = 0;
+    for (const i of donorIdx) {
+      const floor = floorKmForSessionType(types, i);
+      const avail = dists[i] - floor;
+      const grab = Math.min(rem * (avail / sumAvail), avail);
+      if (grab <= 1e-9) continue;
+      dists[i] = roundQuarterKm(dists[i] - grab);
+      took += grab;
+    }
+    rem -= took;
+    if (took < 1e-7) break;
+  }
+  return budgetKm - rem;
+}
+
+/**
+ * Every easy session is at least MIN_EASY_KM; session rows are never merged or removed.
+ * Deficit is funded from other sessions down to their floors; any remainder increases total week volume.
+ */
+function enforceEasyMinimumsPreserveSessionCount(dists: number[], types: RunType[]): void {
+  let need = 0;
+  for (let i = 0; i < types.length; i++) {
+    if (types[i] !== "easy") continue;
+    if (dists[i] < MIN_EASY_KM - 1e-9) {
+      need += MIN_EASY_KM - dists[i];
+      dists[i] = MIN_EASY_KM;
+    }
+  }
+  if (need <= 1e-9) return;
+
+  const taken = takeVolumeFromDonorsForBudget(dists, types, need);
+  const still = need - taken;
+  if (still <= 1e-6) return;
+
+  const n = dists.length;
+  const per = still / n;
+  for (let i = 0; i < n; i++) {
+    dists[i] = roundQuarterKm(dists[i] + per);
+  }
+  const drift = still - n * per;
+  if (Math.abs(drift) > 1e-6) {
+    dists[0] = roundQuarterKm(dists[0]! + drift);
+  }
+}
+
 function sumDists(dists: number[]): number {
   return dists.reduce((a, b) => a + b, 0);
 }
@@ -387,11 +461,11 @@ function redistributeKmToSessionIndices(dists: number[], indices: number[], km: 
   if (km <= 1e-9 || indices.length === 0) return;
   const each = km / indices.length;
   for (const i of indices) {
-    dists[i] = round1(dists[i] + each);
+    dists[i] = roundQuarterKm(dists[i] + each);
   }
   const drift = km - indices.length * each;
   if (Math.abs(drift) > 1e-6) {
-    dists[indices[0]!] = round1(dists[indices[0]!] + drift);
+    dists[indices[0]!] = roundQuarterKm(dists[indices[0]!] + drift);
   }
 }
 
@@ -427,7 +501,7 @@ function takeKmForLongBoostFromEasiesThenQuality(dists: number[], types: RunType
       for (const i of easyPool) {
         const grab = Math.min(rem * (dists[i] / sum), dists[i] - MIN_EASY_KM);
         if (grab <= 1e-9) continue;
-        dists[i] = round1(dists[i] - grab);
+        dists[i] = roundQuarterKm(dists[i] - grab);
         took += grab;
       }
       rem -= took;
@@ -442,7 +516,7 @@ function takeKmForLongBoostFromEasiesThenQuality(dists: number[], types: RunType
     for (const i of qPool) {
       const grab = Math.min(rem * (dists[i] / sumQ), dists[i] - MIN_QUALITY_KM);
       if (grab <= 1e-9) continue;
-      dists[i] = round1(dists[i] - grab);
+      dists[i] = roundQuarterKm(dists[i] - grab);
       tookQ += grab;
     }
     rem -= tookQ;
@@ -472,7 +546,7 @@ function shrinkEasySessionsProportionallyForLongAbsoluteCeiling(
     let freed = 0;
     for (const i of eIdx) {
       const old = dists[i];
-      const next = round1(old * s);
+      const next = roundQuarterKm(old * s);
       const clamped = Math.max(MIN_EASY_KM, next);
       freed += old - clamped;
       dists[i] = clamped;
@@ -493,7 +567,7 @@ function shedKmFromQualityProportional(dists: number[], types: RunType[], shedKm
     for (const i of pool) {
       const grab = Math.min(rem * (dists[i] / sum), dists[i] - MIN_QUALITY_KM);
       if (grab <= 1e-9) continue;
-      dists[i] = round1(dists[i] - grab);
+      dists[i] = roundQuarterKm(dists[i] - grab);
       took += grab;
     }
     rem -= took;
@@ -525,7 +599,7 @@ function applyLongRunDistanceGuards(
   const prevLong = dists[li];
   const cappedDist = Math.min(prevLong, cap30, capAbs);
   const freed = prevLong - cappedDist;
-  dists[li] = round1(Math.max(cappedDist, 0.1));
+  dists[li] = roundQuarterKm(Math.max(cappedDist, 0.25));
   redistributeFreedKmToNonLong(dists, types, freed, li);
 
   const longestE = longestEasyDistanceKm(dists, types);
@@ -537,7 +611,7 @@ function applyLongRunDistanceGuards(
     const boost = rawDesired - dists[li];
     if (boost > 1e-6) {
       const taken = takeKmForLongBoostFromEasiesThenQuality(dists, types, boost);
-      dists[li] = round1(dists[li] + taken);
+      dists[li] = roundQuarterKm(dists[li] + taken);
     }
   } else {
     const boostToCap = capAbs - dists[li];
@@ -545,42 +619,22 @@ function applyLongRunDistanceGuards(
     if (boostToCap > 1e-6) {
       takenCap = takeKmForLongBoostFromEasiesThenQuality(dists, types, boostToCap);
     }
-    dists[li] = round1(Math.min(capAbs, dists[li] + takenCap));
+    dists[li] = roundQuarterKm(Math.min(capAbs, dists[li] + takenCap));
     shrinkEasySessionsProportionallyForLongAbsoluteCeiling(dists, types, capAbs);
 
-    let drift = round1(weekTotalKm - sumDists(dists));
-    if (drift > 0.05) {
-      absorbKmIntoQualityElseNonEasy(dists, types, drift);
-    } else if (drift < -0.05) {
-      shedKmFromQualityProportional(dists, types, -drift);
+    const driftRaw = weekTotalKm - sumDists(dists);
+    if (driftRaw > 0.05) {
+      absorbKmIntoQualityElseNonEasy(dists, types, driftRaw);
+    } else if (driftRaw < -0.05) {
+      shedKmFromQualityProportional(dists, types, -driftRaw);
     }
   }
 
   if (dists[li] > capAbs + 1e-6) {
     const over = dists[li] - capAbs;
-    dists[li] = round1(capAbs);
+    dists[li] = roundQuarterKm(capAbs);
     redistributeFreedKmToNonLong(dists, types, over, li);
   }
-}
-
-function stealKmFromQualityForEasyFloor(
-  dists: number[],
-  types: RunType[],
-  needKm: number,
-): number {
-  let taken = 0;
-  let remaining = needKm;
-  const order = types.map((t, i) => ({ t, i })).filter((x) => x.t === "tempo" || x.t === "interval");
-  for (const { i } of order) {
-    if (remaining <= 1e-9) break;
-    const avail = dists[i] - MIN_QUALITY_KM;
-    if (avail <= 0) continue;
-    const grab = Math.min(remaining, avail);
-    dists[i] = round1(dists[i] - grab);
-    taken += grab;
-    remaining -= grab;
-  }
-  return taken;
 }
 
 function easyIndices(types: RunType[]): number[] {
@@ -607,77 +661,23 @@ function absorbKmIntoQualityElseNonEasy(dists: number[], types: RunType[], km: n
   }
 }
 
-/**
- * Easy runs >= MIN_EASY_KM. Merge or remove easy sessions rather than emitting sub-5 km easies.
- */
-function consolidateEasyRunDistances(dists: number[], types: RunType[], days: Day[]): void {
-  let guard = 0;
-  while (guard++ < 48) {
-    const eIdx = easyIndices(types);
-    if (eIdx.length === 0) break;
-    const below = eIdx.filter((i) => dists[i] < MIN_EASY_KM);
-    if (below.length === 0) break;
-
-    if (eIdx.length >= 2) {
-      let bestA = eIdx[0]!;
-      let bestB = eIdx[1]!;
-      let bestSum = dists[bestA] + dists[bestB];
-      for (let k = 0; k < eIdx.length; k++) {
-        for (let m = k + 1; m < eIdx.length; m++) {
-          const i = eIdx[k]!;
-          const j = eIdx[m]!;
-          const s = dists[i] + dists[j];
-          if (s < bestSum) {
-            bestSum = s;
-            bestA = i;
-            bestB = j;
-          }
-        }
-      }
-      const lo = Math.min(bestA, bestB);
-      const hi = Math.max(bestA, bestB);
-      dists[lo] = round1(dists[lo] + dists[hi]);
-      dists.splice(hi, 1);
-      types.splice(hi, 1);
-      days.splice(hi, 1);
-      continue;
-    }
-
-    const only = easyIndices(types)[0]!;
-    const deficit = MIN_EASY_KM - dists[only];
-    if (deficit <= 1e-9) break;
-
-    const stolen = stealKmFromQualityForEasyFloor(dists, types, deficit);
-    dists[only] = round1(dists[only] + stolen);
-
-    if (dists[only] >= MIN_EASY_KM - 1e-6) break;
-
-    const freed = dists[only] ?? 0;
-    dists.splice(only, 1);
-    types.splice(only, 1);
-    days.splice(only, 1);
-    absorbKmIntoQualityElseNonEasy(dists, types, freed);
-    continue;
-  }
-}
-
 /** Rounding / merges can leave sum slightly under the weekly target; add remainder to quality work. */
 function absorbPositiveWeeklyDrift(dists: number[], types: RunType[], weekTotalKm: number): void {
-  const drift = round1(weekTotalKm - sumDists(dists));
-  if (drift < 0.05) return;
+  const driftRaw = weekTotalKm - sumDists(dists);
+  if (driftRaw < 0.05) return;
   const q = qualitySessionIndices(types);
   if (q.length > 0) {
-    redistributeKmToSessionIndices(dists, q, drift);
+    redistributeKmToSessionIndices(dists, q, driftRaw);
     return;
   }
   const eIdx = easyIndices(types);
   if (eIdx.length > 0) {
-    redistributeKmToSessionIndices(dists, eIdx, drift);
+    redistributeKmToSessionIndices(dists, eIdx, driftRaw);
     return;
   }
   const li = types.indexOf("long");
   if (li >= 0) {
-    dists[li] = round1(dists[li] + drift);
+    dists[li] = roundQuarterKm(dists[li] + driftRaw);
   }
 }
 
@@ -696,10 +696,8 @@ function minimumViableWeekKmForTypes(types: readonly RunType[]): number {
 }
 
 /**
- * Initial proportional split, then long-run caps (30% of week only when
- * weekTotalKm >= LONG_FRACTION_WEEK_MIN_KM), easy consolidation, and repeat so the
- * long-run floor (>= longest easy + 2 km, >= 8 km, without breaking the absolute cap)
- * sees up-to-date easy distances after merges.
+ * Initial proportional split, long-run guards, easy minimums without changing session count,
+ * positive drift top-up, then snap all distances to 0.25 km.
  */
 function finalizeWeeklySessionDistances(
   typesIn: RunType[],
@@ -712,23 +710,28 @@ function finalizeWeeklySessionDistances(
   const days = [...daysIn];
   const n = types.length;
   const weights = distanceWeights(n, types);
-  const dists = types.map((_, si) => round1(weekTotalKm * (weights[si] ?? 1 / n)));
-  for (let i = 0; i < n; i++) dists[i] = Math.max(0.1, dists[i]);
+  const dists = types.map((_, si) => roundQuarterKm(weekTotalKm * (weights[si] ?? 1 / n)));
+  for (let i = 0; i < n; i++) dists[i] = Math.max(0.25, dists[i]);
 
   applyLongRunDistanceGuards(dists, types, weekTotalKm, goalDistance, experienceLevel);
-  consolidateEasyRunDistances(dists, types, days);
+  enforceEasyMinimumsPreserveSessionCount(dists, types);
   applyLongRunDistanceGuards(dists, types, weekTotalKm, goalDistance, experienceLevel);
-  consolidateEasyRunDistances(dists, types, days);
+  enforceEasyMinimumsPreserveSessionCount(dists, types);
   applyLongRunDistanceGuards(dists, types, weekTotalKm, goalDistance, experienceLevel);
 
   absorbPositiveWeeklyDrift(dists, types, weekTotalKm);
   applyLongRunDistanceGuards(dists, types, weekTotalKm, goalDistance, experienceLevel);
+  enforceEasyMinimumsPreserveSessionCount(dists, types);
+
+  for (let i = 0; i < dists.length; i++) {
+    dists[i] = roundQuarterKm(dists[i]!);
+  }
+  enforceEasyMinimumsPreserveSessionCount(dists, types);
+  for (let i = 0; i < dists.length; i++) {
+    dists[i] = roundQuarterKm(dists[i]!);
+  }
 
   return { types, days, dists };
-}
-
-function round1(n: number): number {
-  return Math.round(n * 10) / 10;
 }
 
 function uniqDaysPreserveOrder(days: Day[]): Day[] {
@@ -834,7 +837,7 @@ export function generatePlanV2(config: PlanConfigV2): TrainingWeek[] {
 
     const rawWeekKm = weeklyKm[wi] ?? 0;
     const minViableWeekKm = minimumViableWeekKmForTypes(types);
-    const weekKmForDistribution = round1(Math.max(rawWeekKm, minViableWeekKm));
+    const weekKmForDistribution = roundQuarterKm(Math.max(rawWeekKm, minViableWeekKm));
 
     const sessionDays = assignSessionDays(types, config.trainingDays, config.longRunDay ?? null);
     const { types: wTypes, days: wDays, dists: wDists } = finalizeWeeklySessionDistances(
@@ -849,7 +852,7 @@ export function generatePlanV2(config: PlanConfigV2): TrainingWeek[] {
     for (let si = 0; si < wTypes.length; si++) {
       const t = wTypes[si]!;
       const day = wDays[si]!;
-      const dist = Math.max(0.1, wDists[si] ?? 0.1);
+      const dist = Math.max(0.25, roundQuarterKm(wDists[si] ?? 0.25));
 
       const isReps =
         t === "interval" &&
