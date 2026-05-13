@@ -29,6 +29,17 @@ const SESSION_SCALE: Record<2 | 3 | 4 | 5 | 6, number> = {
   6: 1.67,
 };
 
+/** Caps session-frequency multiplier for peak weekly volume (novice/beginner safety). */
+function effectiveSessionScaleForPeakVolume(
+  sessionsPerWeek: PlanConfigV2["sessionsPerWeek"],
+  experienceLevel: PlanConfigV2["experienceLevel"],
+): number {
+  const raw = SESSION_SCALE[sessionsPerWeek];
+  if (experienceLevel === "NOVICE") return Math.min(raw, 1.2);
+  if (experienceLevel === "BEGINNER") return Math.min(raw, 1.4);
+  return raw;
+}
+
 /** Mon-first calendar order for sorting sessions within a week. */
 const DAY_CAL_ORDER: Record<Day, number> = {
   mon: 0,
@@ -204,11 +215,23 @@ export function getPhaseWeeks(
   }
 
   let baseW = Math.floor(rest * pBase);
-  const buildW = Math.floor(rest * pBuild);
-  const peakW = Math.floor(rest * pPeak);
+  let buildW = Math.floor(rest * pBuild);
+  let peakW = Math.floor(rest * pPeak);
   const assigned = baseW + buildW + peakW;
   const remainder = rest - assigned;
   baseW += remainder;
+
+  /** Functional peak: never 0 weeks when rest > 0 (short plans / flooring). */
+  if (peakW === 0 && rest > 0) {
+    peakW = 1;
+    baseW = Math.max(0, baseW - 1);
+  }
+
+  /** If base dominates the calendar, shift one week into build for intensity adaptation. */
+  if (baseW > totalWeeks * 0.6 + 1e-9 && baseW > 0) {
+    baseW -= 1;
+    buildW += 1;
+  }
 
   return [
     { phase: "Base", weeks: baseW },
@@ -1051,7 +1074,7 @@ export function assignSessionDays(
 
 export function generatePlanV2(config: PlanConfigV2): TrainingWeek[] {
   const peakBase = PEAK_KM[config.goalDistance][config.experienceLevel];
-  const scale = SESSION_SCALE[config.sessionsPerWeek];
+  const scale = effectiveSessionScaleForPeakVolume(config.sessionsPerWeek, config.experienceLevel);
   const peakVolumeKm = peakBase * scale;
 
   const phaseWeeks = getPhaseWeeks(

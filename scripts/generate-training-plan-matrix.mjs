@@ -17,6 +17,13 @@ const PEAK_KM_3X = {
 
 const SESSION_SCALE = { 2: 0.74, 3: 1.0, 4: 1.24, 5: 1.46, 6: 1.67 };
 
+function effectiveSessionScaleForPeakKm(sessions, level) {
+  const raw = SESSION_SCALE[sessions];
+  if (level === "NOVICE") return Math.min(raw, 1.2);
+  if (level === "BEGINNER") return Math.min(raw, 1.4);
+  return raw;
+}
+
 function isShort(goal) {
   return goal === "5K" || goal === "10K";
 }
@@ -69,11 +76,21 @@ function phaseWeeks(goal, level, totalWeeks) {
   }
 
   let baseW = Math.floor(rest * pBase);
-  const buildW = Math.floor(rest * pBuild);
-  const peakW = Math.floor(rest * pPeak);
+  let buildW = Math.floor(rest * pBuild);
+  let peakW = Math.floor(rest * pPeak);
   const assigned = baseW + buildW + peakW;
   const remainder = rest - assigned;
   baseW += remainder;
+
+  if (peakW === 0 && rest > 0) {
+    peakW = 1;
+    baseW = Math.max(0, baseW - 1);
+  }
+
+  if (baseW > totalWeeks * 0.6 + 1e-9 && baseW > 0) {
+    baseW -= 1;
+    buildW += 1;
+  }
 
   return {
     baseW,
@@ -114,7 +131,7 @@ for (const level of LEVELS) {
     for (const duration of DURATIONS) {
       for (const sessions of SESSIONS) {
         const basePeak = PEAK_KM_3X[goal][level];
-        const peakKm = round1(basePeak * SESSION_SCALE[sessions]);
+        const peakKm = round1(basePeak * effectiveSessionScaleForPeakKm(sessions, level));
         const { baseW, buildW, peakW, taperWks } = phaseWeeks(goal, level, duration);
         const cutback = cutbackRule(level);
         rows.push(
