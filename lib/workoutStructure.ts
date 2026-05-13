@@ -1,4 +1,5 @@
 import type { RunType, Phase } from "@/data/trainingPlan";
+import { getNoviceRunWalkTransitionWeek } from "@/lib/novicePlanCaps";
 
 // ── Public types ──────────────────────────────────────────────────────────────
 
@@ -68,11 +69,15 @@ function getNoviceIntervals(ctx: WorkoutContext): string {
     const { runSec, walkSec } = ctx.structure.runWalkRatio;
     return `Repeat: Jog ${runSec}s, Walk ${walkSec}s`;
   }
-  if (ctx.week <= 2) return "Alternate 1 min jogging / 2 min brisk walking";
-  if (ctx.week <= 4) return "Alternate 2 min jogging / 1 min brisk walking";
-  if (ctx.week <= 6) return "Alternate 3 min jogging / 1 min brisk walking";
-  if (ctx.week <= 8) return "Alternate 5 min jogging / 1 min brisk walking";
-  return "Alternate 8–10 min jogging / 1 min walking";
+  const transitionEnd = getNoviceRunWalkTransitionWeek(ctx.totalWeeks as 8 | 12 | 16 | 20);
+  if (ctx.week > transitionEnd) {
+    return "Run continuously at an easy effort; take short walk breaks only if needed for recovery.";
+  }
+  const p = transitionEnd > 0 ? ctx.week / transitionEnd : 1;
+  if (p <= 0.33) return "Alternate 1 min jogging / 2 min brisk walking";
+  if (p <= 0.66) return "Alternate 2 min jogging / 1 min brisk walking";
+  if (p < 1) return "Alternate 3 min jogging / 1 min brisk walking";
+  return "Alternate 5 min jogging / 1 min brisk walking";
 }
 
 // ── Easy run ──────────────────────────────────────────────────────────────────
