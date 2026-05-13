@@ -676,6 +676,23 @@ function absorbPositiveWeeklyDrift(dists: number[], types: RunType[], weekTotalK
   }
 }
 
+/** Minimum km for tempo or interval (including rep-style intervals) in weekly volume floor. */
+const MIN_TEMPO_INTERVAL_WEEK_KM = 4;
+
+/**
+ * Sum of per-session distance floors for the types assigned this week (long / easy / quality).
+ * Used to bump low progression weeks so distribution never starts from an infeasible total.
+ */
+function minimumViableWeekKmForTypes(types: readonly RunType[]): number {
+  let sum = 0;
+  for (const t of types) {
+    if (t === "long") sum += MIN_LONG_RUN_KM;
+    else if (t === "easy") sum += MIN_EASY_KM;
+    else if (t === "tempo" || t === "interval") sum += MIN_TEMPO_INTERVAL_WEEK_KM;
+  }
+  return sum;
+}
+
 /**
  * Initial proportional split, then long-run caps (30% of week only when
  * weekTotalKm >= LONG_FRACTION_WEEK_MIN_KM), easy consolidation, and repeat so the
@@ -813,12 +830,15 @@ export function generatePlanV2(config: PlanConfigV2): TrainingWeek[] {
     const buildOrPeak = planPhase === "Build" || planPhase === "Peak";
     const isLastPeakWeek = weekNum === lastPeakWeekNumber && planPhase === "Peak";
 
-    const totalKm = weeklyKm[wi] ?? 0;
+    const rawWeekKm = weeklyKm[wi] ?? 0;
+    const minViableWeekKm = minimumViableWeekKmForTypes(types);
+    const weekKmForDistribution = round1(Math.max(rawWeekKm, minViableWeekKm));
+
     const sessionDays = assignSessionDays(types, config.trainingDays, config.longRunDay ?? null);
     const { types: wTypes, days: wDays, dists: wDists } = finalizeWeeklySessionDistances(
       types,
       sessionDays,
-      totalKm,
+      weekKmForDistribution,
       config.goalDistance,
       config.experienceLevel,
     );
@@ -917,7 +937,8 @@ export function generatePlanV2(config: PlanConfigV2): TrainingWeek[] {
       phase: toStoredPhase(planPhase),
       isCutback,
       sessions,
-    });
+      totalTargetKm: weekKmForDistribution,
+    } as TrainingWeek);
   }
 
   return weeksOut;
