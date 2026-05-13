@@ -175,6 +175,72 @@ function getStartWeeklyKm(level: PlanConfig["level"], peak: number): number {
   return peak * 0.80;
 }
 
+/** Max share of weekly km on the long run for Novice 5K/10K (by sessions per week). */
+function maxNoviceShortRaceLongRunFraction(sessionsPerWeek: number): number {
+  switch (sessionsPerWeek) {
+    case 2:
+      return 0.5;
+    case 3:
+      return 0.4;
+    case 4:
+      return 0.34;
+    case 5:
+      return 0.3;
+    case 6:
+      return 0.28;
+    default:
+      return 0.35;
+  }
+}
+
+const NOVICE_SHORT_MIN_LONG_KM = 1.5;
+const NOVICE_SHORT_MIN_EASY_KM = 1.0;
+const NOVICE_SHORT_MAX_EASY_KM = 4.0;
+
+/**
+ * Redistribute weekly km so the long run does not dominate (5K/10K Novice only).
+ * Keeps total T = L + n*E where possible; may shrink T slightly if easy hits ceiling.
+ */
+function rebalanceNoviceShortRaceSessionKm(
+  L: number,
+  E: number,
+  T: number,
+  sessionsPerWeek: number,
+): { L: number; E: number; T: number } {
+  const n = sessionsPerWeek - 1;
+  if (n < 1) return { L: round1(L), E: round1(E), T: round1(T) };
+
+  const f = maxNoviceShortRaceLongRunFraction(sessionsPerWeek);
+  if (L <= f * T + 0.02) {
+    return { L: round1(L), E: round1(E), T: round1(L + n * E) };
+  }
+
+  let Ln = Math.min(L, f * T);
+  let En = (T - Ln) / n;
+  En = clamp(En, NOVICE_SHORT_MIN_EASY_KM, NOVICE_SHORT_MAX_EASY_KM);
+  Ln = T - n * En;
+  Ln = Math.max(NOVICE_SHORT_MIN_LONG_KM, Ln);
+  En = (T - Ln) / n;
+  En = clamp(En, NOVICE_SHORT_MIN_EASY_KM, NOVICE_SHORT_MAX_EASY_KM);
+  Ln = T - n * En;
+  Ln = Math.max(NOVICE_SHORT_MIN_LONG_KM, Ln);
+
+  if (Ln > f * T + 0.02) {
+    Ln = f * T;
+    En = (T - Ln) / n;
+    En = clamp(En, NOVICE_SHORT_MIN_EASY_KM, NOVICE_SHORT_MAX_EASY_KM);
+    Ln = T - n * En;
+    Ln = Math.max(NOVICE_SHORT_MIN_LONG_KM, Ln);
+    En = (T - Ln) / n;
+    En = clamp(En, NOVICE_SHORT_MIN_EASY_KM, NOVICE_SHORT_MAX_EASY_KM);
+    Ln = T - n * En;
+    Ln = Math.max(NOVICE_SHORT_MIN_LONG_KM, Ln);
+  }
+
+  let Tn = round1(Ln + n * En);
+  return { L: round1(Ln), E: round1(En), T: Tn };
+}
+
 /** 
  * Returns Novice session distances for a given week using the bottom-up formula:
  * T[w] = L[w] + (config.days.length - 1) * E[w]
@@ -248,6 +314,18 @@ function getNoviceWeeklyDistances(
     // Re-apply 50% rule
     if (config.days.length === 2 && L > E + 0.01) L = E;
     T = L + nonLongCount * E;
+  }
+
+  // 3b. Novice 5K/10K: cap long-run fraction of the week; shift km to easy days (2–6 sessions/week).
+  if (
+    config.level === "NOVICE" &&
+    (config.goal === "5k" || config.goal === "10k") &&
+    nonLongCount >= 1
+  ) {
+    const b = rebalanceNoviceShortRaceSessionKm(L, E, T, config.days.length);
+    L = b.L;
+    E = b.E;
+    T = b.T;
   }
 
   // 4. ACWR Safety Valve (Volume-based proxy)
@@ -340,7 +418,7 @@ function getLongRunKm(config: PlanConfig, goal: PlanConfig["goal"]) {
     case "ELITE-5k": return { start: 6, peak: 8 };
 
     // 10K: Peak long run strictly capped at <= 14 km.
-    case "NOVICE-10k": return { start: 1.5, peak: 10 };
+    case "NOVICE-10k": return { start: 1.5, peak: 8 };
     case "BEGINNER-10k": return { start: 5, peak: 12 };
     case "INTERMEDIATE-10k": return { start: 6, peak: 13 };
     case "ADVANCED-10k": return { start: 8, peak: 14 };

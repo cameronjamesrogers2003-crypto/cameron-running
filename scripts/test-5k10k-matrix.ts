@@ -19,7 +19,7 @@ const LONG_DAY_MAP: Record<number, Day> = {
 
 const CAPS = {
   "NOVICE-5k": 5,
-  "NOVICE-10k": 10,
+  "NOVICE-10k": 8,
   "BEGINNER-5k": 6,
   "BEGINNER-10k": 12,
   "INTERMEDIATE-5k": 7,
@@ -82,13 +82,13 @@ function runTest(level: PlanConfig["level"], goal: "5k" | "10k", daysCount: numb
     }
   }
 
-  // Assertion 3: Balance (Long run should not overwhelmingly dominate the week)
-  // Target band is roughly 22-35%. For 2 days it's strictly 50%. For 3 days it can be up to 45%.
+  // Assertion 3: Balance (long run should not dominate weekly volume)
   const avgRatio = midBuildTotalSum > 0 ? midBuildLongSum / midBuildTotalSum : 0;
   let maxRatio = 0.55;
+  if (daysCount === 3 && level === "NOVICE") maxRatio = 0.45;
   if (daysCount >= 4) {
-    if (level === "NOVICE") maxRatio = 0.46; // Novice peak easy is 4km, long is 10km => 10/22 = 45%
-    else maxRatio = 0.40;
+    if (level === "NOVICE") maxRatio = 0.38;
+    else maxRatio = 0.4;
   }
   
   if (avgRatio > maxRatio + 0.01) {
