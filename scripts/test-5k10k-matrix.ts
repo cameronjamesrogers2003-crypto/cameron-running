@@ -1,5 +1,5 @@
-import { generatePlan } from "./lib/generatePlan";
-import type { PlanConfig, Day } from "./data/trainingPlan";
+import { generatePlan } from "@/lib/generatePlan";
+import type { PlanConfig, Day } from "@/data/trainingPlan";
 
 const DAYS_MAP: Record<number, Day[]> = {
   2: ["wed", "sun"],
