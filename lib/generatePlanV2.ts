@@ -292,9 +292,7 @@ export function buildVolumeProgression(
 }
 
 function toStoredPhase(p: PlanPhase): Phase {
-  if (p === "Base") return "Base";
-  if (p === "Taper") return "Taper";
-  return p as unknown as Phase;
+  return p;
 }
 
 function paceMinPerKmForType(

@@ -6,6 +6,8 @@ export type RunType = 'easy' | 'tempo' | 'interval' | 'long'
 export type Day = 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun'
 export type Phase =
   | 'Base'
+  | 'Build'
+  | 'Peak'
   | 'Half Marathon Build'
   | 'Marathon Build'
   | 'Recovery'

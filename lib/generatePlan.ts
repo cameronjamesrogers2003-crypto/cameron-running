@@ -581,7 +581,13 @@ function isBasePhase(phase: Phase): boolean {
 }
 
 function isBuildPhase(phase: Phase): boolean {
-  return phase === "Race Specific" || phase === "Half Marathon Build" || phase === "Marathon Build";
+  return (
+    phase === "Race Specific" ||
+    phase === "Half Marathon Build" ||
+    phase === "Marathon Build" ||
+    phase === "Build" ||
+    phase === "Peak"
+  );
 }
 
 /** Subtitle above each week card — must match actual session types. */

@@ -132,5 +132,8 @@ export function getNextPhaseInfo(
     case "Advanced Base":       return { label: "Race Specific",        week: 1 };
     case "Race Specific":       return { label: "Taper",                week: 1 };
     case "Taper":               return null;
+    case "Build":               return { label: "Peak",                 week: 1 };
+    case "Peak":                return { label: "Taper",                week: 1 };
+    default:                    return null;
   }
 }
