@@ -1,9 +1,11 @@
+// ENGINE: generatePlanV2 (evidence-based spec, May 2026)
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
 import { dbSettingsToUserSettings, DEFAULT_SETTINGS } from "@/lib/settings";
-import { generatePlan } from "@/lib/generatePlan";
+import { generatePlanV2, type PlanConfigV2 } from "@/lib/generatePlanV2";
 import { getLockedWeeks, loadGeneratedPlan, saveGeneratedPlan } from "@/lib/planStorage";
 import { getEffectivePlanStart, parsePlanFirstSessionDay } from "@/lib/planUtils";
+import { defaultNoviceRuntimeState } from "@/types/generatedPlan";
 import type { Day, PlanConfig } from "@/data/trainingPlan";
 
 function isDay(x: unknown): x is Day {
@@ -21,6 +23,25 @@ function parseTrainingDays(raw: string | null): Day[] {
   }
 }
 
+function goalRaceToV2(goal: string | null | undefined): PlanConfigV2["goalDistance"] {
+  if (goal === "5K") return "5K";
+  if (goal === "10K") return "10K";
+  if (goal === "FULL") return "Marathon";
+  return "HalfMarathon";
+}
+
+function settingsGoalToPlanGoal(settingsGoal: string | null | undefined): PlanConfig["goal"] {
+  if (settingsGoal === "FULL") return "full";
+  if (settingsGoal === "10K") return "10k";
+  if (settingsGoal === "5K") return "5k";
+  return "hm";
+}
+
+function levelToV2(level: PlanConfig["level"]): PlanConfigV2["experienceLevel"] {
+  if (level === "ELITE") return "ADVANCED";
+  return level as PlanConfigV2["experienceLevel"];
+}
+
 async function regenerateFromSettings() {
   const settingsRow = await prisma.userSettings.findUnique({ where: { id: 1 } });
   const settings = settingsRow ? dbSettingsToUserSettings(settingsRow) : DEFAULT_SETTINGS;
@@ -33,10 +54,19 @@ async function regenerateFromSettings() {
     );
   }
 
+  if (days.length > 6) {
+    return NextResponse.json(
+      { error: "Settings incomplete — complete onboarding first" },
+      { status: 400 },
+    );
+  }
+
+  const planGoal = settingsGoalToPlanGoal(settings.goalRace);
+
   const config: PlanConfig = {
     level: settings.experienceLevel,
-    goal: settings.goalRace === "FULL" ? "full" : "hm",
-    weeks: (settings.planLengthWeeks ?? 16) as 12 | 16 | 20,
+    goal: planGoal,
+    weeks: (settings.planLengthWeeks ?? 16) as 8 | 12 | 16 | 20,
     days,
     longRunDay: isDay(settings.longRunDay) ? settings.longRunDay : undefined,
     vdot: settings.currentVdot ?? 33,
@@ -48,15 +78,34 @@ async function regenerateFromSettings() {
       runningExperience: settings.runningExperience,
     },
   };
-  const generatedPlan = generatePlan(config);
+
   const planStart = getEffectivePlanStart(settings.planStartDate, parsePlanFirstSessionDay(settings.trainingDays));
-  const computedLockedWeeks = getLockedWeeks(planStart, generatedPlan.weeks.length);
+
+  const planConfigV2: PlanConfigV2 = {
+    goalDistance: goalRaceToV2(settings.goalRace),
+    experienceLevel: levelToV2(settings.experienceLevel),
+    vdot: settings.currentVdot ?? 33,
+    totalWeeks: config.weeks,
+    sessionsPerWeek: days.length as 2 | 3 | 4 | 5 | 6,
+    startDate: planStart,
+    trainingDays: days,
+  };
+
+  let mergedPlan;
+  try {
+    mergedPlan = generatePlanV2(planConfigV2);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "plan_generation_failed";
+    return NextResponse.json({ error: msg }, { status: 400 });
+  }
+
+  const computedLockedWeeks = getLockedWeeks(planStart, mergedPlan.length);
   const existingStored = await loadGeneratedPlan();
   const existingLockedSet = new Set(existingStored?.lockedWeeks ?? []);
   const lockedSet = new Set<number>([...computedLockedWeeks, ...existingLockedSet]);
   const existingByWeek = new Map((existingStored?.plan ?? []).map((week) => [week.week, week]));
 
-  const mergedPlan = generatedPlan.weeks.map((week) => {
+  mergedPlan = mergedPlan.map((week) => {
     if (!lockedSet.has(week.week)) return week;
     return existingByWeek.get(week.week) ?? week;
   });
@@ -66,7 +115,7 @@ async function regenerateFromSettings() {
     config.level === "NOVICE"
       ? {
           weeks: mergedPlan,
-          noviceRuntime: existingStored?.noviceRuntime ?? generatedPlan.noviceRuntime,
+          noviceRuntime: existingStored?.noviceRuntime ?? defaultNoviceRuntimeState(),
         }
       : mergedPlan,
     [...lockedSet].sort((a, b) => a - b),

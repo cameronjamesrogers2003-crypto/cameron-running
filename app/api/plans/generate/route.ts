@@ -1,8 +1,11 @@
+// ENGINE: generatePlanV2 (evidence-based spec, May 2026)
+import type { Prisma } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
-import { generatePlan } from "@/lib/generatePlan";
+import type { Day, PlanConfig, TrainingWeek } from "@/data/trainingPlan";
+import { generatePlanV2, type PlanConfigV2 } from "@/lib/generatePlanV2";
 import { loadGeneratedPlan, saveGeneratedPlan } from "@/lib/planStorage";
-import type { Day, PlanConfig } from "@/data/trainingPlan";
 import { prisma } from "@/lib/db";
+import { defaultNoviceRuntimeState } from "@/types/generatedPlan";
 
 function isDay(x: unknown): x is Day {
   return x === "mon" || x === "tue" || x === "wed" || x === "thu" || x === "fri" || x === "sat" || x === "sun";
@@ -36,6 +39,18 @@ function parseConfig(body: unknown): PlanConfig | null {
   };
 }
 
+function planGoalToV2(goal: PlanConfig["goal"]): PlanConfigV2["goalDistance"] {
+  if (goal === "5k") return "5K";
+  if (goal === "10k") return "10K";
+  if (goal === "hm") return "HalfMarathon";
+  return "Marathon";
+}
+
+function levelToV2(level: PlanConfig["level"]): PlanConfigV2["experienceLevel"] {
+  if (level === "ELITE") return "ADVANCED";
+  return level as PlanConfigV2["experienceLevel"];
+}
+
 export async function POST(req: NextRequest) {
   let body: unknown;
   try {
@@ -47,21 +62,43 @@ export async function POST(req: NextRequest) {
   const config = parseConfig(body);
   if (!config) return NextResponse.json({ error: "invalid_config" }, { status: 400 });
 
+  if (config.days.length < 2 || config.days.length > 6) {
+    return NextResponse.json({ error: "invalid_config" }, { status: 400 });
+  }
+
   const lockedWeeksInput = (body as { lockedWeeks?: unknown }).lockedWeeks;
   const lockedWeeks =
     Array.isArray(lockedWeeksInput)
       ? lockedWeeksInput.map((n) => Number(n)).filter((n) => Number.isFinite(n))
       : undefined;
 
-  const generatedPlan = generatePlan(config);
-  let plan = generatedPlan.weeks;
+  const settingsRow = await prisma.userSettings.findUnique({ where: { id: 1 } });
+  const startDate = settingsRow?.planStartDate ? new Date(settingsRow.planStartDate) : new Date();
+
+  const planConfigV2: PlanConfigV2 = {
+    goalDistance: planGoalToV2(config.goal),
+    experienceLevel: levelToV2(config.level),
+    vdot: config.vdot,
+    totalWeeks: config.weeks,
+    sessionsPerWeek: config.days.length as 2 | 3 | 4 | 5 | 6,
+    startDate,
+    trainingDays: config.days,
+  };
+
+  let plan: TrainingWeek[];
+  try {
+    plan = generatePlanV2(planConfigV2);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "plan_generation_failed";
+    return NextResponse.json({ error: msg }, { status: 400 });
+  }
 
   if (lockedWeeks && lockedWeeks.length > 0) {
     const lockedSet = new Set(lockedWeeks);
     const existing = await loadGeneratedPlan();
     if (existing) {
       const existingByWeek = new Map(existing.plan.map((w) => [w.week, w]));
-      const merged = generatedPlan.weeks.map((w) => {
+      const merged = plan.map((w) => {
         if (!lockedSet.has(w.week)) return w;
         return existingByWeek.get(w.week) ?? w;
       });
@@ -75,7 +112,14 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  await saveGeneratedPlan(config, { weeks: plan, noviceRuntime: generatedPlan.noviceRuntime }, lockedWeeks);
+  await saveGeneratedPlan(
+    config,
+    {
+      weeks: plan,
+      noviceRuntime: config.level === "NOVICE" ? defaultNoviceRuntimeState() : undefined,
+    },
+    lockedWeeks,
+  );
 
   // Mark existing ACTIVE blocks as ABANDONED
   await prisma.trainingBlock.updateMany({
@@ -83,9 +127,8 @@ export async function POST(req: NextRequest) {
     data: { status: "ABANDONED" },
   });
 
-  const settings = await prisma.userSettings.findUnique({ where: { id: 1 } });
-  const startDate = settings?.planStartDate ? new Date(settings.planStartDate) : new Date();
-  const targetDate = new Date(startDate.getTime() + config.weeks * 7 * 24 * 60 * 60 * 1000);
+  const startDateBlock = settingsRow?.planStartDate ? new Date(settingsRow.planStartDate) : new Date();
+  const targetDate = new Date(startDateBlock.getTime() + config.weeks * 7 * 24 * 60 * 60 * 1000);
 
   // Create new stateful TrainingBlock
   await prisma.trainingBlock.create({
@@ -94,9 +137,9 @@ export async function POST(req: NextRequest) {
       status: "ACTIVE",
       startingVdot: config.vdot,
       startingLevel: config.level,
-      goalDistanceKm: 
-        config.goal === "full" ? 42.2 : 
-        config.goal === "hm" ? 21.1 : 
+      goalDistanceKm:
+        config.goal === "full" ? 42.2 :
+        config.goal === "hm" ? 21.1 :
         config.goal === "10k" ? 10.0 : 5.0,
       targetDate: targetDate,
       weeks: {
@@ -105,7 +148,7 @@ export async function POST(req: NextRequest) {
           isCutback: w.isCutback ?? false,
           status: "PLANNED",
           phase: w.phase,
-          sessionsJson: w.sessions as any, // Store JSON via Prisma
+          sessionsJson: w.sessions as unknown as Prisma.InputJsonValue,
         })),
       },
     },
@@ -113,4 +156,3 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({ plan, vdot: config.vdot });
 }
-
