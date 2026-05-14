@@ -15,6 +15,7 @@ import {
   summarizeWeeklyActualKm,
   goalDistanceKm,
 } from "@/lib/noviceAnalytics";
+import { roundProgramDistanceKm } from "@/lib/planDistanceKm";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Runshift — Novice progress" };
@@ -75,7 +76,7 @@ export default async function NoviceProgressPage() {
         createdAt: c.createdAt,
       })),
     );
-    const plannedKm = Number(plannedWeekKm(w).toFixed(1));
+    const plannedKm = plannedWeekKm(w);
     const actualKm = agg.actualKm;
     const completionRate = actualKm == null ? 0 : Number((actualKm / Math.max(1, plannedKm)).toFixed(2));
     const mutation = mutByWeek.get(w.week);
@@ -133,7 +134,7 @@ export default async function NoviceProgressPage() {
 
   const totalSessionsCompleted = checkins.filter((c) => c.completed).length;
   const totalSessionsPlanned = stored.plan.reduce((sum, w) => sum + w.sessions.length, 0);
-  const totalPlannedKm = Number(stored.plan.reduce((sum, w) => sum + plannedWeekKm(w), 0).toFixed(1));
+  const totalPlannedKm = roundProgramDistanceKm(stored.plan.reduce((sum, w) => sum + plannedWeekKm(w), 0));
   const stravaRows = checkins.filter((c) => c.actualDistanceKm != null);
   const totalActualKm = stravaRows.length
     ? Number(stravaRows.reduce((sum, c) => sum + (c.actualDistanceKm ?? 0), 0).toFixed(1))
@@ -171,7 +172,7 @@ export default async function NoviceProgressPage() {
         };
       });
 
-      const plannedKm = Number(plannedWeekKm(w).toFixed(1));
+      const plannedKm = plannedWeekKm(w);
       const evalRow = evalByWeek.get(w.week);
       const completed = evalRow?.totalSessionsCompleted ?? sessions.filter((s) => s.completed).length;
       const completionRate = evalRow?.completionRate ?? Number((completed / Math.max(1, sessions.length)).toFixed(2));
