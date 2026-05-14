@@ -14,6 +14,7 @@ import { inferRunType } from "@/lib/rating";
 import { dbSettingsToUserSettings, DEFAULT_SETTINGS, getDisplayName } from "@/lib/settings";
 import { parseInterruptionType, reconfigurePlan, type PlanInterruption } from "@/lib/interruptions";
 import { loadGeneratedPlan, saveGeneratedPlan } from "@/lib/planStorage";
+import { formatProgramDistanceKm, roundProgramDistanceKm } from "@/lib/planDistanceKm";
 import { finalizePlanDisplayCopy, generatePlan } from "@/lib/generatePlan";
 import {
   buildPlayerRatingSummaryRows,
@@ -321,7 +322,7 @@ export default async function Dashboard({
     // Calculate targetKm
     let targetKm: number | null = null;
     if (isPlanWeek && planWeek) {
-      targetKm = Math.round(getWeeklyTargetKm(planWeek) * 10) / 10;
+      targetKm = getWeeklyTargetKm(planWeek);
     } else if (!isPlanWeek) {
       // Pre-plan fallback: 10% increase over previous week's actual
       const prevWStart = new Date(wStart.getTime() - 7 * MS_PER_DAY);
@@ -333,9 +334,7 @@ export default async function Dashboard({
         })
         .reduce((s, a) => s + a.distanceKm, 0);
 
-      targetKm = prevActual > 0
-        ? Math.round(prevActual * 1.1 * 10) / 10
-        : null;
+      targetKm = prevActual > 0 ? roundProgramDistanceKm(prevActual * 1.1) : null;
     }
 
     console.log(`[chart] week=${weekStartStr} isPlanWeek=${isPlanWeek} planWeekFound=${!!planWeek} targetKm=${targetKm}`);
@@ -579,7 +578,7 @@ export default async function Dashboard({
                     session: {
                       type: todayPlanEntry.session.type,
                       description: todayPlanEntry.session.description,
-                      distanceLabel: `${todayPlanEntry.session.targetDistanceKm} km`,
+                      distanceLabel: `${formatProgramDistanceKm(todayPlanEntry.session.targetDistanceKm)} km`,
                       paceLabel: formatTargetPace(todayPlanEntry.session.targetPaceMinPerKm),
                     },
                     completed: todayPlanEntry.completed,
@@ -616,7 +615,7 @@ export default async function Dashboard({
                   )}
                 </div>
                 <p className="text-sm text-white font-mono">
-                  {todayPlanEntry.session.targetDistanceKm} km ·{" "}
+                  {formatProgramDistanceKm(todayPlanEntry.session.targetDistanceKm)} km ·{" "}
                   {formatTargetPace(todayPlanEntry.session.targetPaceMinPerKm)}
                 </p>
                 <p className="text-xs leading-snug" style={{ color: "var(--text-muted)" }}>
@@ -830,7 +829,7 @@ export default async function Dashboard({
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
                         <p className="ty-stat font-mono tabular-nums">
-                          {s.targetDistanceKm} km
+                          {formatProgramDistanceKm(s.targetDistanceKm)} km
                         </p>
                         <RunTypePill type={s.type} size="sm" />
                       </div>
@@ -945,7 +944,7 @@ export default async function Dashboard({
                       <div className="flex-1 min-w-0 flex items-center gap-1.5 flex-nowrap overflow-hidden">
                         <p className="text-xs font-semibold text-white">{dayLabel}</p>
                         <p className="text-xs truncate flex-1 min-w-0 font-mono text-white capitalize">
-                          {session.type} {session.targetDistanceKm} km
+                          {session.type} {formatProgramDistanceKm(session.targetDistanceKm)} km
                         </p>
                         <p className="text-xs shrink-0 ml-auto" style={{ color: "var(--text-dim)" }}>
                           {formatAEST(date, "d MMM")}
