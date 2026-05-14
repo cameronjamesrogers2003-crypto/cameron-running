@@ -112,7 +112,7 @@ export default function NoviceProgressPageClient(props: Props) {
           <span className="text-[#334155] font-medium">Week {props.currentWeek} of {props.totalWeeks}</span>
           <span className="text-[#94a3b8]">·</span>
           <span className="text-[#64748b]">{props.weeksRemaining} weeks to go</span>
-          <Link href="/plan/novice" className="ml-auto text-sm underline text-[#2d6a4f]">Back to plan</Link>
+          <Link href="/program" className="ml-auto text-sm underline text-[#2d6a4f]">Back to plan</Link>
         </div>
 
         <div className="mt-3 flex gap-2 overflow-x-auto">

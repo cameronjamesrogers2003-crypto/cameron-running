@@ -11,9 +11,15 @@ export type NoviceAdaptiveDecisionCardProps = {
   evaluationId: string;
   decision: AdaptiveDecision;
   reason: string;
+  skin?: "default" | "program";
 };
 
-export function NoviceAdaptiveDecisionCard({ evaluationId, decision, reason }: NoviceAdaptiveDecisionCardProps) {
+export function NoviceAdaptiveDecisionCard({
+  evaluationId,
+  decision,
+  reason,
+  skin = "default",
+}: NoviceAdaptiveDecisionCardProps) {
   const storageKey = `${STORAGE_PREFIX}${evaluationId}`;
   const [collapsed, setCollapsed] = useState(() => {
     if (typeof window === "undefined") return false;
@@ -44,6 +50,8 @@ export function NoviceAdaptiveDecisionCard({ evaluationId, decision, reason }: N
 
   const Icon = decision === "REPEAT_WEEK" ? RefreshCw : decision === "REDUCE_LOAD" ? ArrowDown : ArrowRight;
 
+  const program = skin === "program";
+
   const headline =
     decision === "REPEAT_WEEK"
       ? "Repeating this week"
@@ -60,21 +68,47 @@ export function NoviceAdaptiveDecisionCard({ evaluationId, decision, reason }: N
 
   return (
     <div
-      className="rounded-2xl border border-black/[0.06] bg-[#faf8f5] p-4 sm:p-5 shadow-sm mb-4"
-      style={{ borderLeft: `4px solid ${border}` }}
+      className={
+        program
+          ? "rounded-2xl border p-4 sm:p-5 mb-4"
+          : "rounded-2xl border border-black/[0.06] bg-[#faf8f5] p-4 sm:p-5 shadow-sm mb-4"
+      }
+      style={{
+        borderLeft: `4px solid ${border}`,
+        ...(program
+          ? {
+              background: "var(--card-bg)",
+              borderColor: "rgba(255,255,255,0.08)",
+              boxShadow: "0 0 0 1px rgba(255,255,255,0.04)",
+            }
+          : {}),
+      }}
     >
       <div className="flex gap-3">
-        <div className="mt-0.5 shrink-0 text-[#334155]" aria-hidden>
+        <div className="mt-0.5 shrink-0" style={{ color: program ? "rgba(232,230,224,0.7)" : "#334155" }} aria-hidden>
           <Icon className="w-5 h-5" strokeWidth={2} />
         </div>
         <div className="min-w-0 flex-1 space-y-2">
-          <h2 className="text-base font-semibold text-[#1e293b] tracking-tight">{headline}</h2>
-          <p className="text-sm text-[#475569] leading-relaxed">{reason}</p>
-          <p className="text-sm text-[#64748b] leading-relaxed">{whatChanged}</p>
+          <h2 className={`text-base font-semibold tracking-tight ${program ? "text-white" : "text-[#1e293b]"}`}>
+            {headline}
+          </h2>
+          <p
+            className={`text-sm leading-relaxed ${program ? "" : "text-[#475569]"}`}
+            style={program ? { color: "rgba(232,230,224,0.78)" } : undefined}
+          >
+            {reason}
+          </p>
+          <p
+            className={`text-sm leading-relaxed ${program ? "" : "text-[#64748b]"}`}
+            style={program ? { color: "rgba(232,230,224,0.5)" } : undefined}
+          >
+            {whatChanged}
+          </p>
           <button
             type="button"
             onClick={dismissPermanent}
-            className="text-sm font-medium text-[#475569] underline-offset-2 hover:underline mt-1"
+            className={`text-sm font-medium underline-offset-2 hover:underline mt-1 ${program ? "" : "text-[#475569]"}`}
+            style={program ? { color: "var(--accent)" } : undefined}
           >
             Dismiss
           </button>

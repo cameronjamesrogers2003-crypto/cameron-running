@@ -12,7 +12,7 @@ export const metadata = { title: "Runshift — Plan paused" };
 export default async function NovicePausedPage() {
   const stored = await loadGeneratedPlan();
   const rt = stored?.noviceRuntime ?? defaultNoviceRuntimeState();
-  if (rt.planStatus !== "PAUSED_INJURY") redirect("/plan/novice");
+  if (rt.planStatus !== "PAUSED_INJURY") redirect("/program");
 
   const settingsRow = await prisma.userSettings.findUnique({ where: { id: 1 } });
   const settings = settingsRow ? dbSettingsToUserSettings(settingsRow) : DEFAULT_SETTINGS;

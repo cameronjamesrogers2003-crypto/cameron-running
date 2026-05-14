@@ -23,6 +23,8 @@ export type NoviceCheckinModalProps = {
   isFinalSessionOfWeek: boolean;
   onOptimistic: (sessionId: string) => void;
   onRevertOptimistic: (sessionId: string) => void;
+  /** Dark modal shell to match Training Program hub. */
+  surface?: "cream" | "program";
 };
 
 const DAY_NAMES: Record<string, string> = {
@@ -52,6 +54,7 @@ export function NoviceCheckinModal({
   isFinalSessionOfWeek,
   onOptimistic,
   onRevertOptimistic,
+  surface = "cream",
 }: NoviceCheckinModalProps) {
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [completion, setCompletion] = useState<Completion | null>(null);
@@ -165,6 +168,32 @@ export function NoviceCheckinModal({
 
   if (!open || !session || !st) return null;
 
+  const prog = surface === "program";
+  const btnPrimaryCls = prog
+    ? "rounded-xl font-semibold py-3 px-4 text-center w-full transition border text-white"
+    : btnPrimary;
+  const btnPrimaryStyle = prog
+    ? { background: "rgba(45,212,191,0.18)", borderColor: "rgba(45,212,191,0.45)", borderWidth: 1, borderStyle: "solid" as const }
+    : undefined;
+  const btnSecondaryCls = prog
+    ? "rounded-xl font-semibold py-3 px-4 text-center w-full transition border"
+    : btnSecondary;
+  const btnSecondaryStyle = prog
+    ? {
+        borderColor: "rgba(45,212,191,0.45)",
+        borderWidth: 2,
+        borderStyle: "solid" as const,
+        color: "var(--accent)",
+        background: "transparent",
+      }
+    : undefined;
+  const btnMutedCls = prog
+    ? "rounded-xl font-medium py-3 px-4 text-center w-full transition"
+    : btnMuted;
+  const btnMutedStyle = prog
+    ? { background: "rgba(255,255,255,0.06)", color: "rgba(232,230,224,0.85)" }
+    : undefined;
+
   const title = noviceSessionTitle(st);
   const day = DAY_NAMES[session.day] ?? session.day;
 
@@ -178,20 +207,63 @@ export function NoviceCheckinModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-0 sm:p-4"
+      className={
+        prog
+          ? "fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
+          : "fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-0 sm:p-4"
+      }
       role="dialog"
       aria-modal="true"
     >
-      <div className="w-full max-w-md rounded-t-3xl sm:rounded-3xl bg-[#faf8f5] p-5 sm:p-6 shadow-xl max-h-[90vh] overflow-y-auto">
+      {prog ? (
+        <div
+          className="absolute inset-0"
+          style={{ background: "rgba(5,6,8,0.78)", backdropFilter: "blur(6px)" }}
+          onClick={handleClose}
+          aria-hidden
+        />
+      ) : null}
+      <div
+        className={
+          prog
+            ? "relative z-10 w-full max-w-md rounded-t-3xl sm:rounded-3xl p-5 sm:p-6 max-h-[90vh] overflow-y-auto border"
+            : "w-full max-w-md rounded-t-3xl sm:rounded-3xl bg-[#faf8f5] p-5 sm:p-6 shadow-xl max-h-[90vh] overflow-y-auto"
+        }
+        style={
+          prog
+            ? {
+                background: "#0d0e10",
+                borderColor: "rgba(255,255,255,0.08)",
+                boxShadow: "0 0 0 1px rgba(255,255,255,0.08), 0 32px 80px rgba(0,0,0,0.65)",
+              }
+            : undefined
+        }
+      >
         {step === 1 && (
           <div className="space-y-4">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-[#64748b]">{title}</p>
-              <p className="text-lg font-semibold text-[#1e293b]">{day}</p>
+              <p
+                className={`text-xs font-semibold uppercase tracking-wide ${prog ? "" : "text-[#64748b]"}`}
+                style={prog ? { color: "rgba(232,230,224,0.45)" } : undefined}
+              >
+                {title}
+              </p>
+              <p className={`text-lg font-semibold ${prog ? "text-white" : "text-[#1e293b]"}`}>{day}</p>
             </div>
             {strava ? (
-              <div className="rounded-xl border border-black/[0.06] bg-white p-4 text-sm text-[#334155] space-y-1">
-                <p className="font-semibold text-[#1e293b]">Strava detected</p>
+              <div
+                className={`rounded-xl border p-4 text-sm space-y-1 ${prog ? "" : "border-black/[0.06] bg-white text-[#334155]"}`}
+                style={
+                  prog
+                    ? {
+                        borderColor: "rgba(255,255,255,0.08)",
+                        background: "rgba(255,255,255,0.04)",
+                        color: "rgba(232,230,224,0.88)",
+                      }
+                    : undefined
+                }
+              >
+                <p className={`font-semibold ${prog ? "text-white" : "text-[#1e293b]"}`}>Strava detected</p>
                 <p>
                   Distance: {strava.distanceKm} km (planned: {plannedKm} km)
                 </p>
@@ -199,21 +271,54 @@ export function NoviceCheckinModal({
                 <p>Avg pace: {formatMinPerKm(strava.avgPaceSecPerKm)}</p>
               </div>
             ) : (
-              <p className="text-sm text-[#475569]">Planned distance: {plannedKm} km</p>
+              <p className="text-sm" style={prog ? { color: "rgba(232,230,224,0.72)" } : { color: "#475569" }}>
+                Planned distance: {plannedKm} km
+              </p>
             )}
-            <p className="text-sm font-medium text-[#1e293b]">Did you complete this session?</p>
+            <p className="text-sm font-medium" style={prog ? { color: "white" } : { color: "#1e293b" }}>
+              Did you complete this session?
+            </p>
             <div className="flex flex-col gap-2">
-              <button type="button" className={btnPrimary} onClick={() => { setCompletion("full"); setStep(2); }}>
+              <button
+                type="button"
+                className={btnPrimaryCls}
+                style={btnPrimaryStyle}
+                onClick={() => {
+                  setCompletion("full");
+                  setStep(2);
+                }}
+              >
                 Yes, completed
               </button>
-              <button type="button" className={btnSecondary} onClick={() => { setCompletion("partial"); setStep(2); }}>
+              <button
+                type="button"
+                className={btnSecondaryCls}
+                style={btnSecondaryStyle}
+                onClick={() => {
+                  setCompletion("partial");
+                  setStep(2);
+                }}
+              >
                 Partial — I stopped early
               </button>
-              <button type="button" className={btnMuted} onClick={() => { setCompletion("skip"); setStep(2); }}>
+              <button
+                type="button"
+                className={btnMutedCls}
+                style={btnMutedStyle}
+                onClick={() => {
+                  setCompletion("skip");
+                  setStep(2);
+                }}
+              >
                 No — skip this one
               </button>
             </div>
-            <button type="button" className="text-sm text-[#64748b] underline" onClick={handleClose}>
+            <button
+              type="button"
+              className="text-sm underline"
+              style={{ color: prog ? "rgba(232,230,224,0.55)" : "#64748b" }}
+              onClick={handleClose}
+            >
               Close
             </button>
           </div>
@@ -221,7 +326,9 @@ export function NoviceCheckinModal({
 
         {step === 2 && completion !== "skip" && (
           <div className="space-y-4">
-            <p className="text-sm font-medium text-[#1e293b]">How hard did this feel?</p>
+            <p className="text-sm font-medium" style={prog ? { color: "white" } : { color: "#1e293b" }}>
+              How hard did this feel?
+            </p>
             <div className="flex flex-wrap justify-center gap-1.5">
               {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => (
                 <button
@@ -232,15 +339,28 @@ export function NoviceCheckinModal({
                     setStep(3);
                   }}
                   className={`h-10 w-9 rounded-lg text-sm font-semibold border transition ${
-                    userRpe === n ? "border-[#2d6a4f] bg-[#ecfdf5] text-[#14532d]" : "border-[#e2e8f0] bg-white text-[#475569]"
+                    userRpe === n
+                      ? prog
+                        ? "border-[var(--accent)] bg-[rgba(45,212,191,0.15)] text-[var(--accent)]"
+                        : "border-[#2d6a4f] bg-[#ecfdf5] text-[#14532d]"
+                      : prog
+                        ? "border-white/10 bg-white/5 text-[rgba(232,230,224,0.85)]"
+                        : "border-[#e2e8f0] bg-white text-[#475569]"
                   }`}
                 >
                   {n}
                 </button>
               ))}
             </div>
-            <p className="text-center text-xs text-[#94a3b8]">Easy ←————————————→ Maximum</p>
-            <button type="button" className="text-sm text-[#64748b] underline" onClick={() => setStep(1)}>
+            <p className="text-center text-xs" style={{ color: prog ? "rgba(232,230,224,0.45)" : "#94a3b8" }}>
+              Easy ←————————————→ Maximum
+            </p>
+            <button
+              type="button"
+              className="text-sm underline"
+              style={{ color: prog ? "rgba(232,230,224,0.55)" : "#64748b" }}
+              onClick={() => setStep(1)}
+            >
               Back
             </button>
           </div>
@@ -248,7 +368,9 @@ export function NoviceCheckinModal({
 
         {step === 2 && completion === "skip" && (
           <div className="space-y-3">
-            <p className="text-sm font-medium text-[#1e293b]">Why did you skip?</p>
+            <p className="text-sm font-medium" style={prog ? { color: "white" } : { color: "#1e293b" }}>
+              Why did you skip?
+            </p>
             <div className="flex flex-col gap-2">
               {(
                 [
@@ -268,20 +390,31 @@ export function NoviceCheckinModal({
                   }}
                   className={`rounded-xl border px-4 py-3 text-left text-sm font-medium transition ${
                     key === "injury"
-                      ? "border-[#f59e0b] bg-[#fffbeb] text-[#92400e]"
-                      : "border-[#e2e8f0] bg-white text-[#334155]"
+                      ? prog
+                        ? "border-[#f59e0b] bg-[rgba(245,180,84,0.1)] text-[#f5b454]"
+                        : "border-[#f59e0b] bg-[#fffbeb] text-[#92400e]"
+                      : prog
+                        ? "border-white/10 bg-white/5 text-[rgba(232,230,224,0.9)]"
+                        : "border-[#e2e8f0] bg-white text-[#334155]"
                   }`}
                 >
                   {label}
                   {key === "injury" ? (
-                    <span className="mt-1 block text-xs font-normal text-[#b45309]">
+                    <span
+                      className={`mt-1 block text-xs font-normal ${prog ? "text-[#fbbf24]" : "text-[#b45309]"}`}
+                    >
                       We will pause your plan and check in with you.
                     </span>
                   ) : null}
                 </button>
               ))}
             </div>
-            <button type="button" className="text-sm text-[#64748b] underline" onClick={() => setStep(1)}>
+            <button
+              type="button"
+              className="text-sm underline"
+              style={{ color: prog ? "rgba(232,230,224,0.55)" : "#64748b" }}
+              onClick={() => setStep(1)}
+            >
               Back
             </button>
           </div>
@@ -289,17 +422,33 @@ export function NoviceCheckinModal({
 
         {step === 3 && (
           <div className="space-y-4">
-            <p className="text-lg font-semibold text-[#166534]">{title} logged ✓</p>
-            <p className="text-sm text-[#475569] leading-relaxed">{summaryLine}</p>
-            {error ? <p className="text-sm text-red-600">{error}</p> : null}
-            {saving ? <p className="text-sm text-[#94a3b8]">Saving…</p> : null}
+            <p className="text-lg font-semibold" style={{ color: prog ? "#5DCAA5" : "#166534" }}>
+              {title} logged ✓
+            </p>
+            <p className="text-sm leading-relaxed" style={prog ? { color: "rgba(232,230,224,0.72)" } : { color: "#475569" }}>
+              {summaryLine}
+            </p>
+            {error ? <p className="text-sm text-red-500">{error}</p> : null}
+            {saving ? (
+              <p className="text-sm" style={{ color: prog ? "rgba(232,230,224,0.45)" : "#94a3b8" }}>
+                Saving…
+              </p>
+            ) : null}
             {!saving && !error ? (
-              <button type="button" className={btnPrimary} onClick={handleClose}>
+              <button type="button" className={btnPrimaryCls} style={btnPrimaryStyle} onClick={handleClose}>
                 Continue
               </button>
             ) : null}
             {error ? (
-              <button type="button" className={btnSecondary} onClick={() => { submittedRef.current = false; void runSubmit(); }}>
+              <button
+                type="button"
+                className={btnSecondaryCls}
+                style={btnSecondaryStyle}
+                onClick={() => {
+                  submittedRef.current = false;
+                  void runSubmit();
+                }}
+              >
                 Retry
               </button>
             ) : null}

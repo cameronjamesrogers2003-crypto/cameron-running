@@ -46,6 +46,8 @@ export type NovicePlanPageClientProps = {
   weekMeta: Record<number, { repeated?: boolean; reduced?: boolean }>;
   currentWeek: number;
   goalBadge: "5K Program" | "10K Program";
+  /** When true, renders inside `/program` with dark shell (no duplicate light page chrome). */
+  embedInProgram?: boolean;
 };
 
 function sessionState(
@@ -75,7 +77,7 @@ function summaryFromRow(row: SerializedCheckin): NoviceCheckinSummary {
 }
 
 export function NovicePlanPageClient(props: NovicePlanPageClientProps) {
-  const { plan, config, checkinsByWeek, evaluations, weekMeta, currentWeek, goalBadge } = props;
+  const { plan, config, checkinsByWeek, evaluations, weekMeta, currentWeek, goalBadge, embedInProgram = false } = props;
   const router = useRouter();
   const [selectedWeek, setSelectedWeek] = useState(currentWeek);
   const [pending, setPending] = useState<PendingMatch[]>([]);
@@ -188,24 +190,65 @@ export function NovicePlanPageClient(props: NovicePlanPageClientProps) {
   }, []);
 
   if (!weekRow) {
-    return <p className="text-center text-[#64748b] py-8">No sessions planned for this week.</p>;
+    return (
+      <p
+        className={`text-center py-8 ${embedInProgram ? "text-[var(--text-muted)]" : "text-[#64748b]"}`}
+      >
+        No sessions planned for this week.
+      </p>
+    );
   }
 
+  const skin = embedInProgram ? "program" : "default";
+  const weekStripVariant = embedInProgram ? "program" : "default";
+
+  const headerInner = (
+    <div className="flex flex-wrap items-center gap-2 text-sm sm:text-base">
+      <span
+        className={`rounded-full px-3 py-1 text-xs font-semibold ${
+          embedInProgram ? "" : "bg-[#2d6a4f] text-white"
+        }`}
+        style={
+          embedInProgram
+            ? {
+                background: "rgba(45,212,191,0.15)",
+                color: "var(--accent)",
+                border: "1px solid rgba(45,212,191,0.35)",
+              }
+            : undefined
+        }
+      >
+        {goalBadge}
+      </span>
+      <span
+        className="font-medium"
+        style={{ color: embedInProgram ? "rgba(232,230,224,0.92)" : "#334155" }}
+      >
+        Week {selectedWeek} of {totalWeeks}
+      </span>
+      <span style={{ color: embedInProgram ? "rgba(232,230,224,0.35)" : "#94a3b8" }}>·</span>
+      <span style={{ color: embedInProgram ? "var(--text-muted)" : "#64748b" }}>{weeksRemaining} weeks to go</span>
+      <Link
+        href="/plan/novice/progress"
+        className={`ml-auto text-sm font-medium underline ${embedInProgram ? "" : "text-[#2d6a4f]"}`}
+        style={embedInProgram ? { color: "var(--accent)" } : undefined}
+      >
+        My Progress →
+      </Link>
+    </div>
+  );
+
   return (
-    <div className="max-w-[680px] mx-auto w-full px-3 sm:px-4 pb-28">
-      <header className="sticky top-0 z-30 -mx-3 sm:-mx-4 px-3 sm:px-4 py-3 bg-[#f5f2eb]/95 backdrop-blur border-b border-black/[0.06] mb-4">
-        <div className="flex flex-wrap items-center gap-2 text-sm sm:text-base">
-          <span className="rounded-full bg-[#2d6a4f] px-3 py-1 text-xs font-semibold text-white">{goalBadge}</span>
-          <span className="text-[#334155] font-medium">
-            Week {selectedWeek} of {totalWeeks}
-          </span>
-          <span className="text-[#94a3b8]">·</span>
-          <span className="text-[#64748b]">{weeksRemaining} weeks to go</span>
-          <Link href="/plan/novice/progress" className="ml-auto text-sm font-medium underline text-[#2d6a4f]">
-            My Progress →
-          </Link>
+    <div className={embedInProgram ? "w-full pb-6" : "max-w-[680px] mx-auto w-full px-3 sm:px-4 pb-28"}>
+      {embedInProgram ? (
+        <div className="mb-5 pb-4 border-b" style={{ borderColor: "rgba(255,255,255,0.08)" }}>
+          {headerInner}
         </div>
-      </header>
+      ) : (
+        <header className="sticky top-0 z-30 -mx-3 sm:-mx-4 px-3 sm:px-4 py-3 bg-[#f5f2eb]/95 backdrop-blur border-b border-black/[0.06] mb-4">
+          {headerInner}
+        </header>
+      )}
 
       <NoviceWeekStrip
         totalWeeks={totalWeeks}
@@ -214,6 +257,7 @@ export function NovicePlanPageClient(props: NovicePlanPageClientProps) {
         onSelectWeek={setSelectedWeek}
         weekMeta={weekMeta}
         evaluatedWeeks={evaluatedWeeks}
+        variant={weekStripVariant}
       />
 
       <div className="mt-6 space-y-4">
@@ -226,13 +270,18 @@ export function NovicePlanPageClient(props: NovicePlanPageClientProps) {
             evaluationId={latestNonProgress.id}
             decision={latestNonProgress.adaptiveDecision as AdaptiveDecision}
             reason={latestNonProgress.decisionReason}
+            skin={skin}
           />
         ) : null}
 
         {orderedSlots.map(({ day, session }) => {
           if (!session) {
             return (
-              <p key={day} className="text-sm text-[#64748b] py-2">
+              <p
+                key={day}
+                className="text-sm py-2"
+                style={{ color: embedInProgram ? "var(--text-muted)" : "#64748b" }}
+              >
                 Rest day — recover well
               </p>
             );
@@ -252,6 +301,7 @@ export function NovicePlanPageClient(props: NovicePlanPageClientProps) {
                 readOnly={readOnly}
                 onOpenCheckin={readOnly || !canCheckIn ? noopSession : () => openCheckin(session)}
                 onOpenReadonly={readOnly && checkin ? noopReadonly : undefined}
+                skin={skin}
               />
             );
           }
@@ -265,6 +315,7 @@ export function NovicePlanPageClient(props: NovicePlanPageClientProps) {
               readOnly={readOnly}
               onOpenCheckin={readOnly || !canCheckIn ? noopSession : () => openCheckin(session)}
               onOpenReadonly={readOnly && checkin ? noopReadonly : undefined}
+              skin={skin}
             />
           );
         })}
@@ -289,13 +340,16 @@ export function NovicePlanPageClient(props: NovicePlanPageClientProps) {
         isFinalSessionOfWeek={modalSession ? isFinalSession(modalSession) : false}
         onOptimistic={onOptimistic}
         onRevertOptimistic={onRevert}
+        surface={embedInProgram ? "program" : "cream"}
       />
 
-      <p className="mt-10 text-center text-sm text-[#94a3b8]">
-        <Link href="/program" className="underline text-[#475569]">
-          Open full program view
-        </Link>
-      </p>
+      {!embedInProgram ? (
+        <p className="mt-10 text-center text-sm text-[#94a3b8]">
+          <Link href="/program" className="underline text-[#475569]">
+            Open full program view
+          </Link>
+        </p>
+      ) : null}
     </div>
   );
 }

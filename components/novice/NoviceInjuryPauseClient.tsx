@@ -19,7 +19,7 @@ export function NoviceInjuryPauseClient({ currentWeek }: { currentWeek: number }
         body: JSON.stringify({ weekNumber: currentWeek }),
       });
       if (!res.ok) throw new Error("resume_failed");
-      router.push("/plan/novice");
+      router.push("/program");
       router.refresh();
     } catch {
       setErr("We couldn't resume your plan. Try again.");

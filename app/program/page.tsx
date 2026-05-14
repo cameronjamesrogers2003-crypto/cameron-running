@@ -11,9 +11,10 @@ import {
   parsePlanFirstSessionDay,
 } from "@/lib/planUtils";
 import { formatAEST, sameDayAEST, startOfDayAEST } from "@/lib/dateUtils";
+import type { UserSettings } from "@/lib/settings";
 import { dbSettingsToUserSettings, DEFAULT_SETTINGS } from "@/lib/settings";
 import { parseInterruptionType, reconfigurePlan, type PlanInterruption } from "@/lib/interruptions";
-import { loadGeneratedPlan } from "@/lib/planStorage";
+import { loadGeneratedPlan, GENERATED_PLAN_ID } from "@/lib/planStorage";
 import PhaseOverview from "./PhaseOverview";
 import ProgramSidePanel from "./ProgramSidePanel";
 import PlanAdjustments from "./PlanAdjustments";
@@ -28,8 +29,55 @@ import { phaseChipStyle } from "@/lib/phaseChipStyle";
 import { formatProgramDistanceKm } from "@/lib/planDistanceKm";
 import { EmptyState } from "@/components/EmptyState";
 import { Calendar } from "lucide-react";
-import Link from "next/link";
+import {
+  NovicePlanPageClient,
+  type SerializedCheckin,
+  type SerializedEval,
+} from "@/components/novice/NovicePlanPageClient";
 import { buildWorkoutStructure, type WorkoutContext } from "@/lib/workoutStructure";
+
+function parseProgramTrainingDays(trainingDaysJson: string | null): Day[] {
+  if (!trainingDaysJson) return [];
+  try {
+    const parsed = JSON.parse(trainingDaysJson) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((d): d is Day =>
+      d === "mon" || d === "tue" || d === "wed" || d === "thu" || d === "fri" || d === "sat" || d === "sun",
+    );
+  } catch {
+    return [];
+  }
+}
+
+function inferNovicePlanConfig(
+  settings: UserSettings,
+  plan: TrainingWeek[],
+  stored: Awaited<ReturnType<typeof loadGeneratedPlan>>,
+): PlanConfig {
+  if (stored?.config) return stored.config;
+  const parsed = parseProgramTrainingDays(settings.trainingDays);
+  const days = parsed.length ? parsed : (["tue", "thu", "sat"] as Day[]);
+  const wLen = plan.length;
+  const weeks: PlanConfig["weeks"] = ([8, 12, 16, 20] as const).find((n) => n === wLen) ?? 12;
+  const long =
+    settings.longRunDay === "mon" ||
+    settings.longRunDay === "tue" ||
+    settings.longRunDay === "wed" ||
+    settings.longRunDay === "thu" ||
+    settings.longRunDay === "fri" ||
+    settings.longRunDay === "sat" ||
+    settings.longRunDay === "sun"
+      ? settings.longRunDay
+      : undefined;
+  return {
+    level: "NOVICE",
+    goal: settings.goalRace === "10K" ? "10k" : "5k",
+    weeks,
+    days,
+    longRunDay: long,
+    vdot: settings.currentVdot,
+  };
+}
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Runshift — Program" };
@@ -282,6 +330,66 @@ export default async function ProgramPage({
     todayMidnight,
   );
 
+  const noviceUsesProgramHub = runnerLevel === "NOVICE" && planToRender.length > 0;
+
+  let noviceCheckinsByWeek: Record<number, SerializedCheckin[]> = {};
+  const noviceWeekMeta: Record<number, { repeated?: boolean; reduced?: boolean }> = {};
+  let noviceEvaluations: SerializedEval[] = [];
+
+  if (noviceUsesProgramHub) {
+    const [checkins, evaluations, mutations] = await Promise.all([
+      prisma.noviceSessionCheckin.findMany({
+        where: { planId: GENERATED_PLAN_ID },
+        orderBy: { createdAt: "asc" },
+      }),
+      prisma.noviceWeeklyEvaluation.findMany({
+        where: { planId: GENERATED_PLAN_ID },
+        orderBy: { evaluatedAt: "desc" },
+      }),
+      prisma.novicePlanMutation.findMany({
+        where: { planId: GENERATED_PLAN_ID },
+        orderBy: { createdAt: "asc" },
+      }),
+    ]);
+
+    for (const c of checkins) {
+      const row: SerializedCheckin = {
+        sessionId: c.sessionId,
+        weekNumber: c.weekNumber,
+        completed: c.completed,
+        userRpe: c.userRpe,
+        skippedReason: c.skippedReason,
+        actualDistanceKm: c.actualDistanceKm,
+        distanceCompletionRatio: c.distanceCompletionRatio,
+      };
+      if (!noviceCheckinsByWeek[c.weekNumber]) noviceCheckinsByWeek[c.weekNumber] = [];
+      noviceCheckinsByWeek[c.weekNumber].push(row);
+    }
+
+    for (const m of mutations) {
+      if (m.mutationType === "REPEAT_WEEK") {
+        noviceWeekMeta[m.weekNumber] = { ...noviceWeekMeta[m.weekNumber], repeated: true };
+      }
+      if (m.mutationType === "REDUCE_LOAD") {
+        noviceWeekMeta[m.weekNumber] = { ...noviceWeekMeta[m.weekNumber], reduced: true };
+      }
+    }
+
+    noviceEvaluations = evaluations.map((e) => ({
+      id: e.id,
+      weekNumber: e.weekNumber,
+      adaptiveDecision: e.adaptiveDecision,
+      decisionReason: e.decisionReason,
+      evaluatedAt: e.evaluatedAt.toISOString(),
+    }));
+  }
+
+  const novicePlanConfig = noviceUsesProgramHub
+    ? inferNovicePlanConfig(settings, planToRender, storedPlan)
+    : null;
+  const noviceGoalBadge: "5K Program" | "10K Program" =
+    novicePlanConfig?.goal === "10k" ? "10K Program" : "5K Program";
+
   // Race date warning info
   const lastPlanWeek = planToRender[planToRender.length - 1];
   const planEndDateStr = lastPlanWeek ? fmtWeekStartDate(lastPlanWeek.week + 1, planStart) : "";
@@ -318,15 +426,6 @@ export default async function ProgramPage({
           </div>
         </div>
 
-        {runnerLevel === "NOVICE" && (
-          <div className="mb-5 rounded-2xl border border-white/[0.1] bg-white/[0.04] px-4 py-3 text-sm">
-            <span style={{ color: "var(--text-muted)" }}>Prefer a calmer view with check-ins? </span>
-            <Link href="/plan/novice" className="font-semibold underline underline-offset-2" style={{ color: "var(--accent)" }}>
-              Open your beginner-friendly plan
-            </Link>
-          </div>
-        )}
-
         {/* Race flag banner (only when plan extends past race date) */}
         {extendsPastRace && settings.raceDate && (
           <RaceFlagBanner
@@ -349,6 +448,19 @@ export default async function ProgramPage({
         )}
 
         {/* Plan sections */}
+        {noviceUsesProgramHub && novicePlanConfig ? (
+          <NovicePlanPageClient
+            embedInProgram
+            plan={planToRender}
+            config={novicePlanConfig}
+            checkinsByWeek={noviceCheckinsByWeek}
+            evaluations={noviceEvaluations}
+            weekMeta={noviceWeekMeta}
+            currentWeek={currentWeek}
+            goalBadge={noviceGoalBadge}
+          />
+        ) : (
+        <>
         {sections.map((section) => {
           const phaseStart  = section.weeks[0].week;
           const phaseEnd    = section.weeks[section.weeks.length - 1].week;
@@ -725,6 +837,8 @@ export default async function ProgramPage({
             </section>
           );
         })}
+        </>
+        )}
         <PlanHistoryPanel
           items={adaptationHistory.map((item) => ({
             id: item.id,

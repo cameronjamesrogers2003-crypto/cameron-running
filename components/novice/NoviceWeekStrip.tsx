@@ -10,6 +10,8 @@ export type NoviceWeekStripProps = {
   onSelectWeek: (w: number) => void;
   weekMeta: Record<number, { repeated?: boolean; reduced?: boolean }>;
   evaluatedWeeks: Set<number>;
+  /** Matches main Training Program hub (dark). */
+  variant?: "default" | "program";
 };
 
 export function NoviceWeekStrip({
@@ -19,7 +21,9 @@ export function NoviceWeekStrip({
   onSelectWeek,
   weekMeta,
   evaluatedWeeks,
+  variant = "default",
 }: NoviceWeekStripProps) {
+  const program = variant === "program";
   const pillRefs = useRef<Map<number, HTMLButtonElement>>(new Map());
 
   useEffect(() => {
@@ -42,17 +46,17 @@ export function NoviceWeekStrip({
         const isCurrent = w === currentWeek;
         const isPastPending = isPast && !isDone;
 
-        let bg = "#e2e8f0";
+        let bg = program ? "rgba(255,255,255,0.06)" : "#e2e8f0";
         let border = "transparent";
         let scale = "scale(1)";
         if (isCurrent) {
-          bg = "#fff";
-          border = "#2d6a4f";
+          bg = program ? "rgba(45,212,191,0.12)" : "#fff";
+          border = program ? "rgba(45,212,191,0.55)" : "#2d6a4f";
           scale = "scale(1.12)";
         } else if (isDone) {
           bg = "#22c55e";
         } else if (isPastPending) {
-          bg = "#cbd5e1";
+          bg = program ? "rgba(255,255,255,0.04)" : "#cbd5e1";
         }
 
         return (
@@ -71,13 +75,30 @@ export function NoviceWeekStrip({
                 background: bg,
                 borderColor: border,
                 transform: isCurrent ? scale : "scale(1)",
-                boxShadow: selected ? "0 0 0 2px rgba(45,106,79,0.25)" : undefined,
+                boxShadow:
+                  selected && program
+                    ? "0 0 0 2px rgba(45,212,191,0.25)"
+                    : selected
+                      ? "0 0 0 2px rgba(45,106,79,0.25)"
+                      : undefined,
               }}
             >
               {isDone ? (
                 <Check className="w-4 h-4 text-white" strokeWidth={2.5} />
               ) : (
-                <span className={`text-xs font-semibold ${isCurrent ? "text-[#1e293b]" : "text-[#64748b]"}`}>{w}</span>
+                <span
+                  className={`text-xs font-semibold ${
+                    isCurrent
+                      ? program
+                        ? "text-[var(--accent)]"
+                        : "text-[#1e293b]"
+                      : program
+                        ? "text-[rgba(232,230,224,0.55)]"
+                        : "text-[#64748b]"
+                  }`}
+                >
+                  {w}
+                </span>
               )}
               {meta.repeated ? (
                 <span className="absolute -bottom-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-[#5b8fd4] text-white">
@@ -90,7 +111,11 @@ export function NoviceWeekStrip({
                 </span>
               ) : null}
             </button>
-            <span className="text-[10px] font-medium text-[#94a3b8]">W{w}</span>
+            <span
+              className={`text-[10px] font-medium ${program ? "text-[rgba(232,230,224,0.38)]" : "text-[#94a3b8]"}`}
+            >
+              W{w}
+            </span>
           </div>
         );
       })}

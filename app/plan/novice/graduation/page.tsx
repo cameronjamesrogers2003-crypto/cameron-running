@@ -10,7 +10,7 @@ export const metadata = { title: "Runshift — Program complete" };
 export default async function NoviceGraduationPage() {
   const stored = await loadGeneratedPlan();
   const rt = stored?.noviceRuntime ?? defaultNoviceRuntimeState();
-  if (rt.planStatus !== "GRADUATED") redirect("/plan/novice");
+  if (rt.planStatus !== "GRADUATED") redirect("/program");
 
   const handoff = await prisma.noviceHandoffData.findUnique({
     where: { planId: GENERATED_PLAN_ID },
@@ -20,7 +20,7 @@ export default async function NoviceGraduationPage() {
     return (
       <div className="max-w-md mx-auto px-4 py-20 text-center text-[#475569]">
         <p>We couldn&apos;t load your completion details yet. Try again shortly.</p>
-        <a className="mt-4 inline-block underline" href="/plan/novice">
+        <a className="mt-4 inline-block underline" href="/program">
           Back to plan
         </a>
       </div>
