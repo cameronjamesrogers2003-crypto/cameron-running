@@ -1,5 +1,5 @@
 import type { PlanConfig, TrainingWeek } from "@/data/trainingPlan";
-import { roundProgramDistanceKm } from "@/lib/planDistanceKm";
+import { getWeeklyTargetKm } from "@/lib/planUtils";
 
 export type AnalyticsCheckin = {
   sessionId: string;
@@ -122,8 +122,7 @@ export function computeRpeTrendSlope(points: { x: number; y: number }[]): number
 }
 
 export function plannedWeekKm(week: TrainingWeek): number {
-  const sum = week.sessions.reduce((s, sess) => s + sess.targetDistanceKm, 0);
-  return roundProgramDistanceKm(sum);
+  return getWeeklyTargetKm(week);
 }
 
 export function getRunWalkForWeek(week: TrainingWeek): { runSec: number; walkSec: number; isContinuous: boolean } {
