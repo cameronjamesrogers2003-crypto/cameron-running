@@ -1,5 +1,6 @@
 import type { TrainingWeek, Phase, Day } from "@/data/trainingPlan";
 import { toAEST, toBrisbaneYmd, startOfDayAEST } from "@/lib/dateUtils";
+import { roundProgramDistanceKm } from "@/lib/planDistanceKm";
 
 // Default week anchor when UserSettings.planStartDate is null (sat+0, sun+1, wed+4 from this Saturday).
 export const PLAN_START_DATE = new Date("2026-05-01T14:00:00.000Z");
@@ -98,7 +99,8 @@ export function getSessionDate(weekNumber: number, day: Day, planStart: Date): D
 
 /** Total planned km across all sessions in a week. */
 export function getWeeklyTargetKm(week: TrainingWeek): number {
-  return week.sessions.reduce((s, sess) => s + sess.targetDistanceKm, 0);
+  const sum = week.sessions.reduce((s, sess) => s + sess.targetDistanceKm, 0);
+  return roundProgramDistanceKm(sum);
 }
 
 /** Returns true when `date` falls on a planned session AEST calendar day (on/after plan start). */

@@ -3,6 +3,7 @@ import { checkAcwr } from "@/lib/generatePlanV2";
 import type { PlanConfigV2 } from "@/lib/generatePlanV2";
 import { buildSessionDescription, type PlanPhase } from "@/lib/sessionBuilderV2";
 import { formatPaceMinPerKm, getPacesForVdot, secondsPerKmToMinPerKm } from "@/lib/vdotTables";
+import { roundProgramDistanceKm } from "@/lib/planDistanceKm";
 
 export interface AdaptationSignals {
   missedSessions: number;
@@ -19,7 +20,8 @@ export interface AdaptationSignals {
 }
 
 export function weekTotalKm(week: TrainingWeek): number {
-  return week.sessions.reduce((s, x) => s + x.targetDistanceKm, 0);
+  const sum = week.sessions.reduce((s, x) => s + x.targetDistanceKm, 0);
+  return roundProgramDistanceKm(sum);
 }
 
 function cloneWeeks(plan: TrainingWeek[]): TrainingWeek[] {
@@ -134,7 +136,7 @@ export function applyAdaptationSignals(
         ...cur,
         sessions: cur.sessions.map((s) => ({
           ...s,
-          targetDistanceKm: Math.max(1, Math.round(s.targetDistanceKm * scale * 10) / 10),
+          targetDistanceKm: Math.max(0.25, roundProgramDistanceKm(s.targetDistanceKm * scale)),
         })),
       };
     }

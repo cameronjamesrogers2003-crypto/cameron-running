@@ -5,6 +5,7 @@ import {
   estimateSessionDurationMin,
   type PlanPhase,
 } from "@/lib/sessionBuilderV2";
+import { roundProgramDistanceKm as roundQuarterKm } from "@/lib/planDistanceKm";
 import { formatPaceMinPerKm, getPacesForVdot, secondsPerKmToMinPerKm } from "@/lib/vdotTables";
 
 export type { PlanPhase } from "@/lib/sessionBuilderV2";
@@ -408,11 +409,6 @@ function absoluteLongRunCapKm(
   if (goalDistance === "HalfMarathon") return 26;
   if (level === "NOVICE" || level === "BEGINNER") return 32;
   return 38;
-}
-
-/** Nearest 0.25 km for session distances (track/GPS-friendly). */
-function roundQuarterKm(n: number): number {
-  return Math.round(n * 4) / 4;
 }
 
 function weekSessionFloors(

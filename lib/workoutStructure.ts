@@ -1,5 +1,6 @@
 import type { RunType, Phase } from "@/data/trainingPlan";
 import { getNoviceRunWalkTransitionWeek } from "@/lib/novicePlanCaps";
+import { formatProgramDistanceKm, roundProgramDistanceKm } from "@/lib/planDistanceKm";
 
 // ── Public types ──────────────────────────────────────────────────────────────
 
@@ -92,7 +93,7 @@ function buildEasyStructure(ctx: WorkoutContext): WorkoutStructure {
       sessionPurpose: "Build consistency and time-on-feet through run/walk intervals.",
       physiologicalTarget: "Aerobic adaptation. Gradually teaching your body to handle continuous motion.",
       warmup: { label: "Start", content: `${warmup} min brisk walk. Focus on upright posture and easy breathing.` },
-      mainSet: { label: "Main", content: `${getNoviceIntervals(ctx)} until you reach ${ctx.targetDistanceKm.toFixed(1)} km.` },
+      mainSet: { label: "Main", content: `${getNoviceIntervals(ctx)} until you reach ${formatProgramDistanceKm(ctx.targetDistanceKm)} km.` },
       cooldown: { label: "Finish", content: `${cooldown} min slow walk to let your heart rate settle.` },
       effortGuidance: `Effort: RPE ${rpe} / 10 ("Conversational Pace"). You should be able to hold a full conversation easily.`,
       executionTips: [
@@ -108,12 +109,12 @@ function buildEasyStructure(ctx: WorkoutContext): WorkoutStructure {
   const isBase = isBasePhase(ctx.phase);
 
   const mainContent = isTaper
-    ? `${ctx.targetDistanceKm.toFixed(1)} km at fully conversational pace. Stay fresh — no effort today.`
+    ? `${formatProgramDistanceKm(ctx.targetDistanceKm)} km at fully conversational pace. Stay fresh — no effort today.`
     : ctx.isCutback || ctx.isRecovery
-    ? `${ctx.targetDistanceKm.toFixed(1)} km at very easy effort. Focus on loosening the legs from the week's training.`
+    ? `${formatProgramDistanceKm(ctx.targetDistanceKm)} km at very easy effort. Focus on loosening the legs from the week's training.`
     : isBase
-    ? `${ctx.targetDistanceKm.toFixed(1)} km at conversational pace throughout. If speaking full sentences feels hard, you are going too fast.`
-    : `${ctx.targetDistanceKm.toFixed(1)} km at easy recovery effort. This run supports adaptation from harder sessions — aerobic volume, not speed.`;
+    ? `${formatProgramDistanceKm(ctx.targetDistanceKm)} km at conversational pace throughout. If speaking full sentences feels hard, you are going too fast.`
+    : `${formatProgramDistanceKm(ctx.targetDistanceKm)} km at easy recovery effort. This run supports adaptation from harder sessions — aerobic volume, not speed.`;
 
   const tips: string[] = [
     "If HR drifts above Zone 2, reduce pace — even to a walk on hills.",
@@ -155,7 +156,7 @@ function buildEasyStructure(ctx: WorkoutContext): WorkoutStructure {
 function buildTempoStructure(ctx: WorkoutContext): WorkoutStructure {
   if (ctx.level === "NOVICE") {
     const km = ctx.targetDistanceKm;
-    const mainContent = `Run ${km.toFixed(1)} km by feel — aim for a pace slightly faster than your easy sessions, but do not chase a specific time. This is not a race-pace workout.`;
+    const mainContent = `Run ${formatProgramDistanceKm(km)} km by feel — aim for a pace slightly faster than your easy sessions, but do not chase a specific time. This is not a race-pace workout.`;
     return {
       sessionPurpose:
         "Introduce a sustainable step-up in effort so your next program feels familiar, not intimidating.",
@@ -366,7 +367,7 @@ function buildLongRunStructure(ctx: WorkoutContext): WorkoutStructure {
       sessionPurpose: "Develop endurance through a sustained effort of run/walk intervals.",
       physiologicalTarget: "Aerobic base building. Increasing the total duration of forward motion.",
       warmup: { label: "Start", content: `${warmup} min brisk walk. Focus on upright posture and easy breathing.` },
-      mainSet: { label: "Main", content: `${getNoviceIntervals(ctx)} for a total of ${ctx.targetDistanceKm.toFixed(1)} km.` },
+      mainSet: { label: "Main", content: `${getNoviceIntervals(ctx)} for a total of ${formatProgramDistanceKm(ctx.targetDistanceKm)} km.` },
       cooldown: { label: "After", content: `${cooldown} min slow walk. Light stretching if comfortable.` },
       effortGuidance: `Effort: RPE ${rpe} / 10 ("Conversational Pace"). Slightly more sustained but still fully conversational.`,
       executionTips: [
@@ -388,15 +389,15 @@ function buildLongRunStructure(ctx: WorkoutContext): WorkoutStructure {
 
   let mainContent: string;
   if (isTaper || ctx.isCutback) {
-    mainContent = `${km.toFixed(1)} km at easy pace throughout. This is not a training stimulus — it is about staying loose and maintaining rhythm.`;
+    mainContent = `${formatProgramDistanceKm(km)} km at easy pace throughout. This is not a training stimulus — it is about staying loose and maintaining rhythm.`;
   } else if (isBase) {
-    mainContent = `${km.toFixed(1)} km at consistent easy pace. Fully conversational from start to finish. The goal is time on feet, not pace.`;
+    mainContent = `${formatProgramDistanceKm(km)} km at consistent easy pace. Fully conversational from start to finish. The goal is time on feet, not pace.`;
   } else if (p >= 0.65 && isLong) {
-    const easyKm = Math.round(km * 0.65);
-    const progressKm = (km - easyKm).toFixed(1);
+    const easyKm = roundProgramDistanceKm(km * 0.65);
+    const progressKm = formatProgramDistanceKm(km - easyKm);
     mainContent = `${easyKm} km easy then build slightly in the final ${progressKm} km. Don't force the progression — let it happen as the engine warms up.`;
   } else {
-    mainContent = `${km.toFixed(1)} km at consistent easy pace. Aim for even, relaxed effort from start to finish.`;
+    mainContent = `${formatProgramDistanceKm(km)} km at consistent easy pace. Aim for even, relaxed effort from start to finish.`;
   }
 
   const fuelingNotes = isLong || (isFullGoal && km >= 14)

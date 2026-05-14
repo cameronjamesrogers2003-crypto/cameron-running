@@ -1,5 +1,6 @@
 import type { RunType } from "@/data/trainingPlan";
 import { formatPaceMinPerKm, getPacesForVdot } from "@/lib/vdotTables";
+import { formatProgramDistanceKm } from "@/lib/planDistanceKm";
 
 export type PlanPhase = "Base" | "Build" | "Peak" | "Taper";
 
@@ -79,11 +80,13 @@ export function buildSessionDescription(params: SessionDescriptionParams): strin
     params.type === "tempo" && is10K && (params.phase === "Build" || params.phase === "Peak");
 
   if (params.type === "easy") {
-    return `Warmup: ${EASY_WARMUP}. Run ${params.totalDistanceKm}km at easy effort (RPE 3–4, ${e}/km). Cooldown: ${ALL_COOLDOWN}.`;
+    const dk = formatProgramDistanceKm(params.totalDistanceKm);
+    return `Warmup: ${EASY_WARMUP}. Run ${dk} km at easy effort (RPE 3–4, ${e}/km). Cooldown: ${ALL_COOLDOWN}.`;
   }
 
   if (params.type === "long") {
-    let body = `Warmup: ${EASY_WARMUP}. Long run ${params.totalDistanceKm}km at easy pace (${e}/km), RPE 3–5. Focus on time on feet, not pace. Cooldown: ${ALL_COOLDOWN}.`;
+    const dk = formatProgramDistanceKm(params.totalDistanceKm);
+    let body = `Warmup: ${EASY_WARMUP}. Long run ${dk} km at easy pace (${e}/km), RPE 3–5. Focus on time on feet, not pace. Cooldown: ${ALL_COOLDOWN}.`;
     const adv = params.level === "INTERMEDIATE" || params.level === "ADVANCED";
     if (params.phase === "Peak" && adv) {
       body += ` Final 5km at threshold pace (${t}/km) — fast finish.`;
@@ -93,8 +96,9 @@ export function buildSessionDescription(params: SessionDescriptionParams): strin
 
   if (params.isRacePace === true && params.type === "tempo") {
     const paceLine = params.goalDistance === "5K" || params.goalDistance === "10K" ? t : m;
+    const dk = formatProgramDistanceKm(params.totalDistanceKm);
     return (
-      `Warmup: ${QUALITY_WARMUP}. Main set: ${params.totalDistanceKm}km at goal race pace (${paceLine}/km), RPE 7–8. This is your target finish pace — lock it in neurologically. Cooldown: ${ALL_COOLDOWN}.` +
+      `Warmup: ${QUALITY_WARMUP}. Main set: ${dk} km at goal race pace (${paceLine}/km), RPE 7–8. This is your target finish pace — lock it in neurologically. Cooldown: ${ALL_COOLDOWN}.` +
       taperQualityNote
     );
   }

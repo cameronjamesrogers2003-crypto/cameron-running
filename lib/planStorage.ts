@@ -3,6 +3,7 @@ import type { PlanConfig, TrainingWeek } from "@/data/trainingPlan";
 import type { GeneratedPlanBundle, NovicePlanRuntimeState } from "@/types/generatedPlan";
 import { defaultNoviceRuntimeState } from "@/types/generatedPlan";
 import { startOfDayAEST, toBrisbaneYmd } from "@/lib/dateUtils";
+import { roundProgramDistanceKm } from "@/lib/planDistanceKm";
 
 export const GENERATED_PLAN_ID = "singleton";
 
@@ -46,13 +47,29 @@ export function parseStoredPlanJson(
   return { weeks: [], noviceRuntime: undefined };
 }
 
+/** Snap stored plan distances to the 0.25 km grid (persist + read path). */
+function normalizeStoredPlanDistances(weeks: TrainingWeek[]): TrainingWeek[] {
+  return weeks.map((w) => ({
+    ...w,
+    totalTargetKm:
+      w.totalTargetKm != null && Number.isFinite(w.totalTargetKm)
+        ? roundProgramDistanceKm(w.totalTargetKm)
+        : w.totalTargetKm,
+    sessions: w.sessions.map((s) => ({
+      ...s,
+      targetDistanceKm: roundProgramDistanceKm(s.targetDistanceKm),
+    })),
+  }));
+}
+
 export async function saveGeneratedPlan(
   config: PlanConfig,
   planInput: TrainingWeek[] | GeneratedPlanBundle,
   lockedWeeks?: number[],
   noviceRuntimeOverride?: NovicePlanRuntimeState,
 ): Promise<void> {
-  const weeks = Array.isArray(planInput) ? planInput : planInput.weeks;
+  const weeksRaw = Array.isArray(planInput) ? planInput : planInput.weeks;
+  const weeks = normalizeStoredPlanDistances(weeksRaw);
   let noviceRuntime: NovicePlanRuntimeState | undefined = Array.isArray(planInput)
     ? noviceRuntimeOverride
     : planInput.noviceRuntime ?? noviceRuntimeOverride;
@@ -104,8 +121,10 @@ export async function loadGeneratedPlan(): Promise<{
   const config = safeJsonParse<PlanConfig>(row.configJson);
   if (!row.planJson || !config) return null;
 
-  const { weeks, noviceRuntime } = parseStoredPlanJson(row.planJson, config);
-  if (!weeks.length) return null;
+  const { weeks: weeksRaw, noviceRuntime } = parseStoredPlanJson(row.planJson, config);
+  if (!weeksRaw.length) return null;
+
+  const weeks = normalizeStoredPlanDistances(weeksRaw);
 
   const lockedWeeksRaw = row.lockedWeeks ? safeJsonParse<unknown>(row.lockedWeeks) : [];
   const lockedWeeks =

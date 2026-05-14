@@ -3,6 +3,7 @@ import { getNovicePeakWeeklyKm, getNoviceRunWalkTransitionWeek, getNoviceTempoWi
 import type { Day, Phase, PlanConfig, PlanPaceAdjust, RunType, Session, TrainingWeek } from "@/data/trainingPlan";
 import type { GeneratedPlanBundle } from "@/types/generatedPlan";
 import { defaultNoviceRuntimeState } from "@/types/generatedPlan";
+import { roundProgramDistanceKm } from "@/lib/planDistanceKm";
 
 export {
   getNovicePeakWeeklyKm,
@@ -108,9 +109,9 @@ function getQualitySessionKm(
   intervalCap: number,
 ): number {
   if (type === "interval") {
-    return round1(clamp(eachOtherRef, minSessionKm, Math.min(intervalCap, nonLongCap)));
+    return roundProgramDistanceKm(clamp(eachOtherRef, minSessionKm, Math.min(intervalCap, nonLongCap)));
   }
-  return round1(clamp(eachOtherRef, minSessionKm, Math.max(minSessionKm, nonLongCap)));
+  return roundProgramDistanceKm(clamp(eachOtherRef, minSessionKm, Math.max(minSessionKm, nonLongCap)));
 }
 
 function sumQualityDistanceKm(
@@ -367,11 +368,11 @@ function rebalanceNoviceShortRaceSessionKm(
   sessionsPerWeek: number,
 ): { L: number; E: number; T: number } {
   const n = sessionsPerWeek - 1;
-  if (n < 1) return { L: round1(L), E: round1(E), T: round1(T) };
+  if (n < 1) return { L: roundProgramDistanceKm(L), E: roundProgramDistanceKm(E), T: roundProgramDistanceKm(T) };
 
   const f = maxNoviceShortRaceLongRunFraction(sessionsPerWeek);
   if (L <= f * T + 0.02) {
-    return { L: round1(L), E: round1(E), T: round1(L + n * E) };
+    return { L: roundProgramDistanceKm(L), E: roundProgramDistanceKm(E), T: roundProgramDistanceKm(L + n * E) };
   }
 
   let Ln = Math.min(L, f * T);
@@ -396,8 +397,8 @@ function rebalanceNoviceShortRaceSessionKm(
     Ln = Math.max(NOVICE_SHORT_MIN_LONG_KM, Ln);
   }
 
-  const Tn = round1(Ln + n * En);
-  return { L: round1(Ln), E: round1(En), T: Tn };
+  const Tn = roundProgramDistanceKm(Ln + n * En);
+  return { L: roundProgramDistanceKm(Ln), E: roundProgramDistanceKm(En), T: Tn };
 }
 
 /** 
@@ -528,9 +529,9 @@ function getNoviceWeeklyDistances(
       const s = weeklyCap / T;
       L *= s;
       E *= s;
-      T = round1(L + nonLongCount * E);
-      L = round1(L);
-      E = round1(E);
+      T = roundProgramDistanceKm(L + nonLongCount * E);
+      L = roundProgramDistanceKm(L);
+      E = roundProgramDistanceKm(E);
     }
     if (nonLongCount >= 1) {
       const b2 = rebalanceNoviceShortRaceSessionKm(L, E, T, config.days.length);
@@ -542,9 +543,9 @@ function getNoviceWeeklyDistances(
       const s = weeklyCap / T;
       L *= s;
       E *= s;
-      T = round1(L + nonLongCount * E);
-      L = round1(L);
-      E = round1(E);
+      T = roundProgramDistanceKm(L + nonLongCount * E);
+      L = roundProgramDistanceKm(L);
+      E = roundProgramDistanceKm(E);
     }
   }
 
@@ -974,13 +975,13 @@ export function buildWeeklyVolumes(config: PlanConfig): { weeklyKm: number[]; is
       const cutback = !inFinalThree && phase !== "Taper" && w % every === 0;
       isCutbackArr.push(cutback);
       const { totalKm } = getNoviceWeeklyDistances(config, w, lastNonTaperWeek, weeklyKm);
-      weeklyKm.push(round1(totalKm));
+      weeklyKm.push(roundProgramDistanceKm(totalKm));
     }
-    const actualPeak = round1(weeklyKm[lastNonTaperWeek - 1] ?? weeklyKm[weeklyKm.length - 1] ?? 0);
+    const actualPeak = roundProgramDistanceKm(weeklyKm[lastNonTaperWeek - 1] ?? weeklyKm[weeklyKm.length - 1] ?? 0);
     return { weeklyKm, isCutback: isCutbackArr, peakKm: actualPeak };
   }
 
-  const peak = round1(adjustedPeakKm);
+  const peak = roundProgramDistanceKm(adjustedPeakKm);
   const startKm = getStartWeeklyKm(config.level, peak);
 
   let prev = startKm;
@@ -992,7 +993,7 @@ export function buildWeeklyVolumes(config: PlanConfig): { weeklyKm: number[]; is
     isCutbackArr.push(cutback);
 
     if (phase === "Taper") {
-      weeklyKm.push(round1(taperWeeklyKm(config, peak, w)));
+      weeklyKm.push(roundProgramDistanceKm(taperWeeklyKm(config, peak, w)));
       continue;
     }
     const progress = lastNonTaperWeek <= 1 ? 1 : (w - 1) / (lastNonTaperWeek - 1);
@@ -1006,7 +1007,7 @@ export function buildWeeklyVolumes(config: PlanConfig): { weeklyKm: number[]; is
 
     if (cutback) next = next * (1 - reduce);
 
-    weeklyKm.push(round1(next));
+    weeklyKm.push(roundProgramDistanceKm(next));
     prev = next;
   }
 
@@ -1015,11 +1016,11 @@ export function buildWeeklyVolumes(config: PlanConfig): { weeklyKm: number[]; is
       const w = i + 1;
       if (phaseForWeek(config, w) === "Taper") continue;
       const prevW = weeklyKm[i - 1];
-      weeklyKm[i] = round1(Math.min(weeklyKm[i], prevW * 1.18));
+      weeklyKm[i] = roundProgramDistanceKm(Math.min(weeklyKm[i], prevW * 1.18));
     }
   }
 
-  return { weeklyKm, isCutback: isCutbackArr, peakKm: round1(peak) };
+  return { weeklyKm, isCutback: isCutbackArr, peakKm: roundProgramDistanceKm(peak) };
 }
 
 function buildLongRuns(config: PlanConfig, weeklyKm: number[], isCutback: boolean[]): number[] {
@@ -1043,7 +1044,7 @@ function buildLongRuns(config: PlanConfig, weeklyKm: number[], isCutback: boolea
       // Reduce proportionally to weekly volume drop vs peak week volume.
       const peakWeekKm = weeklyKm[lastNonTaperWeek - 1] || weeklyKm.find((_, i) => i + 1 === lastNonTaperWeek) || 1;
       const frac = clamp((weeklyKm[w - 1] ?? 0) / Math.max(1, peakWeekKm), 0.3, 1);
-      longKm.push(round1(curr * frac));
+      longKm.push(roundProgramDistanceKm(curr * frac));
       continue;
     }
 
@@ -1083,7 +1084,7 @@ function buildLongRuns(config: PlanConfig, weeklyKm: number[], isCutback: boolea
       const minL = getMinLongRunKm(config.level, config.goal);
       wkLong = Math.max(wkLong, minL);
     }
-    longKm.push(round1(wkLong));
+    longKm.push(roundProgramDistanceKm(wkLong));
   }
 
   return longKm;
@@ -1112,7 +1113,7 @@ export function generatePlan(config: PlanConfig): GeneratedPlanBundle {
     }
     return config.weeks;
   })();
-  const peakScheduledLongKm = round1(longKm[lastNonTaperWeek - 1] ?? 0);
+  const peakScheduledLongKm = roundProgramDistanceKm(longKm[lastNonTaperWeek - 1] ?? 0);
 
   const paceAdjust: PlanPaceAdjust | undefined = config.paceAdjust;
   const partialAdjust = {
@@ -1155,7 +1156,7 @@ export function generatePlan(config: PlanConfig): GeneratedPlanBundle {
       w,
     );
 
-    let weekKm = round1(weeklyKm[w - 1] ?? peakKm);
+    let weekKm = roundProgramDistanceKm(weeklyKm[w - 1] ?? peakKm);
 
     const minLongKm = (config.level === "NOVICE" || config.goal === "5k") ? 1.5 : 5;
     const minSessionKm = (config.level === "NOVICE" || config.goal === "5k") ? 1.0 : 3;
@@ -1177,12 +1178,12 @@ export function generatePlan(config: PlanConfig): GeneratedPlanBundle {
       const minEasy = getEasySessionMinimum(config.level);
       const qualitySessions = nonLongCount - easySessionCount;
       const minLongFloor = w >= 3 ? getMinLongRunKm(config.level, config.goal) : minLongKm;
-      weekKm = round1(
+      weekKm = roundProgramDistanceKm(
         Math.max(weekKm, minLongFloor + minEasy * easySessionCount + minSessionKm * qualitySessions),
       );
     }
 
-    const baseLongKm = round1(clamp(longKm[w - 1] ?? 0, minLongKm, weekKm));
+    const baseLongKm = roundProgramDistanceKm(clamp(longKm[w - 1] ?? 0, minLongKm, weekKm));
 
     let wkLongKm: number;
     let distributedWeekKm: number;
@@ -1197,40 +1198,40 @@ export function generatePlan(config: PlanConfig): GeneratedPlanBundle {
       // Enforce Target Band: long run should be ~22-35% of the week.
       const minWeekKm = dayList.length >= 4 ? wkLongKm / 0.35 : wkLongKm / 0.50;
       const maxWeekKm = wkLongKm / 0.22;
-      distributedWeekKm = round1(clamp(weekKm, minWeekKm, maxWeekKm));
+      distributedWeekKm = roundProgramDistanceKm(clamp(weekKm, minWeekKm, maxWeekKm));
       
       if (dayList.length === 2) {
         wkLongKm = Math.min(wkLongKm, distributedWeekKm * 0.5);
       }
       
       // Prevent non-long runs from exceeding the long run
-      nonLongCap = round1(wkLongKm);
+      nonLongCap = roundProgramDistanceKm(wkLongKm);
       
-      const remaining = round1(Math.max(0, distributedWeekKm - wkLongKm));
-      let eachOther = round1(nonLongCount > 0 ? remaining / nonLongCount : 0);
+      const remaining = roundProgramDistanceKm(Math.max(0, distributedWeekKm - wkLongKm));
+      let eachOther = roundProgramDistanceKm(nonLongCount > 0 ? remaining / nonLongCount : 0);
       
       if (eachOther < minSessionKm && nonLongCount > 0) {
         eachOther = minSessionKm;
-        distributedWeekKm = round1(wkLongKm + (eachOther * nonLongCount));
+        distributedWeekKm = roundProgramDistanceKm(wkLongKm + (eachOther * nonLongCount));
       }
       
       if (eachOther > nonLongCap && nonLongCount > 0) {
         eachOther = nonLongCap;
-        distributedWeekKm = round1(wkLongKm + (eachOther * nonLongCount));
+        distributedWeekKm = roundProgramDistanceKm(wkLongKm + (eachOther * nonLongCount));
       }
     } else {
-      const constrainedWeekKm = round1(Math.min(weekKm, baseLongKm / 0.35));
-      wkLongKm = round1(clamp(Math.max(baseLongKm, constrainedWeekKm * 0.35), minLongKm, constrainedWeekKm));
+      const constrainedWeekKm = roundProgramDistanceKm(Math.min(weekKm, baseLongKm / 0.35));
+      wkLongKm = roundProgramDistanceKm(clamp(Math.max(baseLongKm, constrainedWeekKm * 0.35), minLongKm, constrainedWeekKm));
       distributedWeekKm = constrainedWeekKm;
       if (longRunIntegrityScope(config) && phase !== "Taper") {
-        distributedWeekKm = round1(Math.max(distributedWeekKm, weekKm));
-        wkLongKm = round1(
+        distributedWeekKm = roundProgramDistanceKm(Math.max(distributedWeekKm, weekKm));
+        wkLongKm = roundProgramDistanceKm(
           clamp(Math.max(baseLongKm, distributedWeekKm * 0.35), minLongKm, distributedWeekKm),
         );
       }
-      nonLongCap = round1(wkLongKm * 0.85);
+      nonLongCap = roundProgramDistanceKm(wkLongKm * 0.85);
       if (longRunIntegrityScope(config)) {
-        nonLongCap = round1(Math.max(nonLongCap, getEasySessionMinimum(config.level)));
+        nonLongCap = roundProgramDistanceKm(Math.max(nonLongCap, getEasySessionMinimum(config.level)));
       }
     }
 
@@ -1241,22 +1242,22 @@ export function generatePlan(config: PlanConfig): GeneratedPlanBundle {
       }
     }
 
-    let remaining = round1(Math.max(0, distributedWeekKm - wkLongKm));
-    let eachOther = round1(nonLongCount > 0 ? remaining / nonLongCount : 0);
+    let remaining = roundProgramDistanceKm(Math.max(0, distributedWeekKm - wkLongKm));
+    let eachOther = roundProgramDistanceKm(nonLongCount > 0 ? remaining / nonLongCount : 0);
 
     // Bypass generic floors and redistribution for Novice, and 5K/10K goals
     if (config.level !== "NOVICE" && config.goal !== "5k" && config.goal !== "10k") {
       const minEasyDayThreshold = longRunIntegrityScope(config) ? 2 : 4;
       if (dayList.length >= minEasyDayThreshold && easySessionCount > 0 && eachOther < minEasyKm) {
-        const minRequiredWeeklyKm = round1(wkLongKm + (minEasyKm * easySessionCount));
-        distributedWeekKm = round1(Math.min(peakKm, Math.max(distributedWeekKm, minRequiredWeeklyKm)));
-        remaining = round1(Math.max(0, distributedWeekKm - wkLongKm));
-        eachOther = round1(nonLongCount > 0 ? remaining / nonLongCount : 0);
+        const minRequiredWeeklyKm = roundProgramDistanceKm(wkLongKm + (minEasyKm * easySessionCount));
+        distributedWeekKm = roundProgramDistanceKm(Math.min(peakKm, Math.max(distributedWeekKm, minRequiredWeeklyKm)));
+        remaining = roundProgramDistanceKm(Math.max(0, distributedWeekKm - wkLongKm));
+        eachOther = roundProgramDistanceKm(nonLongCount > 0 ? remaining / nonLongCount : 0);
       }
 
       if (eachOther > nonLongCap && !longRunIntegrityScope(config)) {
         eachOther = nonLongCap;
-        distributedWeekKm = round1(wkLongKm + (eachOther * nonLongCount));
+        distributedWeekKm = roundProgramDistanceKm(wkLongKm + (eachOther * nonLongCount));
       }
     }
 
@@ -1287,36 +1288,36 @@ export function generatePlan(config: PlanConfig): GeneratedPlanBundle {
       );
 
       if (easySessionCount > 0) {
-        easyKmForWeek = round1((distributedWeekKm - wkLongKm - sumQ) / easySessionCount);
+        easyKmForWeek = roundProgramDistanceKm((distributedWeekKm - wkLongKm - sumQ) / easySessionCount);
       } else {
         easyKmForWeek = 0;
-        distributedWeekKm = round1(wkLongKm + sumQ);
+        distributedWeekKm = roundProgramDistanceKm(wkLongKm + sumQ);
       }
       if (easySessionCount > 0 && easyKmForWeek < easyFloor) {
-        distributedWeekKm = round1(wkLongKm + sumQ + easyFloor * easySessionCount);
+        distributedWeekKm = roundProgramDistanceKm(wkLongKm + sumQ + easyFloor * easySessionCount);
         easyKmForWeek = easyFloor;
       }
-      distributedWeekKm = round1(
+      distributedWeekKm = roundProgramDistanceKm(
         wkLongKm + sumQ + (easySessionCount > 0 ? easyKmForWeek * easySessionCount : 0),
       );
 
       let maxNL = Math.max(qMax, easySessionCount > 0 ? easyKmForWeek : 0);
 
       if (wkLongKm + 1e-9 < maxNL * 1.4) {
-        const needLong = round1(maxNL * 1.4);
-        const trialTotal = round1(distributedWeekKm - wkLongKm + needLong);
+        const needLong = roundProgramDistanceKm(maxNL * 1.4);
+        const trialTotal = roundProgramDistanceKm(distributedWeekKm - wkLongKm + needLong);
         if (weekAcuteToChronicOk(trialTotal, w, weekTotalsHistory, weeklyKm)) {
           wkLongKm = needLong;
           distributedWeekKm = Math.max(distributedWeekKm, trialTotal);
         } else {
-          const capEasy = round1(wkLongKm / 1.4);
+          const capEasy = roundProgramDistanceKm(wkLongKm / 1.4);
           if (easySessionCount > 0 && qMax <= capEasy + 1e-9) {
             easyKmForWeek = Math.max(easyFloor, Math.min(easyKmForWeek, capEasy));
-            distributedWeekKm = round1(wkLongKm + sumQ + easyKmForWeek * easySessionCount);
+            distributedWeekKm = roundProgramDistanceKm(wkLongKm + sumQ + easyKmForWeek * easySessionCount);
           }
           maxNL = Math.max(qMax, easySessionCount > 0 ? easyKmForWeek : 0);
-          const needLong2 = round1(maxNL * 1.4);
-          const trialTotal2 = round1(distributedWeekKm - wkLongKm + needLong2);
+          const needLong2 = roundProgramDistanceKm(maxNL * 1.4);
+          const trialTotal2 = roundProgramDistanceKm(distributedWeekKm - wkLongKm + needLong2);
           if (weekAcuteToChronicOk(trialTotal2, w, weekTotalsHistory, weeklyKm)) {
             wkLongKm = needLong2;
             distributedWeekKm = Math.max(distributedWeekKm, trialTotal2);
@@ -1325,28 +1326,28 @@ export function generatePlan(config: PlanConfig): GeneratedPlanBundle {
 
         easyKmForWeek =
           easySessionCount > 0
-            ? round1((distributedWeekKm - wkLongKm - sumQ) / easySessionCount)
+            ? roundProgramDistanceKm((distributedWeekKm - wkLongKm - sumQ) / easySessionCount)
             : 0;
         if (easySessionCount > 0 && easyKmForWeek < easyFloor) {
-          distributedWeekKm = round1(wkLongKm + sumQ + easyFloor * easySessionCount);
+          distributedWeekKm = roundProgramDistanceKm(wkLongKm + sumQ + easyFloor * easySessionCount);
           easyKmForWeek = easyFloor;
         }
       }
 
       maxNL = Math.max(qMax, easySessionCount > 0 ? easyKmForWeek : 0);
       if (wkLongKm + 1e-9 < maxNL * 1.4) {
-        const needLong3 = round1(maxNL * 1.4);
-        const trialTotal3 = round1(distributedWeekKm - wkLongKm + needLong3);
+        const needLong3 = roundProgramDistanceKm(maxNL * 1.4);
+        const trialTotal3 = roundProgramDistanceKm(distributedWeekKm - wkLongKm + needLong3);
         if (weekAcuteToChronicOk(trialTotal3, w, weekTotalsHistory, weeklyKm)) {
           wkLongKm = needLong3;
           distributedWeekKm = Math.max(distributedWeekKm, trialTotal3);
         }
         easyKmForWeek =
           easySessionCount > 0
-            ? round1((distributedWeekKm - wkLongKm - sumQ) / easySessionCount)
+            ? roundProgramDistanceKm((distributedWeekKm - wkLongKm - sumQ) / easySessionCount)
             : 0;
         if (easySessionCount > 0 && easyKmForWeek < easyFloor) {
-          distributedWeekKm = round1(wkLongKm + sumQ + easyFloor * easySessionCount);
+          distributedWeekKm = roundProgramDistanceKm(wkLongKm + sumQ + easyFloor * easySessionCount);
           easyKmForWeek = easyFloor;
         }
       }
@@ -1354,42 +1355,42 @@ export function generatePlan(config: PlanConfig): GeneratedPlanBundle {
       for (let guard = 0; guard < 100; guard++) {
         const mnl = Math.max(qMax, easySessionCount > 0 ? easyKmForWeek : 0);
         if (mnl < 1e-6 || wkLongKm + 1e-9 >= mnl * 1.4) break;
-        wkLongKm = round1(wkLongKm + 0.1);
+        wkLongKm = roundProgramDistanceKm(wkLongKm + 0.1);
         if (peakScheduledLongKm > 0) {
-          const needB = round1(mnl * 1.4);
+          const needB = roundProgramDistanceKm(mnl * 1.4);
           wkLongKm = Math.min(wkLongKm, Math.max(peakScheduledLongKm, needB));
         }
       }
 
-      distributedWeekKm = round1(
+      distributedWeekKm = roundProgramDistanceKm(
         wkLongKm + sumQ + (easySessionCount > 0 ? easyKmForWeek * easySessionCount : 0),
       );
 
       if (peakScheduledLongKm > 0) {
         const mnlCap = Math.max(qMax, easySessionCount > 0 ? easyKmForWeek : 0);
-        const needL = round1(mnlCap * 1.4);
+        const needL = roundProgramDistanceKm(mnlCap * 1.4);
         const capLong = Math.max(peakScheduledLongKm, needL);
         wkLongKm = Math.min(wkLongKm, capLong);
         wkLongKm = Math.max(wkLongKm, needL);
-        distributedWeekKm = round1(
+        distributedWeekKm = roundProgramDistanceKm(
           wkLongKm + sumQ + (easySessionCount > 0 ? easyKmForWeek * easySessionCount : 0),
         );
         const mnl2 = Math.max(qMax, easySessionCount > 0 ? easyKmForWeek : 0);
         if (mnl2 > 1e-6 && wkLongKm + 1e-9 < mnl2 * 1.4 && easySessionCount > 0) {
-          const maxEasy2 = round1(wkLongKm / 1.4);
+          const maxEasy2 = roundProgramDistanceKm(wkLongKm / 1.4);
           easyKmForWeek = Math.max(easyFloor, Math.min(easyKmForWeek, maxEasy2));
-          distributedWeekKm = round1(wkLongKm + sumQ + easyKmForWeek * easySessionCount);
+          distributedWeekKm = roundProgramDistanceKm(wkLongKm + sumQ + easyKmForWeek * easySessionCount);
         }
       }
 
       for (let z = 0; z < 50; z++) {
-        const totalPre = round1(
+        const totalPre = roundProgramDistanceKm(
           wkLongKm + sumQ + (easySessionCount > 0 ? easyKmForWeek * easySessionCount : 0),
         );
         if (weekAcuteToChronicOk(totalPre, w, weekTotalsHistory, weeklyKm)) break;
         if (easySessionCount === 0 || easyKmForWeek <= easyFloor + 1e-9) break;
-        easyKmForWeek = round1(Math.max(easyFloor, easyKmForWeek - 0.2));
-        distributedWeekKm = round1(wkLongKm + sumQ + easyKmForWeek * easySessionCount);
+        easyKmForWeek = roundProgramDistanceKm(Math.max(easyFloor, easyKmForWeek - 0.2));
+        distributedWeekKm = roundProgramDistanceKm(wkLongKm + sumQ + easyKmForWeek * easySessionCount);
       }
 
       qualitySplitRef = frozenRef;
@@ -1420,7 +1421,7 @@ export function generatePlan(config: PlanConfig): GeneratedPlanBundle {
           type === "long"
             ? wkLongKm
             : type === "easy"
-              ? round1(easyKmForWeek)
+              ? roundProgramDistanceKm(easyKmForWeek)
               : getQualitySessionKm(
                   type as "tempo" | "interval",
                   qualitySplitRef,
@@ -1430,8 +1431,8 @@ export function generatePlan(config: PlanConfig): GeneratedPlanBundle {
                 );
       } else {
         km = type === "long" ? wkLongKm : 
-             type === "interval" ? round1(clamp(eachOther, minSessionKm, Math.min(intervalCap, nonLongCap))) : 
-             round1(clamp(eachOther, minSessionKm, Math.max(minSessionKm, nonLongCap)));
+             type === "interval" ? roundProgramDistanceKm(clamp(eachOther, minSessionKm, Math.min(intervalCap, nonLongCap))) : 
+             roundProgramDistanceKm(clamp(eachOther, minSessionKm, Math.max(minSessionKm, nonLongCap)));
       }
 
       const paceObj =
@@ -1467,7 +1468,7 @@ export function generatePlan(config: PlanConfig): GeneratedPlanBundle {
         id: `${w}-${day}`,
         day,
         type,
-        targetDistanceKm: round1(km),
+        targetDistanceKm: roundProgramDistanceKm(km),
         targetPaceMinPerKm,
         targetPaceFormatted: paceObj.formattedMinPerKm,
         description: "",
@@ -1503,7 +1504,7 @@ export function generatePlan(config: PlanConfig): GeneratedPlanBundle {
     });
 
     weekTotalsHistory.push(
-      round1(sessions.reduce((sum, s) => sum + s.targetDistanceKm, 0)),
+      roundProgramDistanceKm(sessions.reduce((sum, s) => sum + s.targetDistanceKm, 0)),
     );
   }
 

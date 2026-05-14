@@ -8,6 +8,7 @@ import type {
   NoviceWeeklyEvaluation,
   WeekSnapshot,
 } from "@/types/novice";
+import { roundProgramDistanceKm } from "@/lib/planDistanceKm";
 
 export const MAX_REPEAT_WEEKS = 2;
 
@@ -51,7 +52,7 @@ export function buildEvaluationInputFromCheckins(params: {
     (s) => s.type === "easy" || s.type === "long" || s.type === "tempo",
   );
   const totalSessionsPlanned = plannedSessions.length;
-  const totalPlannedKm = r1(plannedSessions.reduce((a, s) => a + s.targetDistanceKm, 0));
+  const totalPlannedKm = roundProgramDistanceKm(plannedSessions.reduce((a, s) => a + s.targetDistanceKm, 0));
 
   const completed = checkins.filter((c) => c.completed);
   const totalSessionsCompleted = completed.length;
@@ -202,7 +203,7 @@ export function weekToSnapshot(week: TrainingWeek): WeekSnapshot {
       distanceKm: s.targetDistanceKm,
       runWalkRatio: s.structure?.runWalkRatio,
     }));
-  const totalKm = r1(sessions.reduce((a, s) => a + s.distanceKm, 0));
+  const totalKm = roundProgramDistanceKm(sessions.reduce((a, s) => a + s.distanceKm, 0));
   return { weekNumber: week.week, totalKm, sessions };
 }
 
@@ -240,7 +241,7 @@ function scaleWeekSessions(week: TrainingWeek, factor: number): TrainingWeek {
     sessions: week.sessions.map((s) => {
       const scaled: Session = {
         ...s,
-        targetDistanceKm: r1(s.targetDistanceKm * factor),
+        targetDistanceKm: roundProgramDistanceKm(s.targetDistanceKm * factor),
       };
       if (scaled.structure?.runWalkRatio) {
         const { runSec, walkSec } = scaled.structure.runWalkRatio;

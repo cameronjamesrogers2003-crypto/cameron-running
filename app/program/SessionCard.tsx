@@ -7,6 +7,7 @@ import TodayLabel, { type SessionDayLabelVariant } from "./TodayLabel";
 import WorkoutModal from "./WorkoutModal";
 import type { WorkoutStructure } from "@/lib/workoutStructure";
 import type { RunType, PlanConfig } from "@/data/trainingPlan";
+import { formatProgramDistanceKm } from "@/lib/planDistanceKm";
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
@@ -170,7 +171,7 @@ export default function SessionCard(props: SessionCardProps) {
 
           {/* Target */}
           <p className="font-mono font-semibold text-sm text-white">
-            {targetKm.toFixed(1)} km {isNovice ? "" : `· ${targetPaceStr}`}
+            {formatProgramDistanceKm(targetKm)} km {isNovice ? "" : `· ${targetPaceStr}`}
           </p>
 
           {isNovice && targetRpe != null && (

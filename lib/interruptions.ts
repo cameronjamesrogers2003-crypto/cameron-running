@@ -2,6 +2,7 @@ import type { TrainingWeek, Session, PlanConfig } from "@/data/trainingPlan";
 import { PACE_ZONES } from "@/data/trainingPlan";
 import { PLAN_START_DATE } from "@/lib/planUtils";
 import { finalizePlanDisplayCopy } from "@/lib/generatePlan";
+import { roundProgramDistanceKm } from "@/lib/planDistanceKm";
 
 export type InterruptionType = "break" | "reduced_load" | "illness" | "injury";
 
@@ -80,7 +81,7 @@ function buildRecoveryWeek(
   const frac = volumeFractions[Math.min(recoveryIndex, volumeFractions.length - 1)];
 
   const sessions: Session[] = referenceWeek.sessions.map(s => {
-    const km = Math.max(3, Math.round(s.targetDistanceKm * frac * 10) / 10);
+    const km = Math.max(3, roundProgramDistanceKm(s.targetDistanceKm * frac));
     return {
       id: `${weekNumber}-${s.day}`,
       day: s.day,
@@ -109,15 +110,18 @@ function applyRampUpWeek(
   return {
     ...week,
     adaptationNote: note,
-    sessions: week.sessions.map((session) => ({
-      ...session,
-      type: forceEasy && (session.type === "tempo" || session.type === "interval") ? "easy" : session.type,
-      targetDistanceKm: Math.max(3, Math.round(session.targetDistanceKm * scale * 10) / 10),
-      description:
-        forceEasy && (session.type === "tempo" || session.type === "interval")
-          ? `${Math.max(3, Math.round(session.targetDistanceKm * scale * 10) / 10)} km easy (ramp-up)`
-          : session.description,
-    })),
+    sessions: week.sessions.map((session) => {
+      const scaled = Math.max(3, roundProgramDistanceKm(session.targetDistanceKm * scale));
+      return {
+        ...session,
+        type: forceEasy && (session.type === "tempo" || session.type === "interval") ? "easy" : session.type,
+        targetDistanceKm: scaled,
+        description:
+          forceEasy && (session.type === "tempo" || session.type === "interval")
+            ? `${scaled} km easy (ramp-up)`
+            : session.description,
+      };
+    }),
   };
 }
 

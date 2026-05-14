@@ -6,6 +6,7 @@ import { X } from "lucide-react";
 import { RunTypePill } from "@/components/RunTypePill";
 import { getSessionDisplayName } from "@/lib/runTypeStyles";
 import type { SessionCardProps } from "./SessionCard";
+import { formatProgramDistanceKm } from "@/lib/planDistanceKm";
 
 export type WorkoutModalProps = SessionCardProps & { 
   onClose: () => void;
@@ -203,7 +204,7 @@ export default function WorkoutModal(props: WorkoutModalProps) {
             {/* Key metrics */}
             <div className="flex items-baseline gap-3 flex-wrap">
               <span className="font-mono font-bold text-2xl sm:text-3xl text-white leading-none">
-                {targetKm.toFixed(1)} km
+                {formatProgramDistanceKm(targetKm)} km
               </span>
               <span
                 className="font-mono text-lg sm:text-xl font-semibold leading-none"

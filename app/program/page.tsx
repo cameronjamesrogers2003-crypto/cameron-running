@@ -25,6 +25,7 @@ import PlanHistoryPanel from "./PlanHistoryPanel";
 import SessionCard, { type SessionCardProps } from "./SessionCard";
 import { runTypeColor, getSessionDisplayName } from "@/lib/runTypeStyles";
 import { phaseChipStyle } from "@/lib/phaseChipStyle";
+import { formatProgramDistanceKm } from "@/lib/planDistanceKm";
 import { EmptyState } from "@/components/EmptyState";
 import { Calendar } from "lucide-react";
 import Link from "next/link";
@@ -377,7 +378,7 @@ export default async function ProgramPage({
                       Week{phaseTotal > 1 ? "s" : ""} {phaseStart}{phaseTotal > 1 ? `–${phaseEnd}` : ""}
                     </span>
                     <span className="text-xs" style={{ color: "var(--text-muted)" }}>
-                      ~{avgKm.toFixed(1)} km/week · easy effort only
+                      ~{formatProgramDistanceKm(avgKm)} km/week · easy effort only
                     </span>
                   </div>
                 </div>
@@ -393,7 +394,7 @@ export default async function ProgramPage({
                         Weeks {phaseStart}–{phaseEnd}
                       </span>
                       <span className="text-xs" style={{ color: "var(--text-muted)" }}>
-                        ~{avgKm.toFixed(1)} km/week avg
+                        ~{formatProgramDistanceKm(avgKm)} km/week avg
                       </span>
                     </div>
                     <span className="text-xs" style={{ color: "var(--text-muted)" }}>
@@ -688,7 +689,7 @@ export default async function ProgramPage({
 
                       {/* Total km + volume change */}
                       <div className="w-full sm:w-16 shrink-0 text-right ml-3 pt-0 sm:pt-1 flex sm:block items-center justify-between sm:justify-end gap-2">
-                        <p className="text-sm font-bold text-white font-mono">{weekTotalKm.toFixed(1)}</p>
+                        <p className="text-sm font-bold text-white font-mono">{formatProgramDistanceKm(weekTotalKm)}</p>
                         <p className="text-xs" style={{ color: "var(--text-muted)" }}>km</p>
                         {volumeChange !== null && (
                           <span

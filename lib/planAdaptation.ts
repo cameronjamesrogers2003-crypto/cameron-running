@@ -14,6 +14,7 @@ import {
   parsePlanFirstSessionDay,
 } from "@/lib/planUtils";
 import { sameDayAEST, startOfDayAEST } from "@/lib/dateUtils";
+import { roundProgramDistanceKm } from "@/lib/planDistanceKm";
 
 function round1(n: number): number {
   return Math.round(n * 10) / 10;
@@ -226,8 +227,8 @@ export async function checkAndAdaptPlan(prisma: PrismaClient): Promise<{
   const plannedBase = generatePlan(mergedConfig).weeks;
   const baseWeek = plannedBase.find((week) => week.week === targetWeekNumber);
   const baseWeekCapKm = baseWeek
-    ? round1(baseWeek.sessions.reduce((sum, session) => sum + session.targetDistanceKm, 0))
-    : round1(nextIncompleteWeek.sessions.reduce((sum, session) => sum + session.targetDistanceKm, 0));
+    ? roundProgramDistanceKm(baseWeek.sessions.reduce((sum, session) => sum + session.targetDistanceKm, 0))
+    : roundProgramDistanceKm(nextIncompleteWeek.sessions.reduce((sum, session) => sum + session.targetDistanceKm, 0));
 
   const newPlan = stored.plan.map((week) => ({
     ...week,
@@ -268,7 +269,7 @@ export async function checkAndAdaptPlan(prisma: PrismaClient): Promise<{
       mutableWeek.sessions = mutableWeek.sessions.map(s => ({
         ...s,
         targetPaceMinPerKm: round1(s.targetPaceMinPerKm * 1.05), // Reduce pace (increase min/km)
-        targetDistanceKm: round1(Math.max(getSessionMinKm("NOVICE", s.type), s.targetDistanceKm * 0.9))
+        targetDistanceKm: roundProgramDistanceKm(Math.max(getSessionMinKm("NOVICE", s.type), s.targetDistanceKm * 0.9))
       }));
       mutableWeek.adaptationNote = "Volume and pace eased due to high perceived exertion. Prioritizing recovery.";
       changes.push("Reduced Novice pace by 5% and volume by 10% due to high sRPE.");
@@ -367,7 +368,7 @@ export async function checkAndAdaptPlan(prisma: PrismaClient): Promise<{
         const minKm = getSessionMinKm(stored.config.level, session.type);
         return {
           ...session,
-          targetDistanceKm: round1(Math.max(minKm, session.targetDistanceKm * 0.9)),
+          targetDistanceKm: roundProgramDistanceKm(Math.max(minKm, session.targetDistanceKm * 0.9)),
         };
       });
       mutableWeek.adaptationNote = `Volume reduced 10% — recent runs averaging ${recent3.avg.toFixed(1)}/10`;
@@ -401,20 +402,22 @@ export async function checkAndAdaptPlan(prisma: PrismaClient): Promise<{
     ) {
       const increased = mutableWeek.sessions.map((session) => ({
         ...session,
-        targetDistanceKm: round1(session.targetDistanceKm * 1.05),
+        targetDistanceKm: roundProgramDistanceKm(session.targetDistanceKm * 1.05),
       }));
-      const increasedTotal = round1(increased.reduce((sum, session) => sum + session.targetDistanceKm, 0));
+      const increasedTotal = roundProgramDistanceKm(increased.reduce((sum, session) => sum + session.targetDistanceKm, 0));
       let adjusted = increased;
       if (increasedTotal > baseWeekCapKm && increasedTotal > 0) {
         const factor = baseWeekCapKm / increasedTotal;
         adjusted = increased.map((session) => ({
           ...session,
-          targetDistanceKm: round1(session.targetDistanceKm * factor),
+          targetDistanceKm: roundProgramDistanceKm(session.targetDistanceKm * factor),
         }));
       }
       mutableWeek.sessions = adjusted.map((session) => ({
         ...session,
-        targetDistanceKm: Math.max(getSessionMinKm(stored.config.level, session.type), session.targetDistanceKm),
+        targetDistanceKm: roundProgramDistanceKm(
+          Math.max(getSessionMinKm(stored.config.level, session.type), session.targetDistanceKm),
+        ),
       }));
       mutableWeek.adaptationNote = `Volume increased 5% — recent runs averaging ${recent3.avg.toFixed(1)}/10`;
       changes.push(`Increased all session distances in week ${targetWeekNumber} by 5% (capped by original plan).`);
@@ -489,7 +492,7 @@ export async function checkAndAdaptPlan(prisma: PrismaClient): Promise<{
         ...mutableWeek,
         sessions: mutableWeek.sessions.map((session) => ({
           ...session,
-          targetDistanceKm: round1(Math.max(getSessionMinKm(stored.config.level, session.type), session.targetDistanceKm * 0.7)),
+          targetDistanceKm: roundProgramDistanceKm(Math.max(getSessionMinKm(stored.config.level, session.type), session.targetDistanceKm * 0.7)),
         })),
         isCutback: true,
         adaptationNote:
@@ -524,7 +527,7 @@ export async function checkAndAdaptPlan(prisma: PrismaClient): Promise<{
         ...mutableWeek,
         sessions: mutableWeek.sessions.map((session) => ({
           ...session,
-          targetDistanceKm: round1(Math.max(getSessionMinKm(stored.config.level, session.type), session.targetDistanceKm * 0.7)),
+          targetDistanceKm: roundProgramDistanceKm(Math.max(getSessionMinKm(stored.config.level, session.type), session.targetDistanceKm * 0.7)),
         })),
         isCutback: true,
         adaptationNote:
@@ -592,7 +595,7 @@ export async function checkAndAdaptPlan(prisma: PrismaClient): Promise<{
         const factor = cappedWorkload / currentWeekWorkload;
         mutableWeek.sessions = mutableWeek.sessions.map(s => ({
           ...s,
-          targetDistanceKm: round1(s.targetDistanceKm * factor)
+          targetDistanceKm: roundProgramDistanceKm(s.targetDistanceKm * factor)
         }));
         changes.push("Adaptation capped to maintain ACWR below 1.30.");
       }
@@ -605,7 +608,7 @@ export async function checkAndAdaptPlan(prisma: PrismaClient): Promise<{
     if (longSession) {
       for (const session of mutableWeek.sessions) {
         if (session.type !== "long" && session.targetDistanceKm > longSession.targetDistanceKm) {
-          session.targetDistanceKm = longSession.targetDistanceKm;
+          session.targetDistanceKm = roundProgramDistanceKm(longSession.targetDistanceKm);
         }
       }
     }
